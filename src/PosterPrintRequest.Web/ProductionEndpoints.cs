@@ -32,11 +32,8 @@ public static class ProductionEndpoints
 {
     public static void MapProductionEndpoints(this WebApplication app)
     {
-        app.MapGet("/health", async (PosterPrintRequestDbContext db, IOptions<SharedStorageOptions> storage, CancellationToken cancellationToken) =>
-        {
-            var ready = await ProductionHealth.IsReadyAsync(db, storage.Value.RootPath, cancellationToken);
-            return Results.Json(new { status = ready ? "Healthy" : "Unhealthy" }, statusCode: ready ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
-        });
+        app.MapGet("/health", Ready);
+        app.MapGet("/health/ready", Ready);
 
         app.MapGet("/technician/files/{posterId}/poster", (string posterId, bool? inline, PosterPrintRequestDbContext db, AcceptedStorage storage, CancellationToken cancellationToken) =>
             SendFileAsync(posterId, approval: false, inline == true, db, storage, cancellationToken))
@@ -45,6 +42,15 @@ public static class ProductionEndpoints
         app.MapGet("/technician/files/{posterId}/approval", (string posterId, bool? inline, PosterPrintRequestDbContext db, AcceptedStorage storage, CancellationToken cancellationToken) =>
             SendFileAsync(posterId, approval: true, inline == true, db, storage, cancellationToken))
             .RequireAuthorization(PosterAccess.OperatorPolicy);
+    }
+
+    private static async Task<IResult> Ready(
+        PosterPrintRequestDbContext db,
+        IOptions<SharedStorageOptions> storage,
+        CancellationToken cancellationToken)
+    {
+        var ready = await ProductionHealth.IsReadyAsync(db, storage.Value.RootPath, cancellationToken);
+        return Results.Json(new { status = ready ? "Healthy" : "Unhealthy" }, statusCode: ready ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
     }
 
     private static async Task<IResult> SendFileAsync(

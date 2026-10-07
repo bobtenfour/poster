@@ -31,6 +31,8 @@ public sealed class DemoDeploymentTests
         Assert.Contains("\"usero\"", demo, StringComparison.Ordinal);
         Assert.Contains("\"prueba1\"", demo, StringComparison.Ordinal);
 
+        Assert.Contains("127.0.0.1:$${PORT:-8080}/health/ready", compose, StringComparison.Ordinal);
+        Assert.DoesNotContain("$${PORT:-8080}/health\\\"", compose, StringComparison.Ordinal);
         Assert.Contains("Database=POSTER", compose, StringComparison.Ordinal);
         Assert.Contains("127.0.0.1:${DEMO_HOST_PORT:-8083}:${PORT:-8080}", compose, StringComparison.Ordinal);
         Assert.Contains("posterprintrequest-demo-storage:/var/poster-print-request", compose, StringComparison.Ordinal);
@@ -89,12 +91,15 @@ public sealed class DemoDeploymentTests
                 HandleCookies = true,
                 BaseAddress = new Uri("http://poster.blueignix.com")
             });
-            var health = await client.GetAsync("/health");
-            health.EnsureSuccessStatusCode();
-            var healthBody = await health.Content.ReadAsStringAsync();
-            Assert.Contains("Healthy", healthBody, StringComparison.Ordinal);
-            Assert.DoesNotContain(storageRoot, healthBody, StringComparison.Ordinal);
-            Assert.DoesNotContain("/var/poster-print-request", healthBody, StringComparison.Ordinal);
+            foreach (var path in new[] { "/health", "/health/ready" })
+            {
+                var health = await client.GetAsync(path);
+                health.EnsureSuccessStatusCode();
+                var healthBody = await health.Content.ReadAsStringAsync();
+                Assert.Contains("Healthy", healthBody, StringComparison.Ordinal);
+                Assert.DoesNotContain(storageRoot, healthBody, StringComparison.Ordinal);
+                Assert.DoesNotContain("/var/poster-print-request", healthBody, StringComparison.Ordinal);
+            }
 
             var requester = await PosterSignIn.PostCredentialsAsync(client, "usera", PosterSignIn.Password);
             requester.EnsureSuccessStatusCode();

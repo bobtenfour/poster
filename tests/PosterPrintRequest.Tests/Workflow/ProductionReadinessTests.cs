@@ -185,11 +185,14 @@ public sealed class ProductionReadinessTests : IDisposable
         Assert.Equal(HttpStatusCode.NotFound, poisoned.StatusCode);
         Assert.DoesNotContain("secret-bytes", await poisoned.Content.ReadAsStringAsync(), StringComparison.Ordinal);
 
-        var health = await client.GetAsync("/health");
-        health.EnsureSuccessStatusCode();
-        var healthBody = await health.Content.ReadAsStringAsync();
-        Assert.Contains("Healthy", healthBody, StringComparison.Ordinal);
-        Assert.DoesNotContain(_root, healthBody, StringComparison.OrdinalIgnoreCase);
+        foreach (var path in new[] { "/health", "/health/ready" })
+        {
+            var health = await client.GetAsync(path);
+            health.EnsureSuccessStatusCode();
+            var healthBody = await health.Content.ReadAsStringAsync();
+            Assert.Contains("Healthy", healthBody, StringComparison.Ordinal);
+            Assert.DoesNotContain(_root, healthBody, StringComparison.OrdinalIgnoreCase);
+        }
 
         if (File.Exists(secret))
         {
