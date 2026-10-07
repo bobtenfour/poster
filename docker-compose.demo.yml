@@ -45,7 +45,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -fsS \"http://127.0.0.1:$${PORT:-8080}/health/ready\" >/dev/null || exit 1",
+          "curl -fsS -H \"Host: poster.blueignix.com\" \"http://127.0.0.1:$${PORT:-8080}/health/ready\" >/dev/null || exit 1",
         ]
       interval: 15s
       timeout: 5s
