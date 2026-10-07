@@ -80,11 +80,13 @@ public sealed class RoleSeparationTests
         Assert.Contains("Posters awaiting pickup", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/library\"", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
-        Assert.Contains("Consumables needing attention", html, StringComparison.Ordinal);
+        Assert.Contains("Printing Supplies", html, StringComparison.Ordinal);
+        Assert.Contains("Monitor toner, paper, and lamination stock.", html, StringComparison.Ordinal);
         Assert.Contains(">Depleted<", html, StringComparison.Ordinal);
-        Assert.Contains(">Low stock<", html, StringComparison.Ordinal);
-        Assert.Contains(">Expiring soon<", html, StringComparison.Ordinal);
-        Assert.Contains("Open inventory", html, StringComparison.Ordinal);
+        Assert.Contains(">Low Stock<", html, StringComparison.Ordinal);
+        Assert.Contains(">Expiring Soon<", html, StringComparison.Ordinal);
+        Assert.Contains("View Inventory", html, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", html, StringComparison.Ordinal);
         Assert.Contains("usero", html, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/help\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain(">Request<", html, StringComparison.Ordinal);

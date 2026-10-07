@@ -45,9 +45,17 @@ public sealed class ConsumableAlert
 {
     public required int PrintingConsumableId { get; init; }
 
+    public required string Category { get; init; }
+
     public required string Name { get; init; }
 
     public string? Code { get; init; }
+
+    public required int CurrentQuantity { get; init; }
+
+    public required string Status { get; init; }
+
+    public DateOnly? ExpirationDate { get; init; }
 
     public required string Detail { get; init; }
 }
@@ -300,8 +308,12 @@ public sealed class PrintingInventory : IPrintingInventory
     private static ConsumableAlert Alert(ConsumableRow row, string detail) => new()
     {
         PrintingConsumableId = row.PrintingConsumableId,
+        Category = row.Category,
         Name = row.Name,
         Code = row.Code,
+        CurrentQuantity = row.CurrentQuantity,
+        Status = row.Status,
+        ExpirationDate = row.ExpirationDate,
         Detail = detail
     };
 
