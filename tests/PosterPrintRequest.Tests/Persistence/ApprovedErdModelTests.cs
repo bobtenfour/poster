@@ -26,6 +26,8 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterFile),
                 nameof(PosterProcessing),
                 nameof(PosterRequest),
+                nameof(PrintingConsumable),
+                nameof(PrintingInventorySetting),
                 nameof(Reason)
             },
             names);
@@ -204,6 +206,15 @@ public sealed class ApprovedErdModelTests
         Assert.False(processing.FindProperty(nameof(PosterProcessing.Printed))!.IsNullable);
         Assert.False(processing.FindProperty(nameof(PosterProcessing.Laminated))!.IsNullable);
         Assert.False(processing.FindProperty(nameof(PosterProcessing.Notified))!.IsNullable);
+
+        var consumable = context.Model.FindEntityType(typeof(PrintingConsumable))!;
+        Assert.Equal("date", consumable.FindProperty(nameof(PrintingConsumable.ExpirationDate))!.GetColumnType());
+        Assert.True(consumable.FindProperty(nameof(PrintingConsumable.ExpirationDate))!.IsNullable);
+        Assert.True(consumable.FindProperty(nameof(PrintingConsumable.Code))!.IsNullable);
+        Assert.False(consumable.FindProperty(nameof(PrintingConsumable.HasExpirationDate))!.IsNullable);
+        Assert.False(consumable.FindProperty(nameof(PrintingConsumable.CurrentQuantity))!.IsNullable);
+        var codeIndex = consumable.GetIndexes().Single(index => index.Properties.Count == 1 && index.Properties[0].Name == nameof(PrintingConsumable.Code));
+        Assert.True(codeIndex.IsUnique);
     }
 
     private static string[] PropertyNames(Type type) =>

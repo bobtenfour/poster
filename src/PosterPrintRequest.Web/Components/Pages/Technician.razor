@@ -28,6 +28,52 @@
         </Callout>
     }
 
+    <Panel Kicker="Inventory" Title="Consumables needing attention">
+        <p class="epx-helper-text"><a href="/technician/inventory">Open inventory</a></p>
+        <h3>Depleted</h3>
+        @if (Attention.Depleted.Count == 0)
+        {
+            <p>None</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var alert in Attention.Depleted)
+                {
+                    <li><a href="@($"/technician/inventory#consumable-{alert.PrintingConsumableId}")">@alert.Name</a> @(alert.Code) — @alert.Detail</li>
+                }
+            </ul>
+        }
+        <h3>Low stock</h3>
+        @if (Attention.LowStock.Count == 0)
+        {
+            <p>None</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var alert in Attention.LowStock)
+                {
+                    <li><a href="@($"/technician/inventory#consumable-{alert.PrintingConsumableId}")">@alert.Name</a> @(alert.Code) — @alert.Detail</li>
+                }
+            </ul>
+        }
+        <h3>Expiring soon</h3>
+        @if (Attention.ExpiringSoon.Count == 0)
+        {
+            <p>None</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var alert in Attention.ExpiringSoon)
+                {
+                    <li><a href="@($"/technician/inventory#consumable-{alert.PrintingConsumableId}")">@alert.Name</a> @(alert.Code) — @alert.Detail</li>
+                }
+            </ul>
+        }
+    </Panel>
+
     <section class="epx-stat-grid" aria-label="Operational totals">
         <article class="epx-stat-card">
             <h2 class="epx-stat-label">Posters pending printing</h2>

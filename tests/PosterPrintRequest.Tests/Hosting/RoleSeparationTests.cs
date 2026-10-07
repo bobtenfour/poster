@@ -49,6 +49,7 @@ public sealed class RoleSeparationTests
         Assert.Contains(">Help<", html, StringComparison.Ordinal);
         Assert.Contains(">Request<", html, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/technician\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
 
         var denied = await client.GetAsync("/technician");
@@ -59,6 +60,8 @@ public sealed class RoleSeparationTests
 
         var library = await client.GetAsync("/technician/library");
         Assert.Contains("/Account/AccessDenied", library.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        var inventory = await client.GetAsync("/technician/inventory");
+        Assert.Contains("/Account/AccessDenied", inventory.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var file = await client.GetAsync("/technician/files/POSTER-2026-000001/poster");
         Assert.Contains("/Account/AccessDenied", file.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         Assert.DoesNotContain("%PDF", await file.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -76,11 +79,31 @@ public sealed class RoleSeparationTests
         Assert.Contains("Posters printed this month", html, StringComparison.Ordinal);
         Assert.Contains("Posters awaiting pickup", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/library\"", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
+        Assert.Contains("Consumables needing attention", html, StringComparison.Ordinal);
+        Assert.Contains(">Depleted<", html, StringComparison.Ordinal);
+        Assert.Contains(">Low stock<", html, StringComparison.Ordinal);
+        Assert.Contains(">Expiring soon<", html, StringComparison.Ordinal);
+        Assert.Contains("Open inventory", html, StringComparison.Ordinal);
         Assert.Contains("usero", html, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/help\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain(">Request<", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Students and staff", html, StringComparison.Ordinal);
+
+        var inventoryPage = await client.GetAsync("/technician/inventory");
+        inventoryPage.EnsureSuccessStatusCode();
+        var inventoryHtml = await inventoryPage.Content.ReadAsStringAsync();
+        Assert.Contains("C9403A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C9370A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C9371A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C9372A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C9373A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C9374A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C1861A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("C6814A", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("Eagle 105", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains(">None<", inventoryHtml, StringComparison.Ordinal);
 
         foreach (var path in new[] { "/", "/help", "/request" })
         {

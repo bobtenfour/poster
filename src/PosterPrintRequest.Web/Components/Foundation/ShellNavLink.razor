@@ -14,6 +14,9 @@
     public string? ExceptPrefix { get; set; }
 
     [Parameter]
+    public string? ExceptPrefix2 { get; set; }
+
+    [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     private string CssClass => IsCurrent ? "epx-nav-link active" : "epx-nav-link";
@@ -26,14 +29,9 @@
         {
             var current = CurrentPath();
             var target = Normalize(Href);
-            if (!string.IsNullOrWhiteSpace(ExceptPrefix))
+            if (IsExcluded(current, ExceptPrefix) || IsExcluded(current, ExceptPrefix2))
             {
-                var except = Normalize(ExceptPrefix);
-                if (string.Equals(current, except, StringComparison.OrdinalIgnoreCase)
-                    || current.StartsWith(except + "/", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
+                return false;
             }
 
             if (MatchAll || target == "/")
@@ -59,6 +57,18 @@
     {
         var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
         return Normalize(string.IsNullOrEmpty(relative) ? "/" : relative);
+    }
+
+    private static bool IsExcluded(string current, string? prefix)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            return false;
+        }
+
+        var except = Normalize(prefix);
+        return string.Equals(current, except, StringComparison.OrdinalIgnoreCase)
+            || current.StartsWith(except + "/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string Normalize(string href)

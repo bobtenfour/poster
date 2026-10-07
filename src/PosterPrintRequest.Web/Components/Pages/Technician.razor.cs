@@ -15,9 +15,14 @@ public partial class Technician : ComponentBase
     private ITechnicianDashboard Dashboard { get; set; } = null!;
 
     [Inject]
+    private IPrintingInventory Inventory { get; set; } = null!;
+
+    [Inject]
     private ITechnicianWorkflow Workflow { get; set; } = null!;
 
     private TechnicianDashboardSnapshot Snapshot { get; set; } = Empty();
+
+    private ConsumableAttention Attention { get; set; } = EmptyAttention();
 
     private TechnicianView? SearchView { get; set; }
 
@@ -38,6 +43,7 @@ public partial class Technician : ComponentBase
         }
 
         Snapshot = await Dashboard.LoadAsync(year, month, CancellationToken.None);
+        Attention = await Inventory.CriticalAlertsAsync(DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
         if (string.IsNullOrWhiteSpace(PosterIdQuery))
         {
             return;
@@ -53,6 +59,13 @@ public partial class Technician : ComponentBase
         SearchView = await Workflow.FindAsync(SearchId, CancellationToken.None);
         SearchState = SearchView is null ? "missing" : "found";
     }
+
+    private static ConsumableAttention EmptyAttention() => new()
+    {
+        Depleted = [],
+        LowStock = [],
+        ExpiringSoon = []
+    };
 
     private static TechnicianDashboardSnapshot Empty()
     {

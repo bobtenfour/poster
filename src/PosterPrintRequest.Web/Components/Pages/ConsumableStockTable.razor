@@ -1,0 +1,81 @@
+<div class="epx-table-wrap">
+    <table class="epx-table">
+        <thead>
+            <tr>
+                <th scope="col">Consumable</th>
+                @if (IncludeIdentity)
+                {
+                    <th scope="col">Code</th>
+                    <th scope="col">Capacity</th>
+                }
+                <th scope="col">Quantity</th>
+                <th scope="col">Critical</th>
+                <th scope="col">Low stock</th>
+                <th scope="col">Expiration</th>
+                <th scope="col">Status</th>
+                <th scope="col"><span class="epx-sr-only">Save</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var draft in Drafts)
+            {
+                <tr id="consumable-@draft.Id">
+                    <td>
+                        @if (IncludeIdentity)
+                        {
+                            <input class="epx-input" aria-label="@($"{draft.Name} name")" value="@draft.Name" @onchange="args => draft.Name = args.Value?.ToString() ?? string.Empty" />
+                        }
+                        else
+                        {
+                            <div>@draft.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(draft.Code))
+                            {
+                                <div class="epx-helper-text">@draft.Code@(string.IsNullOrWhiteSpace(draft.Capacity) ? "" : " · " + draft.Capacity)</div>
+                            }
+                        }
+                    </td>
+                    @if (IncludeIdentity)
+                    {
+                        <td><input class="epx-input" aria-label="@($"{draft.Name} code")" value="@draft.Code" @onchange="args => draft.Code = args.Value?.ToString() ?? string.Empty" /></td>
+                        <td><input class="epx-input" aria-label="@($"{draft.Name} capacity")" value="@draft.Capacity" @onchange="args => draft.Capacity = args.Value?.ToString() ?? string.Empty" /></td>
+                    }
+                    <td><input class="epx-input" aria-label="@($"{draft.Name} quantity")" inputmode="numeric" value="@draft.Quantity" @onchange="args => draft.Quantity = args.Value?.ToString() ?? string.Empty" /></td>
+                    <td><input class="epx-input" aria-label="@($"{draft.Name} critical threshold")" inputmode="numeric" value="@draft.Critical" @onchange="args => draft.Critical = args.Value?.ToString() ?? string.Empty" /></td>
+                    <td><input class="epx-input" aria-label="@($"{draft.Name} low-stock threshold")" inputmode="numeric" value="@draft.Low" @onchange="args => draft.Low = args.Value?.ToString() ?? string.Empty" /></td>
+                    <td>
+                        @if (draft.HasExpiration)
+                        {
+                            <input class="epx-input" type="date" aria-label="@($"{draft.Name} expiration date")" value="@draft.Expiration" @onchange="args => draft.Expiration = args.Value?.ToString() ?? string.Empty" />
+                        }
+                        else
+                        {
+                            <span>None</span>
+                        }
+                    </td>
+                    <td>
+                        @draft.Status
+                        @if (!string.IsNullOrWhiteSpace(draft.Error))
+                        {
+                            <p class="epx-field-error" role="alert">@draft.Error</p>
+                        }
+                    </td>
+                    <td><button class="epx-button epx-button-primary" type="button" disabled="@Busy" @onclick="() => OnSave.InvokeAsync(draft.Id)">Save</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ConsumableDraft> Drafts { get; set; } = [];
+
+    [Parameter]
+    public bool IncludeIdentity { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnSave { get; set; }
+}

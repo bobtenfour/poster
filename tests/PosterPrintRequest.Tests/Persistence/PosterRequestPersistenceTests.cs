@@ -93,6 +93,31 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
     }
 
     [Fact]
+    public void Printing_consumable_inventory_matches_the_authorized_model()
+    {
+        using var context = _database.CreateContext();
+        var columns = ReadColumns(context);
+        var uniqueColumns = ReadUniqueColumns(context);
+
+        AssertColumn(columns, "PrintingConsumables", "PrintingConsumableId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "PrintingConsumables", "Category", "nvarchar", nullable: false, characterMaximumLength: 32);
+        AssertColumn(columns, "PrintingConsumables", "Name", "nvarchar", nullable: false, characterMaximumLength: 128);
+        AssertColumn(columns, "PrintingConsumables", "Code", "nvarchar", nullable: true, characterMaximumLength: 32);
+        AssertColumn(columns, "PrintingConsumables", "Capacity", "nvarchar", nullable: true, characterMaximumLength: 80);
+        AssertColumn(columns, "PrintingConsumables", "HasExpirationDate", "bit", nullable: false);
+        AssertColumn(columns, "PrintingConsumables", "CurrentQuantity", "int", nullable: false);
+        AssertColumn(columns, "PrintingConsumables", "LowStockThreshold", "int", nullable: false);
+        AssertColumn(columns, "PrintingConsumables", "CriticalStockThreshold", "int", nullable: false);
+        AssertColumn(columns, "PrintingConsumables", "Status", "nvarchar", nullable: false, characterMaximumLength: 32);
+        AssertColumn(columns, "PrintingConsumables", "ExpirationDate", "date", nullable: true);
+        AssertColumn(columns, "PrintingConsumables", "Active", "bit", nullable: false);
+        Assert.Contains("PrintingConsumables.Code", uniqueColumns);
+
+        AssertColumn(columns, "PrintingInventorySettings", "PrintingInventorySettingId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "PrintingInventorySettings", "ExpirationWarningDays", "int", nullable: true);
+    }
+
+    [Fact]
     public void Request_with_event_persists_authorities_file_approval_sheet_and_processing()
     {
         var posterId = "POSTER-2026-000123";

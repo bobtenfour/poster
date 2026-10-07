@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosterPrintRequest.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PosterPrintRequest.Infrastructure.Persistence;
 namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PosterPrintRequestDbContext))]
-    partial class PosterPrintRequestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261007213212_AddPrintingConsumables")]
+    partial class AddPrintingConsumables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

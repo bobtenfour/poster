@@ -34,6 +34,7 @@ builder.Services.AddScoped<AcceptanceLookup>();
 builder.Services.AddScoped<ITechnicianWorkflow, TechnicianWorkflow>();
 builder.Services.AddScoped<ITechnicianDashboard, TechnicianDashboard>();
 builder.Services.AddScoped<ITechnicianLibrary, TechnicianLibrary>();
+builder.Services.AddScoped<IPrintingInventory, PrintingInventory>();
 
 if (!builder.Environment.IsDevelopment())
 {

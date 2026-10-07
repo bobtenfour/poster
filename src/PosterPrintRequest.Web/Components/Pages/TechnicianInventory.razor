@@ -1,0 +1,52 @@
+@page "/technician/inventory"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@rendermode InteractiveServer
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Inventory</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Inventory">
+    <PageHeader Kicker="Inventory" Title="Printing consumables" Subtitle="Quantities, thresholds, and expiration for cartridges, paper, and laminating materials." />
+
+    <Panel Id="expiration-warning" Kicker="Thresholds" Title="Expiration warning">
+        <p class="epx-helper-text">Leave the period blank until it is set. A recorded expiration on or before today is expired. A later date is expiring soon only when it falls inside this period. Paper has no expiration date.</p>
+        <div class="epx-tech-period">
+            <label class="epx-label" for="expiration-warning-days">Warning period in days</label>
+            <input id="expiration-warning-days" class="epx-input" inputmode="numeric" value="@WarningDays" @onchange="OnWarningDaysChanged" />
+            <button class="epx-button epx-button-secondary" type="button" disabled="@Busy" @onclick="SaveWarningAsync">Save period</button>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(WarningError))
+        {
+            <p class="epx-field-error" role="alert">@WarningError</p>
+        }
+    </Panel>
+
+    <Panel Id="cartridges" Kicker="Cartridges" Title="HP 72">
+        <p class="epx-helper-text">MK C9403A, PK C9370A, B Blue C9371A, M C9372A, Y C9373A, and G C9374A. Each cartridge is 130 ml. Enter an expiration date when the quantity is above zero.</p>
+        <ConsumableStockTable Drafts="CartridgeDrafts" Busy="Busy" OnSave="SaveAsync" />
+    </Panel>
+
+    <Panel Id="paper" Kicker="Paper" Title="Authorized paper">
+        <p class="epx-helper-text">HP Bright White Inkjet Paper C1861A and HP Photo Paper / Photo Paper Gloss C6814A. Paper has no expiration date.</p>
+        <ConsumableStockTable Drafts="PaperDrafts" Busy="Busy" OnSave="SaveAsync" />
+    </Panel>
+
+    <Panel Id="laminating" Kicker="Lamination" Title="Eagle 105 materials">
+        <p class="epx-helper-text">Eagle 105 lamination covers both faces. Record each possible material here. A new material starts at quantity 0 and Depleted, and can carry an expiration date.</p>
+        <ConsumableStockTable Drafts="LaminatingDrafts" IncludeIdentity="true" Busy="Busy" OnSave="SaveAsync" />
+        <form class="epx-tech-period" @onsubmit="AddMaterialAsync" @onsubmit:preventDefault>
+            <label class="epx-label" for="laminate-name">Material</label>
+            <input id="laminate-name" class="epx-input" value="@NewName" @onchange="OnNewNameChanged" />
+            <label class="epx-label" for="laminate-code">Code</label>
+            <input id="laminate-code" class="epx-input" value="@NewCode" @onchange="OnNewCodeChanged" />
+            <label class="epx-label" for="laminate-capacity">Capacity</label>
+            <input id="laminate-capacity" class="epx-input" value="@NewCapacity" @onchange="OnNewCapacityChanged" />
+            <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add material</button>
+        </form>
+        @if (!string.IsNullOrWhiteSpace(AddError))
+        {
+            <p class="epx-field-error" role="alert">@AddError</p>
+        }
+    </Panel>
+</section>
