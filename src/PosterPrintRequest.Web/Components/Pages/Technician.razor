@@ -62,60 +62,6 @@
                 <p class="epx-supply-action">@SupplyCardAction(Attention.ExpiringSoon.Count, "Review dates")</p>
             </article>
         </div>
-        @if (SupplyRows.Count == 0)
-        {
-            <p class="epx-supply-clear" role="status">
-                <span class="epx-supply-clear-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false"><path d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19Zm-1.1 13.2-3.3-3.3 1.4-1.4 1.9 1.9 4.1-4.1 1.4 1.4-5.5 5.5Z"/></svg>
-                </span>
-                All printing supplies are in good standing
-            </p>
-        }
-        else
-        {
-            <div class="epx-supply-list">
-                <h3>Needs attention</h3>
-                <div class="epx-table-wrap">
-                    <table class="epx-table epx-supply-table">
-                        <caption class="epx-sr-only">Printing supplies that need attention</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">Consumable</th>
-                                <th scope="col">Code</th>
-                                <th scope="col">Type</th>
-                                <th scope="col">Quantity</th>
-                                <th scope="col">Status</th>
-                                <th scope="col">Expiration</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in SupplyRows)
-                            {
-                                <tr>
-                                    <td data-label="Consumable"><a class="epx-supply-name" href="@($"/technician/inventory#consumable-{row.Id}")">@row.Name</a></td>
-                                    <td data-label="Code">@(string.IsNullOrWhiteSpace(row.Code) ? "—" : row.Code)</td>
-                                    <td data-label="Type">@row.Type</td>
-                                    <td data-label="Quantity">@row.Quantity.ToString(CultureInfo.InvariantCulture)</td>
-                                    <td data-label="Status">
-                                        <span class="epx-supply-statuses">
-                                            @if (ShowStockStatus(row.StockStatus))
-                                            {
-                                                <span class="epx-status epx-semantic-indicator @StockTone(row.StockStatus)">@row.StockStatus</span>
-                                            }
-                                            @if (!string.IsNullOrWhiteSpace(row.ExpirationStatus))
-                                            {
-                                                <span class="epx-status epx-semantic-indicator @StockTone(row.ExpirationStatus)">@row.ExpirationStatus</span>
-                                            }
-                                        </span>
-                                    </td>
-                                    <td data-label="Expiration">@(row.ExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "—")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        }
     </section>
 
     <section class="epx-stat-grid" aria-label="Operational totals">
