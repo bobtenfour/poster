@@ -1,0 +1,161 @@
+@page "/help"
+@attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+
+<PageTitle>Prepare Your Poster</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Prepare your poster">
+    <PageHeader Kicker="BlueIgnix"
+                Title="Prepare Your Poster"
+                Subtitle="Set the width, length, file, and Approval Sheet before you request printing." />
+
+    <nav class="epx-help-toc" aria-label="Help topics">
+        <a href="/help#poster-size">Size</a>
+        <a href="/help#poster-file">File</a>
+        <a href="/help#approval-sheet">Approval Sheet</a>
+        <a href="/help#acceptable-preparation">Acceptable preparation</a>
+        <a href="/help#questions">Questions</a>
+    </nav>
+
+    <div class="epx-help-hints">
+        <ContextualHelp Title="Width" TopicHref="/help#poster-size" TopicLabel="Review width">
+            36 inches is the recommended width and the maximum width.
+        </ContextualHelp>
+        <ContextualHelp Title="Length" TopicHref="/help#poster-size" TopicLabel="Review length">
+            72 inches is the recommended length. There is no strict maximum length.
+        </ContextualHelp>
+        <ContextualHelp Title="File" TopicHref="/help#poster-file" TopicLabel="Review the file">
+            Use a PDF with exactly one page, or a PowerPoint file with exactly one slide.
+        </ContextualHelp>
+        <ContextualHelp Title="Approval Sheet" TopicHref="/help#approval-sheet" TopicLabel="Review the Approval Sheet">
+            Some events need a separate Approval Sheet PDF. Others do not.
+        </ContextualHelp>
+    </div>
+
+    <Panel Id="poster-size" Kicker="Size" Title="Width, length, and orientation">
+        <div class="epx-help-media-row">
+            <HelpMedia ImageSrc="/img/help/BlueIgnix_Poster_Dimensions_Final.png"
+                       Alt="A poster dimension diagram showing a maximum width of 36 inches and a recommended length of 72 inches, with inches and millimeters marked. The diagram states there is no strict maximum length." />
+            <HelpMedia ImageSrc="/img/help/BlueIgnix_Poster_Dimensions.png"
+                       Alt="A poster coming from a wide-format printer with horizontal and vertical dimension annotations showing inches and millimeters." />
+        </div>
+        <div class="epx-fact-grid">
+            <p class="epx-fact epx-fact-recommended">
+                <span class="epx-blueignix-kicker">Recommended width</span>
+                <strong>36 inches</strong>
+                <span>This is the usual width. A poster does not have to be exactly 36 inches wide.</span>
+            </p>
+            <p class="epx-fact epx-fact-strict">
+                <span class="epx-blueignix-kicker">Maximum width</span>
+                <strong>36 inches</strong>
+                <span>Width is measured across the poster. Wider than 36 inches is not accepted.</span>
+            </p>
+            <p class="epx-fact epx-fact-recommended">
+                <span class="epx-blueignix-kicker">Recommended length</span>
+                <strong>72 inches</strong>
+                <span>There is no strict maximum length. We recommend keeping the poster at or below 72 inches for best results.</span>
+            </p>
+        </div>
+        <ol class="epx-step-list">
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">1</span>
+                <span class="epx-step-copy">
+                    <strong>Set it vertically</strong>
+                    <span>Width runs across. Length runs down.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">2</span>
+                <span class="epx-step-copy">
+                    <strong>Choose the width</strong>
+                    <span>36 inches is recommended. Stay at or under 36 inches.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">3</span>
+                <span class="epx-step-copy">
+                    <strong>Check the length</strong>
+                    <span>There is no strict maximum length. For best results, keep it at or below 72 inches.</span>
+                </span>
+            </li>
+        </ol>
+    </Panel>
+
+    <Panel Id="poster-file" Kicker="File" Title="PDF or PowerPoint">
+        <div class="epx-fact-grid">
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">PDF</span>
+                <strong>One page</strong>
+                <span>A PDF must contain exactly one page.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">PPTX</span>
+                <strong>One slide</strong>
+                <span>A PowerPoint file must contain exactly one slide.</span>
+            </p>
+        </div>
+    </Panel>
+
+    <Panel Id="approval-sheet" Kicker="Event" Title="Approval Sheet">
+        <div class="epx-fact-grid">
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">What it is</span>
+                <strong>Separate PDF</strong>
+                <span>The Approval Sheet is its own PDF. It is not a page inside the poster.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">When it applies</span>
+                <strong>Some events</strong>
+                <span>Prepare one only when the selected event requires an Approval Sheet.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">When it does not</span>
+                <strong>Leave it out</strong>
+                <span>If the event does not require an Approval Sheet, do not add one.</span>
+            </p>
+        </div>
+    </Panel>
+
+    <Panel Id="acceptable-preparation" Kicker="Check" Title="Acceptable preparation">
+        <div class="epx-acceptance-grid">
+            <AcceptanceExample Outcome="good" Title="One-page PDF within size">
+                A PDF with exactly one page and width at or under 36 inches. 72 inches is the recommended length.
+            </AcceptanceExample>
+            <AcceptanceExample Outcome="good" Title="One-slide PowerPoint within size">
+                A PPTX with exactly one slide and width at or under 36 inches. 72 inches is the recommended length.
+            </AcceptanceExample>
+            <AcceptanceExample Outcome="good" Title="Narrower than 36 inches">
+                A poster may be narrower than the recommended 36-inch width. Width still cannot exceed 36 inches.
+            </AcceptanceExample>
+            <AcceptanceExample Outcome="rejected" Title="More than one page or slide">
+                A PDF with more than one page, or a PowerPoint file with more than one slide, is not accepted.
+            </AcceptanceExample>
+            <AcceptanceExample Outcome="rejected" Title="Another file type">
+                Only PDF and PPTX are accepted.
+            </AcceptanceExample>
+            <AcceptanceExample Outcome="rejected" Title="Over the maximum width">
+                Width over 36 inches is not accepted. Length has no strict maximum; 72 inches is the recommended length.
+            </AcceptanceExample>
+        </div>
+    </Panel>
+
+    <Panel Id="questions" Kicker="Questions" Title="Common questions">
+        <div class="epx-faq-list">
+            <article class="epx-faq-item">
+                <h3>Does the poster have to be exactly 36 inches wide?</h3>
+                <p>No. 36 inches is the usual recommended width and also the maximum. Narrower is accepted. Wider is not.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Which file should I prepare?</h3>
+                <p>A PDF with exactly one page, or a PPTX with exactly one slide.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>When do I need an Approval Sheet?</h3>
+                <p>Only when the event requires one. It is a separate PDF from the poster. If the event does not require it, leave it out.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>When is the poster printed?</h3>
+                <p>After the request is accepted, the poster is printed within 48 hours. This application does not print it.</p>
+            </article>
+        </div>
+    </Panel>
+</section>

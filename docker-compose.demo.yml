@@ -1,0 +1,64 @@
+# DEMO / EVALUATION ONLY - Poster Print Request on the shared DigitalOcean Droplet SQL Server.
+# Reuses existing dentalinventory-demo-sql via external network dentalinventory-demo_default.
+# Database: POSTER only. Does not define a SQL Server service and does not modify DentalInventory or KeyInventory.
+name: posterprintrequest-demo
+
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.migrate
+    container_name: posterprintrequest-demo-migrate
+    environment:
+      ASPNETCORE_ENVIRONMENT: Demo
+      ConnectionStrings__PosterPrintRequest: Server=sqlserver,1433;Database=POSTER;User Id=sa;Password=${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required};TrustServerCertificate=True;Encrypt=False
+      SharedStorage__RootPath: /var/poster-print-request
+      DEMO_SQL_HOST: sqlserver
+      DEMO_SQL_PORT: "1433"
+      MIGRATE_MAX_ATTEMPTS: "30"
+      MIGRATE_SLEEP_SECS: "2"
+    networks:
+      - dentalinventory-demo_default
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: posterprintrequest-demo-web
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      # Loopback-only: Caddy is the sole public HTTP/HTTPS ingress. Do not bind 0.0.0.0.
+      - "127.0.0.1:${DEMO_HOST_PORT:-8083}:${PORT:-8080}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Demo
+      PORT: ${PORT:-8080}
+      ConnectionStrings__PosterPrintRequest: Server=sqlserver,1433;Database=POSTER;User Id=sa;Password=${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required};TrustServerCertificate=True;Encrypt=False
+      SharedStorage__RootPath: /var/poster-print-request
+    volumes:
+      - posterprintrequest-demo-storage:/var/poster-print-request
+    networks:
+      - dentalinventory-demo_default
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS \"http://127.0.0.1:$${PORT:-8080}/health\" >/dev/null || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+networks:
+  dentalinventory-demo_default:
+    external: true
+    name: dentalinventory-demo_default
+
+volumes:
+  posterprintrequest-demo-storage:
+    name: posterprintrequest-demo-storage

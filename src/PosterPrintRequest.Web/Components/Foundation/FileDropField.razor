@@ -1,0 +1,138 @@
+<div class="epx-field">
+    <label class="epx-label" for="@InputId">
+        @Label
+        @if (Required)
+        {
+            <span class="epx-required-indicator"><span class="epx-sr-only"> required</span></span>
+        }
+    </label>
+    @if (!string.IsNullOrWhiteSpace(Help))
+    {
+        <p id="@HelpId" class="epx-helper-text">@Help</p>
+    }
+    <div class="epx-dropzone@(HasError ? " epx-dropzone-invalid" : "")">
+        <InputFile id="@InputId"
+                   @key="@InputKey"
+                   class="epx-dropzone-input"
+                   accept="@Accept"
+                   disabled="@Uploading"
+                   aria-required="@(Required ? "true" : "false")"
+                   aria-invalid="@(HasError ? "true" : "false")"
+                   aria-describedby="@DescribedBy"
+                   OnChange="OnSelected" />
+        <div class="epx-dropzone-face">
+            @if (string.IsNullOrWhiteSpace(FileName))
+            {
+                <strong>Drop a file here, or choose a file.</strong>
+                <span>The chosen file stays with this request.</span>
+            }
+            else
+            {
+                <strong>@FileName</strong>
+                <span>@SizeLabel</span>
+            }
+        </div>
+    </div>
+    @if (Uploading)
+    {
+        <div class="epx-upload-progress"
+             role="progressbar"
+             aria-valuemin="0"
+             aria-valuemax="100"
+             aria-valuenow="@Progress"
+             aria-label="@Label upload">
+            <span style="width:@(Progress)%"></span>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Status))
+    {
+        <p id="@StatusId" class="epx-helper-text" aria-live="polite">@Status</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(FileName) && !Uploading)
+    {
+        <div class="epx-file-actions">
+            <label class="epx-button epx-button-secondary" for="@InputId">Replace</label>
+            <ActionButton Variant="secondary" OnClick="OnRemove">Remove</ActionButton>
+        </div>
+    }
+    @if (HasError)
+    {
+        <p id="@ErrorId" class="epx-field-error" role="alert">@Error</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string InputId { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public bool Required { get; set; }
+
+    [Parameter]
+    public string? Help { get; set; }
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    [Parameter]
+    public string? Accept { get; set; }
+
+    [Parameter]
+    public string? FileName { get; set; }
+
+    [Parameter]
+    public string? SizeLabel { get; set; }
+
+    [Parameter]
+    public string? Status { get; set; }
+
+    [Parameter]
+    public bool Uploading { get; set; }
+
+    [Parameter]
+    public int Progress { get; set; }
+
+    [Parameter]
+    public int InputKey { get; set; }
+
+    [Parameter]
+    public EventCallback<InputFileChangeEventArgs> OnSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnRemove { get; set; }
+
+    private string HelpId => InputId + "-help";
+
+    private string ErrorId => InputId + "-error";
+
+    private string StatusId => InputId + "-status";
+
+    private bool HasError => !string.IsNullOrWhiteSpace(Error);
+
+    private string? DescribedBy
+    {
+        get
+        {
+            var ids = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Help))
+            {
+                ids.Add(HelpId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(Status))
+            {
+                ids.Add(StatusId);
+            }
+
+            if (HasError)
+            {
+                ids.Add(ErrorId);
+            }
+
+            return ids.Count == 0 ? null : string.Join(' ', ids);
+        }
+    }
+}

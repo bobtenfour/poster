@@ -1,0 +1,50 @@
+<div class="epx-field">
+    <label class="epx-label" for="@ResolvedId">@Label</label>
+    <div class="epx-field-control">
+        <label class="epx-option" for="@ResolvedId">
+            <input id="@ResolvedId"
+                   class="epx-check"
+                   type="checkbox"
+                   checked="@Value"
+                   disabled="@Disabled"
+                   aria-describedby="@DescribedBy"
+                   @onchange="HandleChange" />
+            <span>Requested</span>
+        </label>
+        @if (!string.IsNullOrWhiteSpace(Help))
+        {
+            <p id="@HelpId" class="epx-helper-text">@Help</p>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly string _generatedId = "check-" + Guid.NewGuid().ToString("N");
+
+    [Parameter]
+    public string? FieldId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public bool Value { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public string? Help { get; set; }
+
+    private string ResolvedId => string.IsNullOrWhiteSpace(FieldId) ? _generatedId : FieldId;
+
+    private string HelpId => ResolvedId + "-help";
+
+    private string? DescribedBy => string.IsNullOrWhiteSpace(Help) ? null : HelpId;
+
+    private Task HandleChange(ChangeEventArgs args) =>
+        ValueChanged.InvokeAsync(args.Value is bool selected && selected);
+}

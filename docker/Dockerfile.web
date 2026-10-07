@@ -1,0 +1,46 @@
+# DEMO ONLY - not production. See docker/README-demo.md
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY PosterPrintRequest.sln ./
+COPY src/PosterPrintRequest.Domain/PosterPrintRequest.Domain.csproj src/PosterPrintRequest.Domain/
+COPY src/PosterPrintRequest.Infrastructure/PosterPrintRequest.Infrastructure.csproj src/PosterPrintRequest.Infrastructure/
+COPY src/PosterPrintRequest.Web/PosterPrintRequest.Web.csproj src/PosterPrintRequest.Web/
+
+RUN dotnet restore src/PosterPrintRequest.Web/PosterPrintRequest.Web.csproj
+
+COPY src/PosterPrintRequest.Domain/ src/PosterPrintRequest.Domain/
+COPY src/PosterPrintRequest.Infrastructure/ src/PosterPrintRequest.Infrastructure/
+COPY src/PosterPrintRequest.Web/ src/PosterPrintRequest.Web/
+RUN rm -f src/PosterPrintRequest.Web/appsettings.Local.json src/PosterPrintRequest.Web/appsettings.Production.json
+
+RUN dotnet publish src/PosterPrintRequest.Web/PosterPrintRequest.Web.csproj \
+    -c Release \
+    -o /app/publish \
+    /p:UseAppHost=false \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+
+LABEL org.opencontainers.image.title="Poster Print Request Demo Web"
+LABEL org.opencontainers.image.description="Non-production Docker evaluation only; reuses external SQL Server"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && (getent passwd app >/dev/null || useradd --system --gid app --home /app --shell /usr/sbin/nologin app) \
+    && chown -R app:app /app
+
+COPY --from=build --chown=app:app /app/publish .
+
+COPY docker/web-entrypoint.sh /app/web-entrypoint.sh
+RUN sed -i 's/\r$//' /app/web-entrypoint.sh && chmod +x /app/web-entrypoint.sh
+
+ENV ASPNETCORE_ENVIRONMENT=Demo
+ENV PORT=8080
+ENV SharedStorage__RootPath=/var/poster-print-request
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/web-entrypoint.sh"]

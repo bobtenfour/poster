@@ -1,0 +1,28 @@
+<aside class="epx-callout epx-callout-@Tone" aria-labelledby="@HeadingId">
+    @if (!string.IsNullOrWhiteSpace(Kicker))
+    {
+        <p class="epx-blueignix-kicker">@Kicker</p>
+    }
+    <h2 id="@HeadingId">@Title</h2>
+    <div class="epx-lead">
+        @ChildContent
+    </div>
+</aside>
+
+@code {
+    private readonly string _headingId = "callout-" + Guid.NewGuid().ToString("N");
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Kicker { get; set; }
+
+    [Parameter]
+    public string Tone { get; set; } = "info";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string HeadingId => _headingId;
+}

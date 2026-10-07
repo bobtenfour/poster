@@ -1,0 +1,52 @@
+@page "/request/accepted/{PosterId}"
+@attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@using System.Globalization
+
+<PageTitle>Request accepted</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Request accepted">
+    @if (Details is null)
+    {
+        <PageHeader Kicker="BlueIgnix"
+                    Title="Request not found"
+                    Subtitle="Check the Poster ID and open the confirmation again." />
+    }
+    else
+    {
+        <PageHeader Kicker="BlueIgnix"
+                    Title="Request accepted"
+                    Subtitle="This poster request is accepted. Create the TDX ticket manually with the Poster ID below." />
+
+        <p class="epx-blueignix-kicker">Poster ID</p>
+        <p class="epx-poster-id">@Details.PosterId</p>
+
+        <dl class="epx-meta">
+            <div>
+                <dt>Requester</dt>
+                <dd>@Details.RequesterName</dd>
+            </div>
+            <div>
+                <dt>Event</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Details.EventName) ? "No event" : Details.EventName)</dd>
+            </div>
+            <div>
+                <dt>Date in</dt>
+                <dd>@Details.DateIn.ToString("MMMM d, yyyy 'at' h:mm tt", CultureInfo.CurrentCulture)</dd>
+            </div>
+            <div>
+                <dt>Lamination</dt>
+                <dd>@(Details.LaminationRequested ? "Requested" : "Not requested")</dd>
+            </div>
+        </dl>
+
+        <Callout Kicker="Next" Title="Create the TDX ticket" Tone="info">
+            Create the TDX ticket yourself and enter this Poster ID. The poster will be printed within the next 48 hours.
+            This system does not create the ticket.
+        </Callout>
+
+        <div class="epx-form-actions">
+            <a class="epx-button epx-button-primary" href="/request">Start another request</a>
+            <a class="epx-button" href="/help">Prepare Your Poster</a>
+        </div>
+    }
+</section>

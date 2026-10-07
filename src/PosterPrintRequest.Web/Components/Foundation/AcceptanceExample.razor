@@ -1,0 +1,26 @@
+<article class="epx-acceptance @CardClass">
+    <p class="epx-status @StatusClass">
+        <span class="epx-semantic-indicator">@Label</span>
+    </p>
+    <h3>@Title</h3>
+    <p>@ChildContent</p>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string Outcome { get; set; } = "good";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool IsGood => string.Equals(Outcome, "good", StringComparison.OrdinalIgnoreCase);
+
+    private string Label => IsGood ? "Good" : "Not accepted";
+
+    private string StatusClass => IsGood ? "epx-status-success" : "epx-status-danger";
+
+    private string CardClass => IsGood ? "epx-acceptance-good" : "epx-acceptance-rejected";
+}

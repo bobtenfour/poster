@@ -1,0 +1,24 @@
+﻿<CascadingAuthenticationState>
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+                <NotAuthorized>
+                    <LayoutView Layout="typeof(Layout.EntryLayout)">
+                        <PageTitle>Sign in</PageTitle>
+                        <section class="epx-entry-panel" aria-label="Sign in">
+                            <PageHeader Kicker="BlueIgnix" Title="Sign in" Subtitle="Sign in to continue." />
+                            <a class="epx-button epx-button-primary" href="/Account/Login">Log in</a>
+                        </section>
+                    </LayoutView>
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="typeof(Layout.MainLayout)">
+                <PageTitle>Page not found</PageTitle>
+                <MissingPage />
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

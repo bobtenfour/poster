@@ -1,0 +1,6 @@
+# Same Caddy site block as dinventory.blueignix.com. TLS stays on the existing Caddy ingress.
+# Loopback 8083 is the next host port after Dental 8080, Key 8081, and Recruitment 8082.
+poster.blueignix.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:8083
+}

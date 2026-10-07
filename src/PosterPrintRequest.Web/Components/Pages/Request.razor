@@ -1,0 +1,142 @@
+@page "/request"
+@attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@rendermode InteractiveServer
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Poster request</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Poster request">
+    <PageHeader Kicker="BlueIgnix"
+                Title="Poster request"
+                Subtitle="Students and staff submit a poster request for acceptance here." />
+
+    <div class="epx-help-hints">
+        <ContextualHelp Title="Width" TopicHref="/help#poster-size" TopicLabel="Review width">
+            36 inches is the recommended width and the maximum width.
+        </ContextualHelp>
+        <ContextualHelp Title="Length" TopicHref="/help#poster-size" TopicLabel="Review length">
+            72 inches is the maximum length.
+        </ContextualHelp>
+        <ContextualHelp Title="File" TopicHref="/help#poster-file" TopicLabel="Review the file">
+            Use a PDF with exactly one page, or a PowerPoint file with exactly one slide.
+        </ContextualHelp>
+        <ContextualHelp Title="Approval Sheet" TopicHref="/help#approval-sheet" TopicLabel="Review the Approval Sheet">
+            Some events need a separate Approval Sheet PDF. Others do not.
+        </ContextualHelp>
+    </div>
+
+    <Callout Kicker="This step" Title="What is checked" Tone="info">
+        The poster is checked when you add it. It must be a PDF with one page or a PPTX with one slide. It can be narrower than 36 inches. It cannot be wider than 36 inches or longer than 72 inches. A required Approval Sheet must be a separate PDF. The request is accepted when every applicable detail and file passes.
+    </Callout>
+
+    @if (!string.IsNullOrWhiteSpace(FormError))
+    {
+        <p class="epx-field-error" role="alert">@FormError</p>
+    }
+
+    <form novalidate @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+        <Panel Kicker="Requester" Title="Your details">
+            <div class="epx-form-grid">
+                <TextField FieldId="requester-name"
+                           Label="Name"
+                           Required="true"
+                           Value="@Draft.Name"
+                           ValueChanged="OnNameChanged"
+                           Error="@Error("name")" />
+                <TextField FieldId="requester-email"
+                           Label="Email"
+                           Required="true"
+                           InputType="email"
+                           Value="@Draft.Email"
+                           ValueChanged="OnEmailChanged"
+                           Error="@Error("email")" />
+                <TextField FieldId="requester-phone"
+                           Label="Phone"
+                           Required="true"
+                           InputType="tel"
+                           Value="@Draft.Phone"
+                           ValueChanged="OnPhoneChanged"
+                           Error="@Error("phone")" />
+                <TextField FieldId="requester-room"
+                           Label="Room"
+                           Required="true"
+                           Value="@Draft.Room"
+                           ValueChanged="OnRoomChanged"
+                           Error="@Error("room")" />
+                <SelectField FieldId="requester-department"
+                             Label="Department"
+                             Required="true"
+                             BlankLabel="Choose a department"
+                             Options="@DepartmentOptions"
+                             Value="@Draft.DepartmentId"
+                             ValueChanged="OnDepartmentChanged"
+                             Error="@Error("department")" />
+                <TextField FieldId="requester-mentor"
+                           Label="Mentor"
+                           Required="@MentorRequired"
+                           Help="@(MentorRequired ? "Required for this event." : null)"
+                           Value="@Draft.Mentor"
+                           ValueChanged="OnMentorChanged"
+                           Error="@Error("mentor")" />
+                <SelectField FieldId="requester-reason"
+                             Label="Reason / Event"
+                             BlankLabel="None"
+                             Options="@ReasonOptions"
+                             Value="@Draft.ReasonId"
+                             ValueChanged="OnReasonChanged"
+                             Error="@Error("reason")" />
+                <CheckField FieldId="requester-lamination"
+                            Label="Lamination"
+                            Value="@Draft.LaminationRequested"
+                            ValueChanged="OnLaminationChanged" />
+            </div>
+        </Panel>
+
+        <Panel Kicker="Files" Title="Poster and Approval Sheet">
+            <div class="epx-form-grid">
+                <div class="epx-form-span">
+                    <FileDropField InputId="poster-file"
+                                   Label="Poster"
+                                   Required="true"
+                                   Accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                                   Help="@($"PDF or PPTX. One file, up to {UploadLimits.MaxLabel}. Drop it here or choose a file.")"
+                                   FileName="@Draft.Poster?.OriginalFileName"
+                                   SizeLabel="@FormatSize(Draft.Poster?.Size)"
+                                   Status="@PosterStatus"
+                                   Uploading="@PosterUploading"
+                                   Progress="@PosterProgress"
+                                   InputKey="@PosterInputKey"
+                                   Error="@Error("poster")"
+                                   OnSelected="OnPosterSelected"
+                                   OnRemove="RemovePosterAsync" />
+                    @if (Draft.Poster?.Preflight is not null)
+                    {
+                        <PosterPreflightReport Result="Draft.Poster.Preflight" />
+                    }
+                </div>
+                @if (ApprovalRequired)
+                {
+                    <div class="epx-form-span">
+                        <FileDropField InputId="approval-file"
+                                       Label="Approval Sheet"
+                                       Required="true"
+                                       Accept=".pdf,application/pdf"
+                                       Help="@($"PDF only. One file, up to {UploadLimits.MaxLabel}. Drop it here or choose a file.")"
+                                       FileName="@Draft.ApprovalSheet?.OriginalFileName"
+                                       SizeLabel="@FormatSize(Draft.ApprovalSheet?.Size)"
+                                       Status="@ApprovalStatus"
+                                       Uploading="@ApprovalUploading"
+                                       Progress="@ApprovalProgress"
+                                       InputKey="@ApprovalInputKey"
+                                       Error="@Error("approval")"
+                                       OnSelected="OnApprovalSelected"
+                                       OnRemove="RemoveApprovalAsync" />
+                    </div>
+                }
+            </div>
+            <div class="epx-form-actions">
+                <ActionButton Variant="primary" ButtonType="submit" Disabled="@Busy">Submit request</ActionButton>
+            </div>
+        </Panel>
+    </form>
+</section>

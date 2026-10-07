@@ -1,0 +1,140 @@
+@page "/technician"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@using System.Globalization
+
+<PageTitle>Operations</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Operations">
+    <PageHeader Kicker="Operations" Title="Dashboard" Subtitle="@Snapshot.PeriodLabel" />
+
+    @if (SearchState == "invalid")
+    {
+        <Callout Kicker="Poster ID" Title="Enter a Poster ID such as POSTER-2026-000001." Tone="warning">
+            Search again with the public Poster ID.
+        </Callout>
+    }
+    else if (SearchState == "missing")
+    {
+        <Callout Kicker="Poster ID" Title="No request uses that Poster ID." Tone="warning">
+            @SearchId
+        </Callout>
+    }
+    else if (SearchView is not null)
+    {
+        <Callout Kicker="Poster ID" Title="@SearchView.PosterId" Tone="success">
+            <p>@SearchView.RequesterName · @(SearchView.EventName ?? "No event")</p>
+            <p><a href="@($"/technician/work/{SearchView.PosterId}")">Open poster</a></p>
+        </Callout>
+    }
+
+    <section class="epx-stat-grid" aria-label="Operational totals">
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Posters pending printing</h2>
+            <p class="epx-stat-value" id="stat-pending">@Snapshot.PendingPrinting</p>
+            <p class="epx-stat-detail">Not marked printed</p>
+        </article>
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Posters printed this month</h2>
+            <p class="epx-stat-value" id="stat-month">@Snapshot.PrintedThisMonth</p>
+            <p class="epx-stat-detail">@Snapshot.PeriodLabel</p>
+        </article>
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Posters printed this year</h2>
+            <p class="epx-stat-value" id="stat-year">@Snapshot.PrintedThisYear</p>
+            <p class="epx-stat-detail">@Snapshot.Year.ToString(CultureInfo.InvariantCulture)</p>
+        </article>
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Posters awaiting pickup</h2>
+            <p class="epx-stat-value" id="stat-pickup">@Snapshot.AwaitingPickup</p>
+            <p class="epx-stat-detail">Notified, still in the shop</p>
+        </article>
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Total posters processed</h2>
+            <p class="epx-stat-value" id="stat-processed">@Snapshot.TotalProcessed</p>
+            <p class="epx-stat-detail">Pickup recorded</p>
+        </article>
+    </section>
+    <p class="epx-helper-text">Pending printing, awaiting pickup, and total processed are current. Printed counts and technician ranking use @Snapshot.PeriodLabel and the date received.</p>
+
+    <Panel Kicker="Action" Title="Needs action">
+        @if (Snapshot.Queue.Count == 0)
+        {
+            <p>No posters are waiting.</p>
+        }
+        else
+        {
+            <div class="epx-table-wrap">
+                <table class="epx-table" id="work-queue">
+                    <caption class="epx-sr-only">Posters that still need a stage completed</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Poster ID</th>
+                            <th scope="col">Requester</th>
+                            <th scope="col">Event</th>
+                            <th scope="col">Stage</th>
+                            <th scope="col">Date in</th>
+                            <th scope="col">Lamination</th>
+                            <th scope="col"><span class="epx-sr-only">Open</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Snapshot.Queue)
+                        {
+                            <tr>
+                                <td>@item.PosterId</td>
+                                <td>@item.RequesterName</td>
+                                <td>@(item.EventName ?? "No event")</td>
+                                <td><span class="epx-stage epx-stage-@item.Stage.ToLowerInvariant()">@item.Stage</span></td>
+                                <td>@item.DateIn.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)</td>
+                                <td>@(item.LaminationRequested ? "Requested" : "No")</td>
+                                <td><a class="epx-button epx-button-secondary" href="@($"/technician/work/{item.PosterId}")">Open</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Panel>
+
+    <Panel Kicker="@Snapshot.PeriodLabel" Title="Technician performance">
+        <form class="epx-tech-period" method="get" action="/technician">
+            <label class="epx-label" for="workspace-period">Month</label>
+            <input id="workspace-period" class="epx-input" name="period" type="month" value="@PeriodValue" />
+            @if (!string.IsNullOrWhiteSpace(SearchId))
+            {
+                <input type="hidden" name="posterId" value="@SearchId" />
+            }
+            <button class="epx-button epx-button-secondary" type="submit">Apply</button>
+        </form>
+        @if (Snapshot.Performance.Count == 0)
+        {
+            <p>No posters were printed in this period.</p>
+        }
+        else
+        {
+            <div class="epx-table-wrap">
+                <table class="epx-table" id="technician-performance">
+                    <caption class="epx-sr-only">Technicians ranked by posters printed in @Snapshot.PeriodLabel</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Rank</th>
+                            <th scope="col">Technician</th>
+                            <th scope="col">Posters printed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var person in Snapshot.Performance)
+                        {
+                            <tr>
+                                <td>@person.Rank.ToString(CultureInfo.InvariantCulture)</td>
+                                <td>@person.Technician</td>
+                                <td>@person.PostersPrinted.ToString(CultureInfo.InvariantCulture)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Panel>
+</section>

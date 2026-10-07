@@ -1,0 +1,235 @@
+@page "/technician/work/{PosterId}"
+@page "/technician/{PosterId}"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Poster @PosterId</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Poster work">
+    <PageHeader Kicker="Work"
+                Title="@(PosterIds.IsPublic(PosterId) ? PosterId! : "Poster")"
+                Subtitle="Complete the current stage, then continue in order." />
+
+    <form novalidate @onsubmit="OpenRequest" @onsubmit:preventDefault>
+        <Panel Kicker="Find" Title="Poster ID">
+            <TextField FieldId="technician-poster-id"
+                       Label="Poster ID"
+                       Required="true"
+                       Value="@LookupId"
+                       ValueChanged="OnLookupChanged"
+                        Help="Search opens that poster."
+                       Error="@LookupError" />
+            <div class="epx-form-actions">
+                <ActionButton Variant="primary" ButtonType="submit">Open request</ActionButton>
+            </div>
+        </Panel>
+    </form>
+
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="epx-field-error" role="alert">@Error</p>
+    }
+
+    @if (Missing)
+    {
+        <Callout Kicker="Poster ID" Title="No request uses that Poster ID" Tone="warning">
+            Check the Poster ID and open the request again.
+        </Callout>
+    }
+
+    @if (View is not null)
+    {
+        <Panel Kicker="Request" Title="@View.PosterId">
+            <dl class="epx-meta">
+                <div>
+                    <dt>Requester</dt>
+                    <dd>@View.RequesterName</dd>
+                </div>
+                <div>
+                    <dt>Department</dt>
+                    <dd>@View.Department</dd>
+                </div>
+                <div>
+                    <dt>Room</dt>
+                    <dd>@View.Room</dd>
+                </div>
+                <div>
+                    <dt>Phone</dt>
+                    <dd>@View.Phone</dd>
+                </div>
+                <div>
+                    <dt>Email</dt>
+                    <dd>@View.Email</dd>
+                </div>
+                <div>
+                    <dt>Mentor</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(View.Mentor) ? "None" : View.Mentor)</dd>
+                </div>
+                <div>
+                    <dt>Event</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(View.EventName) ? "No event" : View.EventName)</dd>
+                </div>
+                <div>
+                    <dt>Date in</dt>
+                    <dd>@View.DateIn.ToString("MMMM d, yyyy 'at' h:mm tt", CultureInfo.CurrentCulture)</dd>
+                </div>
+                <div>
+                    <dt>Folder</dt>
+                    <dd>@View.Folder</dd>
+                </div>
+                <div>
+                    <dt>Poster</dt>
+                    <dd><a href="@($"/technician/files/{View.PosterId}/poster?inline=true")" target="_blank" rel="noopener">@View.PosterFileName</a></dd>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(View.ApprovalFileName))
+                {
+                    <div>
+                        <dt>Approval Sheet</dt>
+                        <dd><a href="@($"/technician/files/{View.PosterId}/approval?inline=true")" target="_blank" rel="noopener">@View.ApprovalFileName</a></dd>
+                    </div>
+                }
+            </dl>
+        </Panel>
+
+        <Panel Kicker="Progress" Title="Stages">
+            <dl class="epx-meta">
+                <div>
+                    <dt>Received</dt>
+                    <dd>@(View.Received is null ? "Waiting" : View.Received.Value.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture))</dd>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(View.ItPerson))
+                {
+                    <div>
+                        <dt>IT person</dt>
+                        <dd>@View.ItPerson</dd>
+                    </div>
+                }
+                <div>
+                    <dt>Printed</dt>
+                    <dd>@(View.Printed ? "Yes" : "Waiting")</dd>
+                </div>
+                <div>
+                    <dt>Laminated</dt>
+                    <dd>@(View.LaminationRequested ? (View.Laminated ? "Yes" : "Waiting") : "Not requested")</dd>
+                </div>
+                <div>
+                    <dt>Notified</dt>
+                    <dd>@(View.Notified ? "Yes" : "Waiting")</dd>
+                </div>
+                <div>
+                    <dt>Date out</dt>
+                    <dd>@(View.DateOut is null ? "Waiting" : View.DateOut.Value.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture))</dd>
+                </div>
+                <div>
+                    <dt>Picked up by</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(View.PickedUpBy) ? "Waiting" : View.PickedUpBy)</dd>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(View.Comments))
+                {
+                    <div>
+                        <dt>Comments</dt>
+                        <dd>@View.Comments</dd>
+                    </div>
+                }
+            </dl>
+        </Panel>
+
+        @if (Stage == "receive")
+        {
+            <Panel Kicker="Next" Title="Receive the request">
+                <TextField FieldId="technician-it-person"
+                           Label="IT person"
+                           Required="true"
+                           Value="@ItPerson"
+                           ValueChanged="OnItPersonChanged" />
+                <TextField FieldId="technician-received"
+                           Label="Date received"
+                           Required="true"
+                           InputType="date"
+                           Value="@ReceivedOn"
+                           ValueChanged="OnReceivedChanged" />
+                <TextField FieldId="technician-comments"
+                           Label="Comments"
+                           Multiline="true"
+                           Value="@Comments"
+                           ValueChanged="OnCommentsChanged" />
+                <div class="epx-form-actions">
+                    <ActionButton Variant="primary" Disabled="@Busy" OnClick="TakeAsync">Take this request</ActionButton>
+                </div>
+            </Panel>
+        }
+        else if (Stage == "print")
+        {
+            <Panel Kicker="Next" Title="Print the poster">
+                <TextField FieldId="technician-comments"
+                           Label="Comments"
+                           Multiline="true"
+                           Value="@Comments"
+                           ValueChanged="OnCommentsChanged" />
+                <div class="epx-form-actions">
+                    <ActionButton Variant="primary" Disabled="@Busy" OnClick="MarkPrintedAsync">Mark printed</ActionButton>
+                </div>
+            </Panel>
+        }
+        else if (Stage == "laminate")
+        {
+            <Panel Kicker="Next" Title="Laminate the poster">
+                <TextField FieldId="technician-comments"
+                           Label="Comments"
+                           Multiline="true"
+                           Value="@Comments"
+                           ValueChanged="OnCommentsChanged" />
+                <div class="epx-form-actions">
+                    <ActionButton Variant="primary" Disabled="@Busy" OnClick="MarkLaminatedAsync">Mark laminated</ActionButton>
+                </div>
+            </Panel>
+        }
+        else if (Stage == "notify")
+        {
+            <Panel Kicker="Next" Title="Notify the requester">
+                <TextField FieldId="technician-comments"
+                           Label="Comments"
+                           Multiline="true"
+                           Value="@Comments"
+                           ValueChanged="OnCommentsChanged" />
+                <div class="epx-form-actions">
+                    <ActionButton Variant="primary" Disabled="@Busy" OnClick="MarkNotifiedAsync">Mark notified</ActionButton>
+                </div>
+            </Panel>
+        }
+        else if (Stage == "pickup")
+        {
+            <Panel Kicker="Next" Title="Record pickup">
+                <TextField FieldId="technician-date-out"
+                           Label="Date out"
+                           Required="true"
+                           InputType="date"
+                           Value="@DateOut"
+                           ValueChanged="OnDateOutChanged" />
+                <TextField FieldId="technician-picked-up"
+                           Label="Picked up by"
+                           Required="true"
+                           Value="@PickedUpBy"
+                           ValueChanged="OnPickedUpByChanged" />
+                <TextField FieldId="technician-comments"
+                           Label="Comments"
+                           Multiline="true"
+                           Value="@Comments"
+                           ValueChanged="OnCommentsChanged" />
+                <div class="epx-form-actions">
+                    <ActionButton Variant="primary" Disabled="@Busy" OnClick="CompletePickupAsync">Record pickup</ActionButton>
+                </div>
+            </Panel>
+        }
+        else
+        {
+            <Callout Kicker="Complete" Title="Pickup is complete" Tone="success">
+                The poster has been picked up. No further stage is waiting.
+            </Callout>
+        }
+    }
+</section>

@@ -1,0 +1,56 @@
+@if (HasImage || HasVideo)
+{
+    <figure class="epx-help-media">
+        @if (HasImage)
+        {
+            <img src="@ImageSrc" alt="@Alt" />
+        }
+        @if (HasVideo)
+        {
+            <video controls preload="metadata" src="@VideoSrc">
+                @if (HasTrack)
+                {
+                    <track kind="captions" src="@CaptionSrc" srclang="en" label="English" default />
+                }
+            </video>
+        }
+        @if (!string.IsNullOrWhiteSpace(Transcript))
+        {
+            <div class="epx-help-transcript">
+                <p class="epx-contextual-help-title">Transcript</p>
+                <p>@Transcript</p>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Caption))
+        {
+            <figcaption>@Caption</figcaption>
+        }
+    </figure>
+}
+
+@code {
+    [Parameter]
+    public string? ImageSrc { get; set; }
+
+    [Parameter]
+    public string? Alt { get; set; }
+
+    [Parameter]
+    public string? VideoSrc { get; set; }
+
+    [Parameter]
+    public string? CaptionSrc { get; set; }
+
+    [Parameter]
+    public string? Transcript { get; set; }
+
+    [Parameter]
+    public string? Caption { get; set; }
+
+    private bool HasImage =>
+        !string.IsNullOrWhiteSpace(ImageSrc) && !string.IsNullOrWhiteSpace(Alt);
+
+    private bool HasVideo => !string.IsNullOrWhiteSpace(VideoSrc);
+
+    private bool HasTrack => !string.IsNullOrWhiteSpace(CaptionSrc);
+}

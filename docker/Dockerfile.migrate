@@ -1,0 +1,26 @@
+# DEMO ONLY - one-shot EF migration runner (published Web image has no dotnet-ef tooling)
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+WORKDIR /src
+
+COPY PosterPrintRequest.sln ./
+COPY src/PosterPrintRequest.Domain/PosterPrintRequest.Domain.csproj src/PosterPrintRequest.Domain/
+COPY src/PosterPrintRequest.Infrastructure/PosterPrintRequest.Infrastructure.csproj src/PosterPrintRequest.Infrastructure/
+COPY src/PosterPrintRequest.Web/PosterPrintRequest.Web.csproj src/PosterPrintRequest.Web/
+
+RUN dotnet restore src/PosterPrintRequest.Web/PosterPrintRequest.Web.csproj
+
+COPY src/PosterPrintRequest.Domain/ src/PosterPrintRequest.Domain/
+COPY src/PosterPrintRequest.Infrastructure/ src/PosterPrintRequest.Infrastructure/
+COPY src/PosterPrintRequest.Web/ src/PosterPrintRequest.Web/
+RUN rm -f src/PosterPrintRequest.Web/appsettings.Local.json src/PosterPrintRequest.Web/appsettings.Production.json
+
+RUN dotnet tool install --global dotnet-ef --version 8.0.31
+ENV PATH="/root/.dotnet/tools:${PATH}"
+
+ENV ASPNETCORE_ENVIRONMENT=Demo
+ENV SharedStorage__RootPath=/var/poster-print-request
+
+COPY docker/migrate-entrypoint.sh /migrate-entrypoint.sh
+RUN sed -i 's/\r$//' /migrate-entrypoint.sh && chmod +x /migrate-entrypoint.sh
+
+ENTRYPOINT ["/migrate-entrypoint.sh"]

@@ -1,0 +1,107 @@
+@page "/Account/Login"
+@layout EntryLayout
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using PosterPrintRequest.Infrastructure.Identity
+
+<PageTitle>Sign in</PageTitle>
+
+<section class="epx-entry" aria-label="Sign in">
+    <div class="epx-entry-panel">
+        <p class="epx-blueignix-kicker">BlueIgnix</p>
+        <h1>Poster Print Request System</h1>
+        <p class="epx-blueignix-subtitle">Sign in with the account provided for your role.</p>
+        @if (ShowError)
+        {
+            <p class="epx-entry-alert" role="alert">Invalid login attempt.</p>
+        }
+        <form class="epx-entry-form" method="post" data-enhance="false" @formname="account-login" @onsubmit="SignIn">
+            <AntiforgeryToken />
+            <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+            <label class="epx-label" for="login-username">Username</label>
+            <input id="login-username" class="epx-input" name="Input.UserName" value="@Input.UserName" autocomplete="username" required />
+            <label class="epx-label" for="login-password">Password</label>
+            <input id="login-password" class="epx-input" name="Input.Password" type="password" autocomplete="current-password" required />
+            <p class="epx-helper-text">Session-only sign-in. Closing the browser ends your session; inactive sessions expire automatically.</p>
+            <button class="epx-button epx-button-primary" type="submit">Log in</button>
+        </form>
+        <p class="epx-helper-text">Accounts are provisioned by an administrator. Self-registration is not available.</p>
+    </div>
+    <div class="epx-entry-visual">
+        <img src="/img/entry/plotter-technician.jpg" alt="A technician printing a poster on a large-format plotter." />
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [SupplyParameterFromForm(FormName = "account-login")]
+    private LoginInput Input { get; set; } = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = null!;
+
+    [Inject]
+    private SignInManager<ApplicationUser> SignInManager { get; set; } = null!;
+
+    [Inject]
+    private UserManager<ApplicationUser> UserManager { get; set; } = null!;
+
+    private bool ShowError { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ShowError = Error == "1";
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var state = await AuthenticationState;
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo(AccountEndpoints.Destination(state.User, ReturnUrl), forceLoad: true);
+        }
+    }
+
+    private async Task SignIn()
+    {
+        var userName = Input.UserName.Trim();
+        var result = await SignInManager.PasswordSignInAsync(
+            userName,
+            Input.Password,
+            AccountEndpoints.SessionOnlySignIn,
+            lockoutOnFailure: false);
+        if (!result.Succeeded)
+        {
+            ShowError = true;
+            return;
+        }
+
+        var user = await UserManager.FindByNameAsync(userName);
+        if (user is null)
+        {
+            await SignInManager.SignOutAsync();
+            ShowError = true;
+            return;
+        }
+
+        var principal = await SignInManager.CreateUserPrincipalAsync(user);
+        Navigation.NavigateTo(AccountEndpoints.Destination(principal, ReturnUrl), forceLoad: true);
+    }
+
+    private sealed class LoginInput
+    {
+        public string UserName { get; set; } = "";
+
+        public string Password { get; set; } = "";
+    }
+}

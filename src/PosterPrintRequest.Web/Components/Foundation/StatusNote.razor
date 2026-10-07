@@ -1,0 +1,20 @@
+<div class="epx-status-row">
+    <p class="epx-status epx-status-@Tone">
+        <span class="epx-semantic-indicator">@Label</span>
+    </p>
+    @if (ChildContent is not null)
+    {
+        <p>@ChildContent</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string Tone { get; set; } = "info";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

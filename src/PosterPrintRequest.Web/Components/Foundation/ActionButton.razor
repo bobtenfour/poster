@@ -1,0 +1,23 @@
+<button type="@ButtonType"
+        class="epx-button epx-button-@Variant"
+        disabled="@Disabled"
+        @onclick="OnClick">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter]
+    public string Variant { get; set; } = "primary";
+
+    [Parameter]
+    public string ButtonType { get; set; } = "button";
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

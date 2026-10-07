@@ -1,0 +1,79 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<a href="@Href" class="@CssClass" aria-current="@AriaCurrent">@ChildContent</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Href { get; set; } = "";
+
+    [Parameter]
+    public bool MatchAll { get; set; }
+
+    [Parameter]
+    public string? ExceptPrefix { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass => IsCurrent ? "epx-nav-link active" : "epx-nav-link";
+
+    private string? AriaCurrent => IsCurrent ? "page" : null;
+
+    private bool IsCurrent
+    {
+        get
+        {
+            var current = CurrentPath();
+            var target = Normalize(Href);
+            if (!string.IsNullOrWhiteSpace(ExceptPrefix))
+            {
+                var except = Normalize(ExceptPrefix);
+                if (string.Equals(current, except, StringComparison.OrdinalIgnoreCase)
+                    || current.StartsWith(except + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            if (MatchAll || target == "/")
+            {
+                return string.Equals(current, target, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return string.Equals(current, target, StringComparison.OrdinalIgnoreCase)
+                || current.StartsWith(target + "/", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    protected override void OnInitialized() =>
+        Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() =>
+        Navigation.LocationChanged -= OnLocationChanged;
+
+    private string CurrentPath()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        return Normalize(string.IsNullOrEmpty(relative) ? "/" : relative);
+    }
+
+    private static string Normalize(string href)
+    {
+        var path = href.Split('?', '#')[0];
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
+        {
+            return "/";
+        }
+
+        if (!path.StartsWith('/'))
+        {
+            path = "/" + path;
+        }
+
+        return path.Length > 1 ? path.TrimEnd('/') : path;
+    }
+}

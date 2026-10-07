@@ -1,0 +1,30 @@
+@using PosterPrintRequest.Web.Requests
+
+<section id="poster-preflight" class="epx-preflight" aria-label="Poster check">
+    <h3>Poster check</h3>
+    @if (Result.Passed)
+    {
+        <p class="epx-preflight-summary">@Result.Summary</p>
+    }
+    <ul class="epx-preflight-list">
+        @foreach (var check in Result.Checks)
+        {
+            <li class="epx-preflight-check @(check.Passed ? "epx-preflight-check-passed" : "epx-preflight-check-failed")">
+                <p class="epx-status @(check.Passed ? "epx-status-success" : "epx-status-danger")">
+                    <span class="epx-semantic-indicator">@(check.Passed ? "Passed" : "Needs a correction")</span>
+                </p>
+                <p class="epx-preflight-label">@check.Label</p>
+                <p>@check.Detail</p>
+            </li>
+        }
+    </ul>
+    @if (Result.WidthInches is not null && Result.LengthInches is not null)
+    {
+        <p class="epx-helper-text">Width is measured across and length is measured down.</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public PosterPreflightResult Result { get; set; } = null!;
+}

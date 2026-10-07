@@ -1,0 +1,33 @@
+<section id="@Id" class="epx-blueignix-panel @CssClass" aria-labelledby="@HeadingId">
+    <div class="epx-blueignix-panel-heading">
+        <div>
+            @if (!string.IsNullOrWhiteSpace(Kicker))
+            {
+                <p class="epx-blueignix-kicker">@Kicker</p>
+            }
+            <h2 id="@HeadingId">@Title</h2>
+        </div>
+    </div>
+    @ChildContent
+</section>
+
+@code {
+    private readonly string _headingId = "panel-" + Guid.NewGuid().ToString("N");
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Kicker { get; set; }
+
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string HeadingId => _headingId;
+}

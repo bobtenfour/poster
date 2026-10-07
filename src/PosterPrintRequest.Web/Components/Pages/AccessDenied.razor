@@ -1,0 +1,57 @@
+@page "/Account/AccessDenied"
+@layout EntryLayout
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Components.Authorization
+
+<PageTitle>Access denied</PageTitle>
+
+<section class="epx-entry" aria-label="Access denied">
+    <div class="epx-entry-panel">
+        <p class="epx-blueignix-kicker">BlueIgnix</p>
+        <h1>Access denied</h1>
+        <p class="epx-blueignix-subtitle">Your account cannot open this area.</p>
+        @if (IsOperator)
+        {
+            <a class="epx-button epx-button-primary" href="/technician">Return to the technician workspace</a>
+        }
+        else if (IsUser)
+        {
+            <a class="epx-button epx-button-primary" href="/">Return home</a>
+        }
+        else
+        {
+            <a class="epx-button epx-button-primary" href="/Account/Login">Sign in</a>
+        }
+        @if (IsOperator || IsUser)
+        {
+            <form class="epx-entry-form" method="post" action="/Account/Logout" data-enhance="false">
+                <AntiforgeryToken />
+                <button class="epx-button" type="submit">Log out</button>
+            </form>
+        }
+    </div>
+    <div class="epx-entry-visual">
+        <img src="/img/entry/plotter-technician.jpg" alt="A technician printing a poster on a large-format plotter." />
+    </div>
+</section>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private bool IsUser { get; set; }
+
+    private bool IsOperator { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var state = await AuthenticationState;
+        IsUser = state.User.IsInRole(PosterRoles.User);
+        IsOperator = state.User.IsInRole(PosterRoles.Operator);
+    }
+}

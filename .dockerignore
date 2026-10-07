@@ -1,0 +1,17 @@
+**/.git
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/TestResults
+**/*.user
+**/*.suo
+*.bak
+*.zip
+*.mdf
+*.ldf
+*.db
+**/appsettings.Local.json
+**/appsettings.Production.json
+.env.demo
+tests/

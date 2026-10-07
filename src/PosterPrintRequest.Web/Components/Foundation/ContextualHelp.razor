@@ -1,0 +1,29 @@
+<aside class="epx-contextual-help">
+    <p class="epx-blueignix-kicker">@Kicker</p>
+    <p class="epx-contextual-help-title">@Title</p>
+    <div>@ChildContent</div>
+    @if (!string.IsNullOrWhiteSpace(TopicHref))
+    {
+        <a href="@TopicHref">@ResolvedTopicLabel</a>
+    }
+</aside>
+
+@code {
+    [Parameter]
+    public string Kicker { get; set; } = "Requirement";
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? TopicHref { get; set; }
+
+    [Parameter]
+    public string? TopicLabel { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string ResolvedTopicLabel =>
+        string.IsNullOrWhiteSpace(TopicLabel) ? "Open the guidance" : TopicLabel;
+}

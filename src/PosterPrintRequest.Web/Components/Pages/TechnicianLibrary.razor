@@ -1,0 +1,123 @@
+@page "/technician/library"
+@page "/technician/library/{*RelativePath}"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Poster library</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Poster library">
+    <PageHeader Kicker="Library"
+                Title="Poster library"
+                Subtitle="Events hold the event and year, then each poster. Requests without an event are grouped by year." />
+
+    @if (Listing is null)
+    {
+        <Callout Kicker="Library" Title="That location is not in the poster library." Tone="warning">
+            Choose a folder from the library.
+        </Callout>
+    }
+    else if (!Listing.Available)
+    {
+        <Callout Kicker="Library" Title="The poster library is not available." Tone="warning">
+            Storage has to be ready before folders can be opened.
+        </Callout>
+    }
+    else
+    {
+        <div class="epx-library-nav">
+            @if (Listing.Segments.Count > 0)
+            {
+                <a class="epx-button" href="@ParentHref(Listing.Segments)">Up</a>
+            }
+            <nav aria-label="Library folders">
+                <ol class="epx-crumb">
+                    <li>
+                        @if (Listing.Segments.Count == 0)
+                        {
+                            <span aria-current="page">Library</span>
+                        }
+                        else
+                        {
+                            <a href="/technician/library">Library</a>
+                        }
+                    </li>
+                    @for (var index = 0; index < Listing.Segments.Count; index++)
+                    {
+                        var segment = Listing.Segments[index];
+                        var last = index == Listing.Segments.Count - 1;
+                        <li>
+                            @if (last)
+                            {
+                                <span aria-current="page">@segment</span>
+                            }
+                            else
+                            {
+                                <a href="@CrumbHref(Listing.Segments.Take(index + 1))">@segment</a>
+                            }
+                        </li>
+                    }
+                </ol>
+            </nav>
+        </div>
+
+        @if (Listing.Entries.Count == 0)
+        {
+            <p>This folder is empty.</p>
+        }
+        else
+        {
+            <ul class="epx-folder-grid" id="poster-library">
+                @foreach (var entry in Listing.Entries)
+                {
+                    <li>
+                        <article class="epx-folder-card">
+                            <p class="epx-blueignix-kicker">@entry.Kind</p>
+                            @if (entry.NavigateHref is not null)
+                            {
+                                <a class="epx-folder-name" href="@entry.NavigateHref">@entry.Name</a>
+                            }
+                            else
+                            {
+                                <p class="epx-folder-name">@entry.Name</p>
+                            }
+                            @if (entry.WorkHref is not null || entry.ViewHref is not null)
+                            {
+                                <p class="epx-folder-actions">
+                                    @if (entry.WorkHref is not null)
+                                    {
+                                        <a href="@entry.WorkHref">Open poster</a>
+                                    }
+                                    @if (entry.ViewHref is not null)
+                                    {
+                                        <a href="@entry.ViewHref" target="_blank" rel="noopener">View</a>
+                                    }
+                                </p>
+                            }
+                        </article>
+                    </li>
+                }
+            </ul>
+        }
+    }
+</section>
+
+@code {
+    [Parameter]
+    public string? RelativePath { get; set; }
+
+    [Inject]
+    private ITechnicianLibrary Library { get; set; } = null!;
+
+    private LibraryListing? Listing { get; set; }
+
+    protected override void OnParametersSet() => Listing = Library.List(RelativePath);
+
+    private static string CrumbHref(IEnumerable<string> segments) =>
+        PosterPrintRequest.Web.Requests.TechnicianLibrary.LibraryHref(segments);
+
+    private static string ParentHref(IReadOnlyList<string> segments) =>
+        segments.Count <= 1
+            ? "/technician/library"
+            : PosterPrintRequest.Web.Requests.TechnicianLibrary.LibraryHref(segments.Take(segments.Count - 1));
+}

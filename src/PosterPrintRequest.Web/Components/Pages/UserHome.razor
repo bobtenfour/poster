@@ -1,0 +1,75 @@
+@page "/"
+@attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@using System.Globalization
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Poster Print Request System</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Poster Print Request System home">
+    <PageHeader Kicker="BlueIgnix"
+                Title="Poster Print Request System"
+                Subtitle="Internal system for students and staff to request poster printing." />
+
+    <figure class="epx-home-visual">
+        <img src="/img/entry/plotter-technician.jpg" alt="A technician printing a poster on a large-format plotter." />
+    </figure>
+
+    <div class="epx-form-actions">
+        <a class="epx-button epx-button-primary" href="/request">Start a request</a>
+        <a class="epx-button" href="/help">Prepare your poster</a>
+    </div>
+
+    <section class="epx-stat-grid" aria-label="Personal totals">
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Posters Printed</h2>
+            <p class="epx-stat-value" id="stat-posters-printed">@Activity.PostersPrinted</p>
+            <p class="epx-stat-detail">Your posters marked printed</p>
+        </article>
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Events Participated</h2>
+            <p class="epx-stat-value" id="stat-events-participated">@Activity.EventsParticipated</p>
+            <p class="epx-stat-detail">Distinct events on your requests</p>
+        </article>
+    </section>
+
+    <Panel Kicker="Activity" Title="Personal activity">
+        @if (Activity.Posters.Count == 0)
+        {
+            <p>You have not submitted a poster yet.</p>
+        }
+        else
+        {
+            <div class="epx-table-wrap">
+                <table class="epx-table">
+                    <thead>
+                        <tr>
+                            <th>Poster ID</th>
+                            <th>Event</th>
+                            <th>Date in</th>
+                            <th>Printing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var poster in Activity.Posters)
+                        {
+                            <tr>
+                                <td class="epx-poster-id">@poster.PosterId</td>
+                                <td>@(string.IsNullOrWhiteSpace(poster.EventName) ? "No event" : poster.EventName)</td>
+                                <td>@poster.DateIn.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture)</td>
+                                <td>@(poster.Printed ? "Printed" : "Waiting")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Panel>
+
+    <Panel Kicker="System" Title="What this system does">
+        <ul class="epx-plain-list">
+            <li>Receives a poster print request from a student or staff member.</li>
+            <li>Validates the poster file and records the accepted request.</li>
+            <li>Assigns a Poster ID when the request is accepted.</li>
+        </ul>
+    </Panel>
+</section>

@@ -1,0 +1,79 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+
+<a class="epx-skip-link" href="#epx-main-content">Skip to main content</a>
+<div class="epx-shell">
+    <header class="epx-shell-header">
+        <nav class="epx-nav-primary" aria-label="Technician">
+            <a class="epx-brand" href="/technician" aria-label="BlueIgnix Technician Workspace">
+                <span class="epx-blueignix-brand-copy">
+                    <span class="epx-blueignix-brand-owner">BlueIgnix</span>
+                    <span class="epx-blueignix-brand-product">Technician workspace</span>
+                </span>
+            </a>
+            <div class="epx-nav-disclosure">
+                <input id="epx-tech-nav-menu" class="epx-nav-toggle-input" type="checkbox" />
+                <label class="epx-nav-toggle" for="epx-tech-nav-menu">Menu</label>
+                <ul class="epx-nav-list">
+                    <li>
+                        <ShellNavLink Href="/technician" ExceptPrefix="/technician/library">Dashboard</ShellNavLink>
+                    </li>
+                    <li>
+                        <ShellNavLink Href="/technician/library">Library</ShellNavLink>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+    <div class="epx-shell-workspace">
+        <div class="epx-blueignix-topbar">
+            <div class="epx-blueignix-topbar-lead">
+                <p class="epx-blueignix-kicker epx-blueignix-topbar-kicker">Operations</p>
+                <p class="epx-blueignix-topbar-user">@SignedIn</p>
+            </div>
+            <form class="epx-tech-search" method="get" action="/technician">
+                <label class="epx-label" for="workspace-poster-id">Poster ID</label>
+                <input id="workspace-poster-id" class="epx-input" name="posterId" type="search" autocomplete="off" spellcheck="false" />
+                <button class="epx-button epx-button-primary" type="submit">Find</button>
+            </form>
+            <form class="epx-sign-out" method="post" action="/Account/Logout" data-enhance="false">
+                <AntiforgeryToken />
+                <button class="epx-button" type="submit">Log out</button>
+            </form>
+        </div>
+        <main id="epx-main-content" class="epx-landmark-main" tabindex="-1">
+            @Body
+        </main>
+        <footer class="epx-footer">
+            <p>BlueIgnix Technician Workspace</p>
+        </footer>
+    </div>
+</div>
+
+<div id="blazor-error-ui" role="alert">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">Dismiss</a>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private string SignedIn { get; set; } = "Technician";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var state = await AuthenticationState;
+        var name = state.User.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            SignedIn = name;
+        }
+    }
+}

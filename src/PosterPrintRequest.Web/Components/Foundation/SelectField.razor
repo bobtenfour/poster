@@ -1,0 +1,100 @@
+<div class="epx-field">
+    <label class="epx-label" for="@ResolvedId">
+        @Label
+        @if (Required)
+        {
+            <span class="epx-required-indicator"><span class="epx-sr-only"> required</span></span>
+        }
+    </label>
+    <div class="epx-field-control">
+        <select id="@ResolvedId"
+                class="epx-select@(string.IsNullOrEmpty(Error) ? "" : " epx-select-invalid")"
+                required="@Required"
+                disabled="@Disabled"
+                aria-required="@(Required ? "true" : "false")"
+                aria-invalid="@(HasError ? "true" : "false")"
+                aria-describedby="@DescribedBy"
+                @onchange="HandleChange">
+            @if (!string.IsNullOrWhiteSpace(BlankLabel))
+            {
+                <option value="">@BlankLabel</option>
+            }
+            @foreach (var option in Options)
+            {
+                <option value="@option.Value" selected="@(option.Value == Value)">@option.Label</option>
+            }
+        </select>
+        @if (!string.IsNullOrWhiteSpace(Help))
+        {
+            <p id="@HelpId" class="epx-helper-text">@Help</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <p id="@ErrorId" class="epx-field-error" role="alert">@Error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly string _generatedId = "select-" + Guid.NewGuid().ToString("N");
+
+    [Parameter]
+    public string? FieldId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SelectOption> Options { get; set; } = [];
+
+    [Parameter]
+    public string? BlankLabel { get; set; }
+
+    [Parameter]
+    public bool Required { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public string? Help { get; set; }
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    private string ResolvedId => string.IsNullOrWhiteSpace(FieldId) ? _generatedId : FieldId;
+
+    private string HelpId => ResolvedId + "-help";
+
+    private string ErrorId => ResolvedId + "-error";
+
+    private bool HasError => !string.IsNullOrWhiteSpace(Error);
+
+    private string? DescribedBy
+    {
+        get
+        {
+            var ids = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Help))
+            {
+                ids.Add(HelpId);
+            }
+
+            if (HasError)
+            {
+                ids.Add(ErrorId);
+            }
+
+            return ids.Count == 0 ? null : string.Join(' ', ids);
+        }
+    }
+
+    private Task HandleChange(ChangeEventArgs args) =>
+        ValueChanged.InvokeAsync(args.Value?.ToString());
+}

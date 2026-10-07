@@ -1,0 +1,31 @@
+﻿@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Error</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Error">
+    <PageHeader Kicker="BlueIgnix" Title="An error occurred" Subtitle="The request could not be completed." />
+    @if (ShowRequestId)
+    {
+        <Panel Kicker="Support" Title="Reference">
+            <dl class="epx-meta">
+                <div>
+                    <dt>Request ID</dt>
+                    <dd><code>@RequestId</code></dd>
+                </div>
+            </dl>
+        </Panel>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

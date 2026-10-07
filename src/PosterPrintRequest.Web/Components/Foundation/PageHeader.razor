@@ -1,0 +1,24 @@
+<header class="epx-blueignix-home-header">
+    <div>
+        @if (!string.IsNullOrWhiteSpace(Kicker))
+        {
+            <p class="epx-blueignix-kicker">@Kicker</p>
+        }
+        <h1>@Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p class="epx-blueignix-subtitle">@Subtitle</p>
+        }
+    </div>
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Kicker { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+}
