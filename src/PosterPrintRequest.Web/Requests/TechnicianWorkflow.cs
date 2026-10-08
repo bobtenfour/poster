@@ -256,8 +256,6 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             .Include(request => request.PosterProcessing)
             .Include(request => request.PosterFile)
             .Include(request => request.ApprovalSheet)
-            .Include(request => request.Department)
-            .Include(request => request.Reason)
             .SingleOrDefaultAsync(request => request.PosterId == posterId, cancellationToken);
     }
 
@@ -291,9 +289,9 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
         {
             PosterId = request.PosterId,
             RequesterName = request.Name,
-            Department = request.Department.Name,
+            Department = request.DepartmentName,
             Mentor = request.Mentor,
-            EventName = request.Reason?.Name,
+            EventName = request.ReasonName,
             Room = request.Room,
             Phone = request.Phone,
             Email = request.Email,

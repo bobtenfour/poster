@@ -670,6 +670,191 @@
   accent-color: var(--epx-blueignix-blue);
 }
 
+.epx-config-add-block {
+  margin-top: 0.85rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--epx-color-border-default);
+}
+
+.epx-config-list-block {
+  margin-top: 1.15rem;
+}
+
+.epx-config-heading {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.epx-config-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.epx-config-add .epx-input,
+.epx-config-add .epx-select {
+  width: min(14rem, 100%);
+}
+
+.epx-config-add .epx-config-add-name {
+  flex: 1 1 18rem;
+  width: auto;
+  min-width: min(18rem, 100%);
+}
+
+.epx-config-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.epx-config-search {
+  position: relative;
+  flex: 1 1 16rem;
+  max-width: 28rem;
+  min-width: min(16rem, 100%);
+}
+
+.epx-config-search-icon {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  transform: translateY(-50%);
+  fill: var(--epx-color-text-muted);
+  pointer-events: none;
+}
+
+.epx-config-search .epx-input {
+  width: 100%;
+  padding-left: 2.15rem;
+}
+
+.epx-config-show {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.epx-config-show .epx-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.epx-config-show .epx-select {
+  width: auto;
+  min-width: 8.5rem;
+}
+
+.epx-config-empty {
+  margin: 0.75rem 0 0;
+  color: var(--epx-color-text-muted);
+}
+
+.epx-config-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.epx-config-table {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.epx-config-table th,
+.epx-config-table td {
+  padding: 0.35rem 0.55rem;
+  border-bottom: 1px solid var(--epx-color-border-default);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.epx-config-table th:first-child,
+.epx-config-table td:first-child {
+  width: 100%;
+}
+
+.epx-config-table th:not(:first-child),
+.epx-config-table td:not(:first-child) {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.epx-config-detail {
+  display: block;
+  color: var(--epx-color-text-muted);
+  font-size: var(--epx-font-size-sm);
+  font-weight: 500;
+}
+
+.epx-config-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.45rem;
+}
+
+.epx-config-edit .epx-input,
+.epx-config-edit .epx-select {
+  width: min(12rem, 100%);
+}
+
+.epx-config-edit .epx-option,
+.epx-config-add .epx-option {
+  width: auto;
+  flex: 0 1 auto;
+}
+
+.epx-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--epx-radius-md);
+  background: transparent;
+  color: var(--epx-color-text-primary);
+  cursor: pointer;
+}
+
+.epx-icon-button:hover {
+  background: rgba(59, 183, 255, 0.12);
+}
+
+.epx-icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.epx-icon-button svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: currentColor;
+}
+
+.epx-icon-button-danger:hover {
+  color: var(--epx-blueignix-red);
+}
+
 .epx-form-actions {
   display: flex;
   flex-wrap: wrap;

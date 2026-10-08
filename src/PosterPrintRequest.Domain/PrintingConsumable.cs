@@ -23,4 +23,6 @@ public sealed class PrintingConsumable
     public bool Active { get; set; }
 
     public List<PrintingStockEntry> StockEntries { get; set; } = [];
+
+    public List<PrinterModelConsumable> PrinterCompatibilities { get; set; } = [];
 }

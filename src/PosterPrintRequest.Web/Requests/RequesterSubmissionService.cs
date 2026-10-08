@@ -113,17 +113,33 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
                 return SubmissionOutcome.Failure(placeError ?? "The files could not be stored. Choose them again.");
             }
 
+            var departmentId = int.Parse(draft.DepartmentId, CultureInfo.InvariantCulture);
+            var departmentName = await _db.Departments
+                .Where(department => department.DepartmentId == departmentId)
+                .Select(department => department.Name)
+                .SingleAsync(cancellationToken);
+            string? reasonName = null;
+            if (reason is not null)
+            {
+                reasonName = await _db.Reasons
+                    .Where(item => item.ReasonId == reason.Id)
+                    .Select(item => item.Name)
+                    .SingleAsync(cancellationToken);
+            }
+
             var request = new PosterRequest
             {
                 PosterId = posterId,
                 SubmittedByUserName = SignedInName(),
                 Name = draft.Name.Trim(),
                 Mentor = string.IsNullOrWhiteSpace(draft.Mentor) ? null : draft.Mentor.Trim(),
-                DepartmentId = int.Parse(draft.DepartmentId, CultureInfo.InvariantCulture),
+                DepartmentId = departmentId,
+                DepartmentName = departmentName,
                 Room = draft.Room.Trim(),
                 Phone = draft.Phone.Trim(),
                 Email = draft.Email.Trim(),
                 ReasonId = reason?.Id,
+                ReasonName = reasonName,
                 LaminationRequested = draft.LaminationRequested,
                 ApprovalSheetUploaded = needsApproval,
                 DateIn = dateIn,

@@ -108,7 +108,7 @@ public sealed class TechnicianDashboard : ITechnicianDashboard
             .Select(request => new DashboardRow(
                 request.PosterId,
                 request.Name,
-                request.Reason != null ? request.Reason.Name : null,
+                request.ReasonName,
                 request.DateIn,
                 request.LaminationRequested,
                 request.PosterProcessing.ITPerson,

@@ -12,6 +12,8 @@ public sealed class PosterRequest
 
     public int DepartmentId { get; set; }
 
+    public string DepartmentName { get; set; } = string.Empty;
+
     public Department Department { get; set; } = null!;
 
     public string Room { get; set; } = string.Empty;
@@ -23,6 +25,8 @@ public sealed class PosterRequest
     public string? SubmittedByUserName { get; set; }
 
     public int? ReasonId { get; set; }
+
+    public string? ReasonName { get; set; }
 
     public Reason? Reason { get; set; }
 

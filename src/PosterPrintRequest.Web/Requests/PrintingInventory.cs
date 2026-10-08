@@ -83,21 +83,6 @@ public sealed class ConsumableAttention
     public required IReadOnlyList<ConsumableAlert> ExpiringSoon { get; init; }
 }
 
-public sealed class ConsumableUpdate
-{
-    public required int PrintingConsumableId { get; init; }
-
-    public required int LowStockThreshold { get; init; }
-
-    public required int CriticalStockThreshold { get; init; }
-
-    public string? Name { get; init; }
-
-    public string? Code { get; init; }
-
-    public string? Capacity { get; init; }
-}
-
 public sealed class InventoryOutcome
 {
     public bool Completed { get; init; }
@@ -115,8 +100,6 @@ public interface IPrintingInventory
 
     Task<ConsumableAttention> CriticalAlertsAsync(CancellationToken cancellationToken);
 
-    Task<InventoryOutcome> UpdateAsync(ConsumableUpdate update, CancellationToken cancellationToken);
-
     Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken);
 
     Task<InventoryOutcome> RemoveStockAsync(
@@ -125,8 +108,6 @@ public interface IPrintingInventory
         bool earliestExpirationAcknowledged,
         DateOnly? acknowledgedExpirationDate,
         CancellationToken cancellationToken);
-
-    Task<InventoryOutcome> AddLaminatingMaterialAsync(string? name, string? code, string? capacity, CancellationToken cancellationToken);
 }
 
 public sealed class PrintingInventory : IPrintingInventory
@@ -142,7 +123,6 @@ public sealed class PrintingInventory : IPrintingInventory
 
     public async Task<PrintingInventoryView> LoadAsync(CancellationToken cancellationToken)
     {
-        await EnsureCatalogAsync(cancellationToken);
         var items = await _db.PrintingConsumables
             .Include(item => item.StockEntries)
             .Where(item => item.Active)
@@ -202,77 +182,8 @@ public sealed class PrintingInventory : IPrintingInventory
         };
     }
 
-    public async Task<InventoryOutcome> UpdateAsync(ConsumableUpdate update, CancellationToken cancellationToken)
-    {
-        await EnsureCatalogAsync(cancellationToken);
-        var item = await _db.PrintingConsumables
-            .Include(candidate => candidate.StockEntries)
-            .SingleOrDefaultAsync(candidate => candidate.PrintingConsumableId == update.PrintingConsumableId && candidate.Active, cancellationToken);
-        if (item is null)
-        {
-            return InventoryOutcome.Failure("That consumable is not in the inventory.");
-        }
-
-        var thresholds = ValidateThresholds(update.LowStockThreshold, update.CriticalStockThreshold);
-        if (thresholds is not null)
-        {
-            return thresholds;
-        }
-
-        if (item.Category == ConsumableCategory.Laminating)
-        {
-            var identity = await ApplyLaminatingIdentityAsync(item, update.Name, update.Code, update.Capacity, cancellationToken);
-            if (identity is not null)
-            {
-                return identity;
-            }
-        }
-
-        item.LowStockThreshold = update.LowStockThreshold;
-        item.CriticalStockThreshold = update.CriticalStockThreshold;
-        item.Status = ConsumableStock.FromQuantity(TotalQuantity(item), item.LowStockThreshold, item.CriticalStockThreshold);
-        await _db.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation(
-            "Technician updated thresholds for {Consumable}. Status is {Status}.",
-            item.Code ?? item.Name,
-            item.Status);
-        return InventoryOutcome.Success();
-    }
-
-    public async Task<InventoryOutcome> AddLaminatingMaterialAsync(string? name, string? code, string? capacity, CancellationToken cancellationToken)
-    {
-        var item = new PrintingConsumable
-        {
-            Category = ConsumableCategory.Laminating,
-            HasExpirationDate = true,
-            LowStockThreshold = 0,
-            CriticalStockThreshold = 0,
-            Status = ConsumableStock.Depleted,
-            Active = true
-        };
-        var identity = await ApplyLaminatingIdentityAsync(item, name, code, capacity, cancellationToken);
-        if (identity is not null)
-        {
-            return identity;
-        }
-
-        _db.PrintingConsumables.Add(item);
-        try
-        {
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            return InventoryOutcome.Failure("That code is already registered.");
-        }
-
-        _logger.LogInformation("Technician registered laminating material {Consumable}.", item.Code ?? item.Name);
-        return InventoryOutcome.Success();
-    }
-
     public async Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken)
     {
-        await EnsureCatalogAsync(cancellationToken);
         var item = await FindActiveAsync(printingConsumableId, cancellationToken);
         if (item is null)
         {
@@ -302,11 +213,22 @@ public sealed class PrintingInventory : IPrintingInventory
             return InventoryOutcome.Failure("Enter the expiration date.");
         }
 
-        item.StockEntries.Add(new PrintingStockEntry
+        var entry = item.StockEntries
+            .Where(candidate => candidate.Quantity > 0 && candidate.ExpirationDate == expirationDate)
+            .OrderBy(candidate => candidate.PrintingStockEntryId)
+            .FirstOrDefault();
+        if (entry is null)
         {
-            Quantity = quantity,
-            ExpirationDate = expirationDate
-        });
+            item.StockEntries.Add(new PrintingStockEntry
+            {
+                Quantity = quantity,
+                ExpirationDate = expirationDate
+            });
+        }
+        else
+        {
+            entry.Quantity += quantity;
+        }
         item.Status = ConsumableStock.FromQuantity(current + quantity, item.LowStockThreshold, item.CriticalStockThreshold);
         await _db.SaveChangesAsync(cancellationToken);
         _logger.LogInformation(
@@ -325,7 +247,6 @@ public sealed class PrintingInventory : IPrintingInventory
         DateOnly? acknowledgedExpirationDate,
         CancellationToken cancellationToken)
     {
-        await EnsureCatalogAsync(cancellationToken);
         var item = await FindActiveAsync(printingConsumableId, cancellationToken);
         if (item is null)
         {
@@ -386,8 +307,8 @@ public sealed class PrintingInventory : IPrintingInventory
     {
         return items
             .Where(item => item.Category == category)
-            .OrderBy(CatalogRank)
-            .ThenBy(item => item.Name, StringComparer.Ordinal)
+            .OrderBy(item => item.Name, StringComparer.Ordinal)
+            .ThenBy(item => item.Code ?? string.Empty, StringComparer.Ordinal)
             .Select(item => ToRow(item, today))
             .ToList();
     }
@@ -451,68 +372,6 @@ public sealed class PrintingInventory : IPrintingInventory
         Detail = detail
     };
 
-    private static InventoryOutcome? ValidateThresholds(int low, int critical)
-    {
-        if (low < 0 || critical < 0)
-        {
-            return InventoryOutcome.Failure("Enter a threshold of zero or more.");
-        }
-
-        if (low < critical)
-        {
-            return InventoryOutcome.Failure("The low-stock threshold must be at least the critical threshold.");
-        }
-
-        return null;
-    }
-
-    private async Task<InventoryOutcome?> ApplyLaminatingIdentityAsync(
-        PrintingConsumable item,
-        string? name,
-        string? code,
-        string? capacity,
-        CancellationToken cancellationToken)
-    {
-        var trimmedName = name?.Trim() ?? "";
-        if (trimmedName.Length == 0)
-        {
-            return InventoryOutcome.Failure("Enter the material name.");
-        }
-
-        if (trimmedName.Length > PrintingConsumableConfiguration.NameMaxLength)
-        {
-            return InventoryOutcome.Failure("Enter a shorter material name.");
-        }
-
-        var trimmedCode = string.IsNullOrWhiteSpace(code) ? null : code.Trim();
-        if (trimmedCode is not null && trimmedCode.Length > PrintingConsumableConfiguration.CodeMaxLength)
-        {
-            return InventoryOutcome.Failure("Enter a shorter material code.");
-        }
-
-        var trimmedCapacity = string.IsNullOrWhiteSpace(capacity) ? null : capacity.Trim();
-        if (trimmedCapacity is not null && trimmedCapacity.Length > PrintingConsumableConfiguration.CapacityMaxLength)
-        {
-            return InventoryOutcome.Failure("Enter a shorter capacity.");
-        }
-
-        if (trimmedCode is not null)
-        {
-            var taken = await _db.PrintingConsumables.AnyAsync(
-                candidate => candidate.Code == trimmedCode && candidate.PrintingConsumableId != item.PrintingConsumableId,
-                cancellationToken);
-            if (taken)
-            {
-                return InventoryOutcome.Failure("That code is already registered.");
-            }
-        }
-
-        item.Name = trimmedName;
-        item.Code = trimmedCode;
-        item.Capacity = trimmedCapacity;
-        return null;
-    }
-
     private static bool ApplyDerivedStatus(IEnumerable<PrintingConsumable> items)
     {
         var changed = false;
@@ -528,72 +387,4 @@ public sealed class PrintingInventory : IPrintingInventory
 
         return changed;
     }
-
-    private async Task EnsureCatalogAsync(CancellationToken cancellationToken)
-    {
-        var codes = await _db.PrintingConsumables
-            .Where(item => item.Code != null)
-            .Select(item => item.Code!)
-            .ToListAsync(cancellationToken);
-        var known = new HashSet<string>(codes, StringComparer.Ordinal);
-        var added = false;
-        foreach (var entry in Catalog)
-        {
-            if (!known.Add(entry.Code))
-            {
-                continue;
-            }
-
-            _db.PrintingConsumables.Add(new PrintingConsumable
-            {
-                Category = entry.Category,
-                Name = entry.Name,
-                Code = entry.Code,
-                Capacity = entry.Capacity,
-                HasExpirationDate = entry.HasExpirationDate,
-                LowStockThreshold = 0,
-                CriticalStockThreshold = 0,
-                Status = ConsumableStock.Depleted,
-                Active = true
-            });
-            added = true;
-        }
-
-        if (added)
-        {
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-    }
-
-    private static int CatalogRank(PrintingConsumable item)
-    {
-        if (item.Code is null)
-        {
-            return Catalog.Length;
-        }
-
-        for (var index = 0; index < Catalog.Length; index++)
-        {
-            if (string.Equals(Catalog[index].Code, item.Code, StringComparison.Ordinal))
-            {
-                return index;
-            }
-        }
-
-        return Catalog.Length;
-    }
-
-    private static readonly CatalogEntry[] Catalog =
-    [
-        new(ConsumableCategory.Cartridge, "MK Matte Black", "C9403A", "130 ml", true),
-        new(ConsumableCategory.Cartridge, "PK Photo Black", "C9370A", "130 ml", true),
-        new(ConsumableCategory.Cartridge, "B Blue", "C9371A", "130 ml", true),
-        new(ConsumableCategory.Cartridge, "M Magenta", "C9372A", "130 ml", true),
-        new(ConsumableCategory.Cartridge, "Y Yellow", "C9373A", "130 ml", true),
-        new(ConsumableCategory.Cartridge, "G Gray", "C9374A", "130 ml", true),
-        new(ConsumableCategory.Paper, "HP Bright White Inkjet Paper", "C1861A", "36 × 150 ft, 90 g/m², 4.7 mil / 119 microns", false),
-        new(ConsumableCategory.Paper, "HP Photo Paper / Photo Paper Gloss", "C6814A", "36 in, High Gloss", false)
-    ];
-
-    private sealed record CatalogEntry(string Category, string Name, string Code, string Capacity, bool HasExpirationDate);
 }

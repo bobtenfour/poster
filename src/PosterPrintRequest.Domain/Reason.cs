@@ -6,6 +6,8 @@ public sealed class Reason
 
     public string Name { get; set; } = string.Empty;
 
+    public bool Active { get; set; } = true;
+
     public bool RequiresMentor { get; set; }
 
     public bool RequiresApprovalSheet { get; set; }

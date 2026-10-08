@@ -151,6 +151,7 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         PosterId = posterId,
         Name = "Queue Person",
         DepartmentId = departmentId,
+        DepartmentName = "Workspace",
         Room = "12",
         Phone = "555-0190",
         Email = "harper@example.edu",

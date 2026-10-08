@@ -23,12 +23,14 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         var uniqueColumns = ReadUniqueColumns(context);
 
         AssertColumn(columns, "Departments", "DepartmentId", "int", nullable: false, identity: true);
-        AssertColumn(columns, "Departments", "Name", "nvarchar", nullable: false, characterMaximumLength: -1);
+        AssertColumn(columns, "Departments", "Name", "nvarchar", nullable: false, characterMaximumLength: 128);
+        AssertColumn(columns, "Departments", "Active", "bit", nullable: false);
 
         AssertColumn(columns, "Reasons", "ReasonId", "int", nullable: false, identity: true);
-        AssertColumn(columns, "Reasons", "Name", "nvarchar", nullable: false, characterMaximumLength: -1);
+        AssertColumn(columns, "Reasons", "Name", "nvarchar", nullable: false, characterMaximumLength: 128);
         AssertColumn(columns, "Reasons", "RequiresMentor", "bit", nullable: false);
         AssertColumn(columns, "Reasons", "RequiresApprovalSheet", "bit", nullable: false);
+        AssertColumn(columns, "Reasons", "Active", "bit", nullable: false);
 
         AssertColumn(columns, "PosterRequests", "PosterRequestId", "int", nullable: false, identity: true);
         AssertColumn(columns, "PosterRequests", "PosterId", "nvarchar", nullable: false, characterMaximumLength: 64);
@@ -78,7 +80,9 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
             "ApprovalSheets",
             "PosterProcessings"
         };
-        Assert.Equal(41, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
+        AssertColumn(columns, "PosterRequests", "DepartmentName", "nvarchar", nullable: false, characterMaximumLength: 128);
+        AssertColumn(columns, "PosterRequests", "ReasonName", "nvarchar", nullable: true, characterMaximumLength: 128);
+        Assert.Equal(45, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
         Assert.Contains(columns.Keys, key => key.StartsWith("AspNetUsers.", StringComparison.Ordinal));
         Assert.Equal("NO_ACTION", foreignKeys["PosterRequests.DepartmentId"]);
         Assert.Equal("NO_ACTION", foreignKeys["PosterRequests.ReasonId"]);
@@ -86,6 +90,8 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         Assert.Equal("CASCADE", foreignKeys["ApprovalSheets.PosterRequestId"]);
         Assert.Equal("CASCADE", foreignKeys["PosterProcessings.PosterRequestId"]);
 
+        Assert.Contains("Departments.Name", uniqueColumns);
+        Assert.Contains("Reasons.Name", uniqueColumns);
         Assert.Contains("PosterRequests.PosterId", uniqueColumns);
         Assert.Contains("PosterFiles.PosterRequestId", uniqueColumns);
         Assert.Contains("ApprovalSheets.PosterRequestId", uniqueColumns);
@@ -116,8 +122,22 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         AssertColumn(columns, "PrintingStockEntries", "Quantity", "int", nullable: false);
         AssertColumn(columns, "PrintingStockEntries", "ExpirationDate", "date", nullable: true);
         Assert.Contains("PrintingConsumables.Code", uniqueColumns);
-        Assert.Equal("CASCADE", ReadForeignKeys(context)["PrintingStockEntries.PrintingConsumableId"]);
+        Assert.Equal("NO_ACTION", ReadForeignKeys(context)["PrintingStockEntries.PrintingConsumableId"]);
         Assert.DoesNotContain(columns.Keys, key => key.StartsWith("PrintingInventorySettings.", StringComparison.Ordinal));
+
+        AssertColumn(columns, "PrinterModels", "PrinterModelId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "PrinterModels", "Name", "nvarchar", nullable: false, characterMaximumLength: 128);
+        AssertColumn(columns, "PrinterModels", "Active", "bit", nullable: false);
+        AssertColumn(columns, "PrinterModelConsumables", "PrinterModelConsumableId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "PrinterModelConsumables", "PrinterModelId", "int", nullable: false);
+        AssertColumn(columns, "PrinterModelConsumables", "PrintingConsumableId", "int", nullable: false);
+        AssertColumn(columns, "PrinterModelConsumables", "Active", "bit", nullable: false);
+        Assert.Contains("PrinterModels.Name", uniqueColumns);
+        Assert.Contains("PrinterModelConsumables.PrinterModelId", uniqueColumns);
+        Assert.Contains("PrinterModelConsumables.PrintingConsumableId", uniqueColumns);
+        var foreignKeys = ReadForeignKeys(context);
+        Assert.Equal("NO_ACTION", foreignKeys["PrinterModelConsumables.PrinterModelId"]);
+        Assert.Equal("NO_ACTION", foreignKeys["PrinterModelConsumables.PrintingConsumableId"]);
     }
 
     [Fact]
@@ -168,6 +188,8 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
             Assert.Equal("Grace Hopper", request.Mentor);
             Assert.Equal(departmentId, request.DepartmentId);
             Assert.Equal("College of Arts", request.Department.Name);
+            Assert.Equal("College of Arts", request.DepartmentName);
+            Assert.Equal("CRD", request.ReasonName);
             Assert.Equal("214", request.Room);
             Assert.Equal("555-0100", request.Phone);
             Assert.Equal("john.smith@example.edu", request.Email);
@@ -427,10 +449,12 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
             Name = "John Smith",
             Mentor = mentor,
             Department = department,
+            DepartmentName = department.Name,
             Room = "214",
             Phone = "555-0100",
             Email = "john.smith@example.edu",
             Reason = reason,
+            ReasonName = reason?.Name,
             LaminationRequested = laminationRequested,
             ApprovalSheetUploaded = approvalSheetUploaded,
             DateIn = new DateTime(2026, 10, 6, 16, 34, 0),

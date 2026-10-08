@@ -1,0 +1,434 @@
+@page "/technician/configuration"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@rendermode InteractiveServer
+@using System.Globalization
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Configuration</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Configuration">
+    <PageHeader Kicker="Configuration" Title="Operator configuration" Subtitle="Active values are available for new work. Inactive values stay on record until you ask to see them." />
+
+    <Panel Id="departments" Kicker="Dropdown" Title="Departments">
+        <p class="epx-helper-text" id="department-help">Checked departments are offered on the request form.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add department</h3>
+            <form class="epx-config-add" @onsubmit="AddDepartmentAsync" @onsubmit:preventDefault>
+                <label class="epx-config-sr" for="department-value">Department name</label>
+                <input id="department-value" class="epx-input epx-config-add-name" placeholder="Department name" value="@NewDepartment" @oninput="OnDepartmentInput" />
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(DepartmentError))
+        {
+            <p class="epx-field-error" role="alert">@DepartmentError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Departments</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-search">
+                    <label class="epx-config-sr" for="department-search">Search departments</label>
+                    <svg class="epx-config-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
+                    <input id="department-search" class="epx-input" type="search" placeholder="Search departments..." autocomplete="off" value="@DepartmentSearch" @oninput="args => DepartmentSearch = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="epx-config-show">
+                    <label class="epx-label" for="department-show">Show:</label>
+                    <select id="department-show" class="epx-select" value="@DepartmentStatus" @onchange="args => DepartmentStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisibleDepartments.Count == 0)
+        {
+            <p class="epx-config-empty">No departments found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var department in VisibleDepartments)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingDepartmentId == department.Id)
+                            {
+                                <form id="@DepartmentFormId(department.Id)" class="epx-config-edit" @onsubmit="() => SaveDepartmentAsync(department.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@DepartmentNameId(department.Id)">Name</label>
+                                    <input id="@DepartmentNameId(department.Id)" class="epx-input" value="@DepartmentEditName" disabled="@Busy" @oninput="OnDepartmentEditInput" />
+                                </form>
+                            }
+                            else
+                            {
+                                @department.Name
+                            }
+                        </td>
+                        <td>
+                            <input id="@DepartmentCheckId(department.Id)" class="epx-check" type="checkbox" checked="@department.Active" disabled="@Busy" aria-label="@($"Active {department.Name}")" aria-describedby="department-help" @onchange="args => SetDepartmentActiveAsync(department.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingDepartmentId == department.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@DepartmentFormId(department.Id)" title="Save" aria-label="@($"Save {department.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@DepartmentEditId(department.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {department.Name}")" disabled="@Busy" @onclick="() => BeginDepartmentEdit(department)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@DepartmentDeleteId(department.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {department.Name}")" disabled="@Busy" @onclick="() => DeleteDepartmentAsync(department.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+
+    <Panel Id="events" Kicker="Dropdown" Title="Reason / Events">
+        <p class="epx-helper-text" id="event-help">Checked events are offered on the request form. Mentor and approval sheet stay with the event.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add reason / event</h3>
+            <form class="epx-config-add" @onsubmit="AddReasonAsync" @onsubmit:preventDefault>
+                <label class="epx-config-sr" for="event-value">Reason / event name</label>
+                <input id="event-value" class="epx-input epx-config-add-name" placeholder="Reason / event name" value="@NewReason" @oninput="OnReasonInput" />
+                <label class="epx-option" for="event-mentor">
+                    <input id="event-mentor" class="epx-check" type="checkbox" checked="@NewReasonRequiresMentor" disabled="@Busy" @onchange="OnReasonMentorChanged" />
+                    <span>Mentor required</span>
+                </label>
+                <label class="epx-option" for="event-approval">
+                    <input id="event-approval" class="epx-check" type="checkbox" checked="@NewReasonRequiresApprovalSheet" disabled="@Busy" @onchange="OnReasonApprovalChanged" />
+                    <span>Approval sheet required</span>
+                </label>
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(ReasonError))
+        {
+            <p class="epx-field-error" role="alert">@ReasonError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Reason / Events</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-search">
+                    <label class="epx-config-sr" for="event-search">Search reason / events</label>
+                    <svg class="epx-config-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
+                    <input id="event-search" class="epx-input" type="search" placeholder="Search reason / events..." autocomplete="off" value="@ReasonSearch" @oninput="args => ReasonSearch = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="epx-config-show">
+                    <label class="epx-label" for="event-show">Show:</label>
+                    <select id="event-show" class="epx-select" value="@ReasonStatus" @onchange="args => ReasonStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisibleReasons.Count == 0)
+        {
+            <p class="epx-config-empty">No reason / events found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reason in VisibleReasons)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingReasonId == reason.Id)
+                            {
+                                <form id="@ReasonFormId(reason.Id)" class="epx-config-edit" @onsubmit="() => SaveReasonAsync(reason.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@ReasonNameId(reason.Id)">Name</label>
+                                    <input id="@ReasonNameId(reason.Id)" class="epx-input" value="@ReasonEditName" disabled="@Busy" @oninput="OnReasonEditInput" />
+                                    <label class="epx-option" for="@ReasonMentorId(reason.Id)">
+                                        <input id="@ReasonMentorId(reason.Id)" class="epx-check" type="checkbox" checked="@ReasonEditMentor" disabled="@Busy" @onchange="args => ReasonEditMentor = args.Value is bool selected && selected" />
+                                        <span>Mentor required</span>
+                                    </label>
+                                    <label class="epx-option" for="@ReasonApprovalId(reason.Id)">
+                                        <input id="@ReasonApprovalId(reason.Id)" class="epx-check" type="checkbox" checked="@ReasonEditApproval" disabled="@Busy" @onchange="args => ReasonEditApproval = args.Value is bool selected && selected" />
+                                        <span>Approval sheet required</span>
+                                    </label>
+                                </form>
+                            }
+                            else
+                            {
+                                @reason.Name
+                                @if (reason.RequiresMentor || reason.RequiresApprovalSheet)
+                                {
+                                    <span class="epx-config-detail">
+                                        @(reason.RequiresMentor ? "Mentor required." : "")
+                                        @(reason.RequiresApprovalSheet ? " Approval sheet required." : "")
+                                    </span>
+                                }
+                            }
+                        </td>
+                        <td>
+                            <input id="@ReasonCheckId(reason.Id)" class="epx-check" type="checkbox" checked="@reason.Active" disabled="@Busy" aria-label="@($"Active {reason.Name}")" aria-describedby="event-help" @onchange="args => SetReasonActiveAsync(reason.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingReasonId == reason.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@ReasonFormId(reason.Id)" title="Save" aria-label="@($"Save {reason.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@ReasonEditId(reason.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {reason.Name}")" disabled="@Busy" @onclick="() => BeginReasonEdit(reason)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@ReasonDeleteId(reason.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {reason.Name}")" disabled="@Busy" @onclick="() => DeleteReasonAsync(reason.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+
+    <Panel Id="printer-models" Kicker="Printer" Title="Printer models">
+        <p class="epx-helper-text" id="printer-help">Checked printer models can be selected.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add printer model</h3>
+            <form class="epx-config-add" @onsubmit="AddPrinterAsync" @onsubmit:preventDefault>
+                <label class="epx-config-sr" for="printer-value">Printer model name</label>
+                <input id="printer-value" class="epx-input epx-config-add-name" placeholder="Printer model name" value="@NewPrinter" @oninput="OnPrinterInput" />
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(PrinterError))
+        {
+            <p class="epx-field-error" role="alert">@PrinterError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Printer models</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-search">
+                    <label class="epx-config-sr" for="printer-search">Search printer models</label>
+                    <svg class="epx-config-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
+                    <input id="printer-search" class="epx-input" type="search" placeholder="Search printer models..." autocomplete="off" value="@PrinterSearch" @oninput="args => PrinterSearch = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="epx-config-show">
+                    <label class="epx-label" for="printer-show">Show:</label>
+                    <select id="printer-show" class="epx-select" value="@PrinterStatus" @onchange="args => PrinterStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisiblePrinters.Count == 0)
+        {
+            <p class="epx-config-empty">No printer models found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var model in VisiblePrinters)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingPrinterId == model.Id)
+                            {
+                                <form id="@PrinterFormId(model.Id)" class="epx-config-edit" @onsubmit="() => SavePrinterAsync(model.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@PrinterNameId(model.Id)">Name</label>
+                                    <input id="@PrinterNameId(model.Id)" class="epx-input" value="@PrinterEditName" disabled="@Busy" @oninput="OnPrinterEditInput" />
+                                </form>
+                            }
+                            else
+                            {
+                                @model.Name
+                            }
+                        </td>
+                        <td>
+                            <input id="@PrinterCheckId(model.Id)" class="epx-check" type="checkbox" checked="@model.Active" disabled="@Busy" aria-label="@($"Active {model.Name}")" aria-describedby="printer-help" @onchange="args => SetPrinterActiveAsync(model.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingPrinterId == model.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@PrinterFormId(model.Id)" title="Save" aria-label="@($"Save {model.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@PrinterEditId(model.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {model.Name}")" disabled="@Busy" @onclick="() => BeginPrinterEdit(model)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@PrinterDeleteId(model.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {model.Name}")" disabled="@Busy" @onclick="() => DeletePrinterAsync(model.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+
+    <Panel Id="consumables" Kicker="Materials" Title="Consumables / Materials">
+        <p class="epx-helper-text" id="consumable-help">A new material is active and starts at quantity 0. Thresholds and printer compatibility are edited on its row. Stock stays in Inventory.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add consumable / material</h3>
+            <form class="epx-config-add" @onsubmit="AddConsumableAsync" @onsubmit:preventDefault>
+                <div class="epx-field">
+                    <label class="epx-label" for="consumable-category">Category</label>
+                    <select id="consumable-category" class="epx-select" value="@NewCategory" @onchange="OnCategoryChanged">
+                        <option value="">Select a category</option>
+                        <option value="@ConsumableCategory.Cartridge">Cartridge</option>
+                        <option value="@ConsumableCategory.Paper">Paper</option>
+                        <option value="@ConsumableCategory.Laminating">Laminating material</option>
+                    </select>
+                </div>
+                <label class="epx-config-sr" for="consumable-name">Consumable / material name</label>
+                <input id="consumable-name" class="epx-input epx-config-add-name" placeholder="Consumable / material name" value="@NewConsumableName" @oninput="OnConsumableNameInput" />
+                <div class="epx-field">
+                    <label class="epx-label" for="consumable-code">Code</label>
+                    <input id="consumable-code" class="epx-input" value="@NewConsumableCode" @oninput="OnConsumableCodeInput" />
+                </div>
+                <div class="epx-field">
+                    <label class="epx-label" for="consumable-capacity">Capacity</label>
+                    <input id="consumable-capacity" class="epx-input" value="@NewConsumableCapacity" @oninput="OnConsumableCapacityInput" />
+                </div>
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(ConsumableError))
+        {
+            <p class="epx-field-error" role="alert">@ConsumableError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Consumables / Materials</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-search">
+                    <label class="epx-config-sr" for="consumable-search">Search consumables / materials</label>
+                    <svg class="epx-config-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
+                    <input id="consumable-search" class="epx-input" type="search" placeholder="Search consumables / materials..." autocomplete="off" value="@ConsumableSearch" @oninput="args => ConsumableSearch = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="epx-config-show">
+                    <label class="epx-label" for="consumable-show">Show:</label>
+                    <select id="consumable-show" class="epx-select" value="@ConsumableStatus" @onchange="args => ConsumableStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisibleConsumables.Count == 0)
+        {
+            <p class="epx-config-empty">No consumables / materials found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var consumable in VisibleConsumables)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingConsumableId == consumable.Id)
+                            {
+                                <form id="@ConsumableFormId(consumable.Id)" class="epx-config-edit" @onsubmit="() => SaveConsumableAsync(consumable.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@ConsumableCategoryId(consumable.Id)">Category</label>
+                                    <select id="@ConsumableCategoryId(consumable.Id)" class="epx-select" value="@ConsumableEditCategory" disabled="@Busy" @onchange="args => ConsumableEditCategory = args.Value?.ToString() ?? string.Empty">
+                                        <option value="@ConsumableCategory.Cartridge">Cartridge</option>
+                                        <option value="@ConsumableCategory.Paper">Paper</option>
+                                        <option value="@ConsumableCategory.Laminating">Laminating material</option>
+                                    </select>
+                                    <label class="epx-label" for="@ConsumableNameId(consumable.Id)">Name</label>
+                                    <input id="@ConsumableNameId(consumable.Id)" class="epx-input" value="@ConsumableEditName" disabled="@Busy" @oninput="args => ConsumableEditName = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@ConsumableCodeId(consumable.Id)">Code</label>
+                                    <input id="@ConsumableCodeId(consumable.Id)" class="epx-input" value="@ConsumableEditCode" disabled="@Busy" @oninput="args => ConsumableEditCode = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@ConsumableCapacityId(consumable.Id)">Capacity</label>
+                                    <input id="@ConsumableCapacityId(consumable.Id)" class="epx-input" value="@ConsumableEditCapacity" disabled="@Busy" @oninput="args => ConsumableEditCapacity = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@CriticalInputId(consumable.Id)">Critical</label>
+                                    <input id="@CriticalInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} critical threshold")" value="@ConsumableEditCritical" disabled="@Busy" @oninput="args => ConsumableEditCritical = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@LowInputId(consumable.Id)">Low stock</label>
+                                    <input id="@LowInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} low-stock threshold")" value="@ConsumableEditLow" disabled="@Busy" @oninput="args => ConsumableEditLow = args.Value?.ToString() ?? string.Empty" />
+                                    @foreach (var printer in ActivePrinters)
+                                    {
+                                        <label class="epx-option" for="@CompatibilityCheckId(printer.Id)">
+                                            <input id="@CompatibilityCheckId(printer.Id)" class="epx-check" type="checkbox" checked="@ConsumableEditPrinters.Contains(printer.Id)" disabled="@Busy" aria-label="@($"Compatible with {printer.Name}")" @onchange="args => TogglePrinter(printer.Id, args)" />
+                                            <span>@printer.Name</span>
+                                        </label>
+                                    }
+                                </form>
+                            }
+                            else
+                            {
+                                @ConsumableLabel(consumable)
+                                <span class="epx-config-detail">Critical @consumable.CriticalStockThreshold.ToString(CultureInfo.InvariantCulture). Low stock @consumable.LowStockThreshold.ToString(CultureInfo.InvariantCulture). @CompatibilitySummary(consumable)</span>
+                            }
+                        </td>
+                        <td>
+                            <input id="@ConsumableCheckId(consumable.Id)" class="epx-check" type="checkbox" checked="@consumable.Active" disabled="@Busy" aria-label="@($"Active {consumable.Name}")" aria-describedby="consumable-help" @onchange="args => SetConsumableActiveAsync(consumable.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingConsumableId == consumable.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@ConsumableFormId(consumable.Id)" title="Save" aria-label="@($"Save {consumable.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@ConsumableEditId(consumable.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {consumable.Name}")" disabled="@Busy" @onclick="() => BeginConsumableEdit(consumable)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@ConsumableDeleteId(consumable.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {consumable.Name}")" disabled="@Busy" @onclick="() => DeleteConsumableAsync(consumable.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+</section>

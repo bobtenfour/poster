@@ -39,7 +39,7 @@ public sealed class AcceptanceLookup
             {
                 PosterId = request.PosterId,
                 RequesterName = request.Name,
-                EventName = request.Reason != null ? request.Reason.Name : null,
+                EventName = request.ReasonName,
                 DateIn = request.DateIn,
                 LaminationRequested = request.LaminationRequested
             })

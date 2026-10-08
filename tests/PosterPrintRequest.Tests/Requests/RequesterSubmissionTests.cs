@@ -279,6 +279,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
     private async Task<RequesterChoices> LoadChoicesAsync()
     {
         await using var context = _database.CreateContext();
+        await RequesterOptionExamples.EnsureAsync(context);
         return await new RequesterOptionCatalog(context).LoadAsync(CancellationToken.None);
     }
 

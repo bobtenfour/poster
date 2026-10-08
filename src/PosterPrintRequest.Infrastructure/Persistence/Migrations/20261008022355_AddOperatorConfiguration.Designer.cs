@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosterPrintRequest.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PosterPrintRequest.Infrastructure.Persistence;
 namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PosterPrintRequestDbContext))]
-    partial class PosterPrintRequestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008022355_AddOperatorConfiguration")]
+    partial class AddOperatorConfiguration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -310,11 +313,6 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Property<int>("DepartmentId")
                         .HasColumnType("int");
 
-                    b.Property<string>("DepartmentName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -340,10 +338,6 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
 
                     b.Property<int?>("ReasonId")
                         .HasColumnType("int");
-
-                    b.Property<string>("ReasonName")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("Room")
                         .IsRequired()
@@ -719,7 +713,7 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.HasOne("PosterPrintRequest.Domain.PrintingConsumable", "PrintingConsumable")
                         .WithMany("StockEntries")
                         .HasForeignKey("PrintingConsumableId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("PrintingConsumable");

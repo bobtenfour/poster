@@ -16,7 +16,7 @@ public static class UserActivityQuery
             .OrderByDescending(request => request.DateIn)
             .Select(request => new UserPosterActivity(
                 request.PosterId,
-                request.Reason != null ? request.Reason.Name : null,
+                request.ReasonName,
                 request.PosterProcessing.Printed,
                 request.DateIn))
             .ToListAsync(cancellationToken);

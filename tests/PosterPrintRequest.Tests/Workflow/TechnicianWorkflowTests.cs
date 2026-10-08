@@ -122,6 +122,7 @@ public sealed class TechnicianWorkflowTests : IDisposable
             PosterId = posterId,
             Name = "Sequence Ceiling",
             DepartmentId = departmentId,
+            DepartmentName = choices.Departments.First().Label,
             Room = "1",
             Phone = "555-0188",
             Email = "ceiling@example.edu",
@@ -183,6 +184,7 @@ public sealed class TechnicianWorkflowTests : IDisposable
     private async Task<RequesterChoices> LoadChoicesAsync()
     {
         await using var context = _database.CreateContext();
+        await RequesterOptionExamples.EnsureAsync(context);
         return await new RequesterOptionCatalog(context).LoadAsync(CancellationToken.None);
     }
 

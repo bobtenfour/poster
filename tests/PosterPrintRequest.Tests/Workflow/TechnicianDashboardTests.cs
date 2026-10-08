@@ -111,6 +111,7 @@ public sealed class TechnicianDashboardTests
             PosterId = posterId,
             Name = "Queue Person",
             DepartmentId = departmentId,
+            DepartmentName = "Department",
             Room = "4",
             Phone = "555-0188",
             Email = "queue@example.edu",

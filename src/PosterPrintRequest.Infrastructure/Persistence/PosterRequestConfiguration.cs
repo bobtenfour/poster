@@ -47,6 +47,13 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
             .HasColumnType("datetime2")
             .IsRequired();
 
+        builder.Property(request => request.DepartmentName)
+            .HasMaxLength(DepartmentConfiguration.NameMaxLength)
+            .IsRequired();
+
+        builder.Property(request => request.ReasonName)
+            .HasMaxLength(ReasonConfiguration.NameMaxLength);
+
         builder.HasOne(request => request.Department)
             .WithMany(department => department.PosterRequests)
             .HasForeignKey(request => request.DepartmentId)

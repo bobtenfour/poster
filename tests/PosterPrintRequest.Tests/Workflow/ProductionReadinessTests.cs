@@ -157,12 +157,14 @@ public sealed class ProductionReadinessTests : IDisposable
         await File.WriteAllTextAsync(secret, "secret-bytes");
         await using (var context = _database.CreateContext())
         {
+            await RequesterOptionExamples.EnsureAsync(context);
             var departmentId = int.Parse((await new RequesterOptionCatalog(context).LoadAsync(CancellationToken.None)).Departments.First().Value);
             context.PosterRequests.Add(new PosterRequest
             {
                 PosterId = "POSTER-2026-000777",
                 Name = "Poison Path",
                 DepartmentId = departmentId,
+                DepartmentName = "Department",
                 Room = "1",
                 Phone = "555-0177",
                 Email = "poison@example.edu",

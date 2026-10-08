@@ -62,6 +62,8 @@ public sealed class RoleSeparationTests
         Assert.Contains("/Account/AccessDenied", library.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var inventory = await client.GetAsync("/technician/inventory");
         Assert.Contains("/Account/AccessDenied", inventory.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        var configuration = await client.GetAsync("/technician/configuration");
+        Assert.Contains("/Account/AccessDenied", configuration.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var file = await client.GetAsync("/technician/files/POSTER-2026-000001/poster");
         Assert.Contains("/Account/AccessDenied", file.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         Assert.DoesNotContain("%PDF", await file.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -80,6 +82,7 @@ public sealed class RoleSeparationTests
         Assert.Contains("Posters awaiting pickup", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/library\"", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/configuration\"", html, StringComparison.Ordinal);
         Assert.Contains("Printing Supplies", html, StringComparison.Ordinal);
         Assert.Contains("Monitor toner, paper, and lamination stock.", html, StringComparison.Ordinal);
         Assert.Contains(">Depleted<", html, StringComparison.Ordinal);
@@ -105,7 +108,11 @@ public sealed class RoleSeparationTests
         Assert.Contains("C9374A", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains("C1861A", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains("C6814A", inventoryHtml, StringComparison.Ordinal);
-        Assert.Contains("Eagle 105", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains(">Cartridges<", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains(">Paper<", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains(">Laminating materials<", inventoryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Eagle 105", inventoryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("HP 72", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains(">None<", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains("Add stock", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains("Remove stock", inventoryHtml, StringComparison.Ordinal);
@@ -194,8 +201,8 @@ public sealed class UserActivityTests
             context.Departments.Add(department);
             context.Reasons.Add(reason);
             await context.SaveChangesAsync();
-            context.PosterRequests.Add(Poster(department.DepartmentId, reason.ReasonId, "POSTER-2032-000001", "usera", printed: true));
-            context.PosterRequests.Add(Poster(department.DepartmentId, reason.ReasonId, "POSTER-2032-000002", "usero", printed: true));
+            context.PosterRequests.Add(Poster(department.DepartmentId, department.Name, reason.ReasonId, eventName, "POSTER-2032-000001", "usera", printed: true));
+            context.PosterRequests.Add(Poster(department.DepartmentId, department.Name, reason.ReasonId, eventName, "POSTER-2032-000002", "usero", printed: true));
             await context.SaveChangesAsync();
         }
 
@@ -209,13 +216,15 @@ public sealed class UserActivityTests
         Assert.DoesNotContain("POSTER-2032-000002", html, StringComparison.Ordinal);
     }
 
-    private static PosterRequest Poster(int departmentId, int reasonId, string posterId, string userName, bool printed) => new()
+    private static PosterRequest Poster(int departmentId, string departmentName, int reasonId, string reasonName, string posterId, string userName, bool printed) => new()
     {
         PosterId = posterId,
         Name = "Activity Person",
         SubmittedByUserName = userName,
         DepartmentId = departmentId,
+        DepartmentName = departmentName,
         ReasonId = reasonId,
+        ReasonName = reasonName,
         Room = "4",
         Phone = "555-0140",
         Email = "activity@example.edu",

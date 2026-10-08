@@ -16,6 +16,6 @@ public sealed class PrintingStockEntryConfiguration : IEntityTypeConfiguration<P
         builder.HasOne(entry => entry.PrintingConsumable)
             .WithMany(item => item.StockEntries)
             .HasForeignKey(entry => entry.PrintingConsumableId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

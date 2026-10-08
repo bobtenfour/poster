@@ -4,13 +4,22 @@ using PosterPrintRequest.Domain;
 
 namespace PosterPrintRequest.Infrastructure.Persistence;
 
-internal sealed class DepartmentConfiguration : IEntityTypeConfiguration<Department>
+public sealed class DepartmentConfiguration : IEntityTypeConfiguration<Department>
 {
+    public const int NameMaxLength = 128;
+
     public void Configure(EntityTypeBuilder<Department> builder)
     {
         builder.HasKey(department => department.DepartmentId);
 
         builder.Property(department => department.Name)
+            .HasMaxLength(NameMaxLength)
             .IsRequired();
+
+        builder.HasIndex(department => department.Name)
+            .IsUnique();
+
+        builder.Property(department => department.Active)
+            .HasDefaultValue(true);
     }
 }

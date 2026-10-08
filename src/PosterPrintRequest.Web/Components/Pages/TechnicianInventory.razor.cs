@@ -31,14 +31,6 @@ public partial class TechnicianInventory : ComponentBase
 
     private string? RemoveStockError { get; set; }
 
-    private string NewName { get; set; } = "";
-
-    private string NewCode { get; set; } = "";
-
-    private string NewCapacity { get; set; } = "";
-
-    private string? AddError { get; set; }
-
     private bool Busy { get; set; }
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
@@ -80,12 +72,6 @@ public partial class TechnicianInventory : ComponentBase
 
     private void OnAcknowledgeChanged(ChangeEventArgs args) =>
         EarliestAcknowledged = args.Value is bool selected && selected;
-
-    private void OnNewNameChanged(ChangeEventArgs args) => NewName = args.Value?.ToString() ?? "";
-
-    private void OnNewCodeChanged(ChangeEventArgs args) => NewCode = args.Value?.ToString() ?? "";
-
-    private void OnNewCapacityChanged(ChangeEventArgs args) => NewCapacity = args.Value?.ToString() ?? "";
 
     private async Task AddStockAsync()
     {
@@ -152,56 +138,6 @@ public partial class TechnicianInventory : ComponentBase
         await ReloadAsync();
     }
 
-    private async Task AddMaterialAsync()
-    {
-        AddError = null;
-        Busy = true;
-        var result = await Inventory.AddLaminatingMaterialAsync(NewName, NewCode, NewCapacity, CancellationToken.None);
-        Busy = false;
-        if (!result.Completed)
-        {
-            AddError = result.Message;
-            return;
-        }
-
-        NewName = "";
-        NewCode = "";
-        NewCapacity = "";
-        await ReloadAsync();
-    }
-
-    private async Task SaveAsync(int id)
-    {
-        var draft = CartridgeDrafts.Concat(PaperDrafts).Concat(LaminatingDrafts).Single(item => item.Id == id);
-        draft.Error = null;
-        var criticalOk = TryCount(draft.Critical, "Enter a threshold of zero or more.", out var critical, out var criticalError);
-        var lowOk = TryCount(draft.Low, "Enter a threshold of zero or more.", out var low, out var lowError);
-        if (!criticalOk || !lowOk)
-        {
-            draft.Error = criticalError ?? lowError;
-            return;
-        }
-
-        Busy = true;
-        var result = await Inventory.UpdateAsync(new ConsumableUpdate
-        {
-            PrintingConsumableId = draft.Id,
-            LowStockThreshold = low,
-            CriticalStockThreshold = critical,
-            Name = draft.Name,
-            Code = draft.Code,
-            Capacity = draft.Capacity
-        }, CancellationToken.None);
-        Busy = false;
-        if (!result.Completed)
-        {
-            draft.Error = result.Message;
-            return;
-        }
-
-        await ReloadAsync();
-    }
-
     private ConsumableDraft? FindChoice(string id) =>
         StockChoices.FirstOrDefault(item => item.Id.ToString(CultureInfo.InvariantCulture) == id);
 
@@ -227,19 +163,6 @@ public partial class TechnicianInventory : ComponentBase
         error = null;
         return true;
     }
-
-    private static bool TryCount(string value, string message, out int count, out string? error)
-    {
-        if (!int.TryParse(value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out count) || count < 0)
-        {
-            error = message;
-            count = 0;
-            return false;
-        }
-
-        error = null;
-        return true;
-    }
 }
 
 public sealed class ConsumableDraft
@@ -258,19 +181,11 @@ public sealed class ConsumableDraft
 
     public string Quantity { get; set; } = "0";
 
-    public string Low { get; set; } = "0";
-
-    public string Critical { get; set; } = "0";
-
     public string EarliestExpiration { get; set; } = "";
 
     public string? EarliestAlert { get; set; }
 
-    public IReadOnlyList<StockEntryDraft> Entries { get; set; } = [];
-
     public string Status { get; set; } = "";
-
-    public string? Error { get; set; }
 
     public static ConsumableDraft From(ConsumableRow row) => new()
     {
@@ -281,28 +196,8 @@ public sealed class ConsumableDraft
         Code = row.Code ?? "",
         Capacity = row.Capacity ?? "",
         Quantity = row.CurrentQuantity.ToString(CultureInfo.InvariantCulture),
-        Low = row.LowStockThreshold.ToString(CultureInfo.InvariantCulture),
-        Critical = row.CriticalStockThreshold.ToString(CultureInfo.InvariantCulture),
         EarliestExpiration = row.EarliestExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
         EarliestAlert = row.EarliestExpirationAlert,
-        Entries = row.Entries.Select(entry => new StockEntryDraft
-        {
-            Id = entry.PrintingStockEntryId,
-            Quantity = entry.Quantity,
-            Expiration = entry.ExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
-            Alert = entry.ExpirationAlert
-        }).ToList(),
         Status = row.Status
     };
-}
-
-public sealed class StockEntryDraft
-{
-    public int Id { get; set; }
-
-    public int Quantity { get; set; }
-
-    public string Expiration { get; set; } = "";
-
-    public string? Alert { get; set; }
 }

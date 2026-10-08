@@ -26,6 +26,8 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterFile),
                 nameof(PosterProcessing),
                 nameof(PosterRequest),
+                nameof(PrinterModel),
+                nameof(PrinterModelConsumable),
                 nameof(PrintingConsumable),
                 nameof(PrintingStockEntry),
                 nameof(Reason)
@@ -40,12 +42,13 @@ public sealed class ApprovedErdModelTests
     public void Authorities_and_request_keep_separate_properties()
     {
         Assert.Equal(
-            new[] { nameof(Department.DepartmentId), nameof(Department.Name), nameof(Department.PosterRequests) },
+            new[] { nameof(Department.Active), nameof(Department.DepartmentId), nameof(Department.Name), nameof(Department.PosterRequests) },
             PropertyNames(typeof(Department)));
 
         Assert.Equal(
             new[]
             {
+                nameof(Reason.Active),
                 nameof(Reason.Name),
                 nameof(Reason.PosterRequests),
                 nameof(Reason.ReasonId),
@@ -62,6 +65,7 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterRequest.DateIn),
                 nameof(PosterRequest.Department),
                 nameof(PosterRequest.DepartmentId),
+                nameof(PosterRequest.DepartmentName),
                 nameof(PosterRequest.Email),
                 nameof(PosterRequest.LaminationRequested),
                 nameof(PosterRequest.Mentor),
@@ -73,6 +77,7 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterRequest.PosterRequestId),
                 nameof(PosterRequest.Reason),
                 nameof(PosterRequest.ReasonId),
+                nameof(PosterRequest.ReasonName),
                 nameof(PosterRequest.Room),
                 nameof(PosterRequest.SubmittedByUserName)
             },
@@ -216,13 +221,51 @@ public sealed class ApprovedErdModelTests
         Assert.True(codeIndex.IsUnique);
         var entries = consumable.FindNavigation(nameof(PrintingConsumable.StockEntries))!;
         Assert.True(entries.IsCollection);
-        Assert.Equal(DeleteBehavior.Cascade, entries.ForeignKey.DeleteBehavior);
+        Assert.Equal(DeleteBehavior.Restrict, entries.ForeignKey.DeleteBehavior);
 
         var stockEntry = context.Model.FindEntityType(typeof(PrintingStockEntry))!;
         Assert.Equal("date", stockEntry.FindProperty(nameof(PrintingStockEntry.ExpirationDate))!.GetColumnType());
         Assert.True(stockEntry.FindProperty(nameof(PrintingStockEntry.ExpirationDate))!.IsNullable);
         Assert.False(stockEntry.FindProperty(nameof(PrintingStockEntry.Quantity))!.IsNullable);
         Assert.False(stockEntry.FindProperty(nameof(PrintingStockEntry.PrintingConsumableId))!.IsNullable);
+
+        var department = context.Model.FindEntityType(typeof(Department))!;
+        Assert.False(department.FindProperty(nameof(Department.Active))!.IsNullable);
+        Assert.Equal(DepartmentConfiguration.NameMaxLength, department.FindProperty(nameof(Department.Name))!.GetMaxLength());
+        Assert.Contains(department.GetIndexes(), index => index.IsUnique && index.Properties.Any(property => property.Name == nameof(Department.Name)));
+
+        var reasonEntity = context.Model.FindEntityType(typeof(Reason))!;
+        Assert.False(reasonEntity.FindProperty(nameof(Reason.Active))!.IsNullable);
+        Assert.Equal(ReasonConfiguration.NameMaxLength, reasonEntity.FindProperty(nameof(Reason.Name))!.GetMaxLength());
+
+        Assert.Equal(
+            new[]
+            {
+                nameof(PrinterModel.Active),
+                nameof(PrinterModel.CompatibleConsumables),
+                nameof(PrinterModel.Name),
+                nameof(PrinterModel.PrinterModelId)
+            },
+            PropertyNames(typeof(PrinterModel)));
+        Assert.Equal(
+            new[]
+            {
+                nameof(PrinterModelConsumable.Active),
+                nameof(PrinterModelConsumable.PrinterModel),
+                nameof(PrinterModelConsumable.PrinterModelConsumableId),
+                nameof(PrinterModelConsumable.PrinterModelId),
+                nameof(PrinterModelConsumable.PrintingConsumable),
+                nameof(PrinterModelConsumable.PrintingConsumableId)
+            },
+            PropertyNames(typeof(PrinterModelConsumable)));
+
+        var link = context.Model.FindEntityType(typeof(PrinterModelConsumable))!;
+        Assert.All(link.GetForeignKeys(), foreignKey => Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
+        Assert.Contains(
+            link.GetIndexes(),
+            index => index.IsUnique
+                && index.Properties.Select(property => property.Name).OrderBy(name => name).SequenceEqual(
+                    new[] { nameof(PrinterModelConsumable.PrinterModelId), nameof(PrinterModelConsumable.PrintingConsumableId) }));
     }
 
     private static string[] PropertyNames(Type type) =>

@@ -28,6 +28,10 @@ public sealed class PosterPrintRequestDbContext : IdentityDbContext<ApplicationU
 
     public DbSet<PrintingStockEntry> PrintingStockEntries => Set<PrintingStockEntry>();
 
+    public DbSet<PrinterModel> PrinterModels => Set<PrinterModel>();
+
+    public DbSet<PrinterModelConsumable> PrinterModelConsumables => Set<PrinterModelConsumable>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

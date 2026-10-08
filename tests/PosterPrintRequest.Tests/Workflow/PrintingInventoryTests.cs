@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using PosterPrintRequest.Domain;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Tests.Workflow;
@@ -15,44 +16,46 @@ public sealed class PrintingInventoryTests
     }
 
     [Fact]
-    public async Task Catalog_starts_depleted_and_thresholds_stay_with_the_consumable()
+    public async Task Configured_consumable_starts_depleted_and_thresholds_stay_with_the_consumable()
     {
         await ClearInventoryAsync();
         await using var context = _database.CreateContext();
         var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
 
-        var initial = await inventory.LoadAsync(CancellationToken.None);
-        Assert.Equal(["C9403A", "C9370A", "C9371A", "C9372A", "C9373A", "C9374A"], initial.Cartridges.Select(item => item.Code).ToArray());
-        Assert.All(initial.Cartridges, item =>
-        {
-            Assert.Equal(0, item.CurrentQuantity);
-            Assert.Equal(0, item.LowStockThreshold);
-            Assert.Equal(0, item.CriticalStockThreshold);
-            Assert.Equal(ConsumableStock.Depleted, item.Status);
-            Assert.Equal("130 ml", item.Capacity);
-            Assert.True(item.HasExpirationDate);
-            Assert.Empty(item.Entries);
-            Assert.Null(item.EarliestExpirationDate);
-            Assert.Null(item.EarliestExpirationAlert);
-        });
-        Assert.Equal(["C1861A", "C6814A"], initial.Paper.Select(item => item.Code).ToArray());
-        Assert.All(initial.Paper, item =>
-        {
-            Assert.Equal(ConsumableStock.Depleted, item.Status);
-            Assert.False(item.HasExpirationDate);
-        });
-        Assert.Contains("36 × 150 ft", initial.Paper.Single(item => item.Code == "C1861A").Capacity, StringComparison.Ordinal);
-        Assert.Contains("High Gloss", initial.Paper.Single(item => item.Code == "C6814A").Capacity, StringComparison.Ordinal);
-        Assert.Empty(initial.LaminatingMaterials);
+        var empty = await inventory.LoadAsync(CancellationToken.None);
+        Assert.Empty(empty.Cartridges);
+        Assert.Empty(empty.Paper);
+        Assert.Empty(empty.LaminatingMaterials);
+        Assert.Equal(0, await context.PrintingConsumables.CountAsync());
+
+        var cartridge = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Matte black", "CART-1", "130 ml");
+        var paper = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Bright white", "PAPER-1", "36 in");
+        Assert.Equal(0, cartridge.CurrentQuantity);
+        Assert.Equal(0, cartridge.LowStockThreshold);
+        Assert.Equal(0, cartridge.CriticalStockThreshold);
+        Assert.Equal(ConsumableStock.Depleted, cartridge.Status);
+        Assert.Equal("130 ml", cartridge.Capacity);
+        Assert.True(cartridge.HasExpirationDate);
+        Assert.Empty(cartridge.Entries);
+        Assert.Null(cartridge.EarliestExpirationDate);
+        Assert.Null(cartridge.EarliestExpirationAlert);
+        Assert.Equal(ConsumableStock.Depleted, paper.Status);
+        Assert.False(paper.HasExpirationDate);
+        Assert.Equal("36 in", paper.Capacity);
 
         var again = await inventory.LoadAsync(CancellationToken.None);
-        Assert.Equal(8, again.Cartridges.Count + again.Paper.Count);
+        Assert.Single(again.Cartridges);
+        Assert.Single(again.Paper);
 
-        var matte = initial.Cartridges.Single(item => item.Code == "C9403A");
-        Assert.Equal("The low-stock threshold must be at least the critical threshold.", (await inventory.UpdateAsync(Thresholds(matte, low: 1, critical: 2), CancellationToken.None)).Message);
-        Assert.True((await inventory.UpdateAsync(Thresholds(matte, low: 2, critical: 0), CancellationToken.None)).Completed);
+        Assert.Equal("The low-stock threshold must be at least the critical threshold.", (await configuration.SetConsumableThresholdsAsync(cartridge.PrintingConsumableId, 1, 2, CancellationToken.None)).Message);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(cartridge.PrintingConsumableId, 2, 0, CancellationToken.None)).Completed);
+        var configured = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-1");
+        Assert.Equal(2, configured.LowStockThreshold);
+        Assert.Equal(0, configured.CriticalStockThreshold);
+        Assert.Equal("Matte black", configured.Name);
 
-        var added = await inventory.AddLaminatingMaterialAsync("Double-sided film", null, null, CancellationToken.None);
+        var added = await configuration.AddConsumableAsync(ConsumableCategory.Laminating, "Double-sided film", null, null, CancellationToken.None);
         Assert.True(added.Completed);
         var withMaterial = await inventory.LoadAsync(CancellationToken.None);
         var film = Assert.Single(withMaterial.LaminatingMaterials);
@@ -61,7 +64,57 @@ public sealed class PrintingInventoryTests
         Assert.True(film.HasExpirationDate);
         Assert.Empty(film.Entries);
         Assert.Null(film.EarliestExpirationDate);
-        Assert.Equal("That code is already registered.", (await inventory.AddLaminatingMaterialAsync("Duplicate cartridge code", "C9403A", null, CancellationToken.None)).Message);
+        Assert.Equal("That code is already registered.", (await configuration.AddConsumableAsync(ConsumableCategory.Laminating, "Duplicate cartridge code", "CART-1", null, CancellationToken.None)).Message);
+    }
+
+    [Fact]
+    public async Task Same_expiration_aggregates_and_a_different_date_stays_separate()
+    {
+        await ClearInventoryAsync();
+        await using var context = _database.CreateContext();
+        var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
+        var blue = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "B Blue", "CART-BLUE-GROUP", null);
+        var march = new DateOnly(2027, 3, 15);
+        var july = new DateOnly(2027, 7, 20);
+        var before = await context.PrintingConsumables.AsNoTracking().SingleAsync(item => item.PrintingConsumableId == blue.PrintingConsumableId);
+
+        Assert.True((await inventory.AddStockAsync(blue.PrintingConsumableId, 10, march, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(blue.PrintingConsumableId, 5, march, CancellationToken.None)).Completed);
+        var grouped = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-BLUE-GROUP");
+        var marchEntry = Assert.Single(grouped.Entries);
+        Assert.Equal(15, marchEntry.Quantity);
+        Assert.Equal(march, marchEntry.ExpirationDate);
+        Assert.Equal(15, grouped.CurrentQuantity);
+        Assert.Equal(march, grouped.EarliestExpirationDate);
+
+        Assert.True((await inventory.AddStockAsync(blue.PrintingConsumableId, 4, july, CancellationToken.None)).Completed);
+        var split = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-BLUE-GROUP");
+        Assert.Equal(19, split.CurrentQuantity);
+        Assert.Equal(march, split.EarliestExpirationDate);
+        Assert.Equal([march, july], split.Entries.Select(entry => entry.ExpirationDate).ToArray());
+        Assert.Equal([15, 4], split.Entries.Select(entry => entry.Quantity).ToArray());
+
+        context.PrintingStockEntries.Add(new PrintingStockEntry
+        {
+            PrintingConsumableId = blue.PrintingConsumableId,
+            Quantity = 0,
+            ExpirationDate = new DateOnly(2027, 1, 1)
+        });
+        await context.SaveChangesAsync();
+        var withZero = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-BLUE-GROUP");
+        Assert.Equal(march, withZero.EarliestExpirationDate);
+        Assert.DoesNotContain(withZero.Entries, entry => entry.Quantity == 0);
+        Assert.Equal(2, await context.PrintingStockEntries.CountAsync(entry => entry.PrintingConsumableId == blue.PrintingConsumableId && entry.Quantity > 0));
+
+        var after = await context.PrintingConsumables.AsNoTracking().SingleAsync(item => item.PrintingConsumableId == blue.PrintingConsumableId);
+        Assert.Equal(before.Name, after.Name);
+        Assert.Equal(before.Code, after.Code);
+        Assert.Equal(before.Capacity, after.Capacity);
+        Assert.Equal(before.LowStockThreshold, after.LowStockThreshold);
+        Assert.Equal(before.CriticalStockThreshold, after.CriticalStockThreshold);
+        Assert.Equal(before.Active, after.Active);
+        Assert.Equal(before.Category, after.Category);
     }
 
     [Fact]
@@ -70,9 +123,9 @@ public sealed class PrintingInventoryTests
         await ClearInventoryAsync();
         await using var context = _database.CreateContext();
         var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var initial = await inventory.LoadAsync(CancellationToken.None);
-        var matte = initial.Cartridges.Single(item => item.Code == "C9403A");
+        var matte = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Matte black", "CART-MATTE", "130 ml");
         var later = today.AddMonths(14);
         var middle = today.AddMonths(8);
         var early = today.AddMonths(3);
@@ -81,7 +134,7 @@ public sealed class PrintingInventoryTests
         Assert.True((await inventory.AddStockAsync(matte.PrintingConsumableId, 2, middle, CancellationToken.None)).Completed);
         Assert.True((await inventory.AddStockAsync(matte.PrintingConsumableId, 1, early, CancellationToken.None)).Completed);
 
-        var stocked = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "C9403A");
+        var stocked = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-MATTE");
         Assert.Equal(7, stocked.CurrentQuantity);
         Assert.Equal(early, stocked.EarliestExpirationDate);
         Assert.Equal(ConsumableStock.ExpiresWithinSixMonths, stocked.EarliestExpirationAlert);
@@ -95,9 +148,9 @@ public sealed class PrintingInventoryTests
         await ClearInventoryAsync();
         await using var context = _database.CreateContext();
         var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var initial = await inventory.LoadAsync(CancellationToken.None);
-        var matte = initial.Cartridges.Single(item => item.Code == "C9403A");
+        var matte = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Matte black", "CART-MATTE", "130 ml");
         var early = today.AddMonths(3);
         var middle = today.AddMonths(8);
         var later = today.AddMonths(14);
@@ -113,12 +166,12 @@ public sealed class PrintingInventoryTests
         Assert.Equal(missingAcknowledgement.Message, wrongDate.Message);
         Assert.Equal("That removal would reduce the inventory below zero.", (await inventory.RemoveStockAsync(matte.PrintingConsumableId, 8, true, early, CancellationToken.None)).Message);
 
-        var unchanged = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "C9403A");
+        var unchanged = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-MATTE");
         Assert.Equal(7, unchanged.CurrentQuantity);
         Assert.Equal([1, 2, 4], unchanged.Entries.Select(entry => entry.Quantity).ToArray());
 
         Assert.True((await inventory.RemoveStockAsync(matte.PrintingConsumableId, 1, true, early, CancellationToken.None)).Completed);
-        var afterFirst = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "C9403A");
+        var afterFirst = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-MATTE");
         Assert.Equal(6, afterFirst.CurrentQuantity);
         Assert.Equal(middle, afterFirst.EarliestExpirationDate);
         Assert.Equal([2, 4], afterFirst.Entries.Select(entry => entry.Quantity).ToArray());
@@ -126,16 +179,16 @@ public sealed class PrintingInventoryTests
 
         Assert.Contains(middle.ToString("yyyy-MM-dd"), (await inventory.RemoveStockAsync(matte.PrintingConsumableId, 3, true, early, CancellationToken.None)).Message, StringComparison.Ordinal);
         Assert.True((await inventory.RemoveStockAsync(matte.PrintingConsumableId, 3, true, middle, CancellationToken.None)).Completed);
-        var spanned = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "C9403A");
+        var spanned = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-MATTE");
         Assert.Equal(3, spanned.CurrentQuantity);
         var remaining = Assert.Single(spanned.Entries);
         Assert.Equal(later, remaining.ExpirationDate);
         Assert.Equal(3, remaining.Quantity);
 
         Assert.Equal("That removal would reduce the inventory below zero.", (await inventory.RemoveStockAsync(matte.PrintingConsumableId, 4, true, later, CancellationToken.None)).Message);
-        Assert.Equal(3, (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "C9403A").CurrentQuantity);
+        Assert.Equal(3, (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-MATTE").CurrentQuantity);
         Assert.True((await inventory.RemoveStockAsync(matte.PrintingConsumableId, 3, true, later, CancellationToken.None)).Completed);
-        var removed = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "C9403A");
+        var removed = (await inventory.LoadAsync(CancellationToken.None)).Cartridges.Single(item => item.Code == "CART-MATTE");
         Assert.Equal(0, removed.CurrentQuantity);
         Assert.Empty(removed.Entries);
         Assert.Equal(ConsumableStock.Depleted, removed.Status);
@@ -148,43 +201,48 @@ public sealed class PrintingInventoryTests
         await ClearInventoryAsync();
         await using var context = _database.CreateContext();
         var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var initial = await inventory.LoadAsync(CancellationToken.None);
-        var paper = initial.Paper.Single(item => item.Code == "C1861A");
+        var paper = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Bright white", "PAPER-1", null);
         var dated = today.AddMonths(4);
 
         Assert.Equal("Enter a quantity greater than zero.", (await inventory.AddStockAsync(paper.PrintingConsumableId, 0, null, CancellationToken.None)).Message);
         Assert.Equal("This material does not use an expiration date.", (await inventory.AddStockAsync(paper.PrintingConsumableId, 1, today, CancellationToken.None)).Message);
         Assert.True((await inventory.AddStockAsync(paper.PrintingConsumableId, 2, null, CancellationToken.None)).Completed);
         Assert.True((await inventory.AddStockAsync(paper.PrintingConsumableId, 3, null, CancellationToken.None)).Completed);
-        var stockedPaper = (await inventory.LoadAsync(CancellationToken.None)).Paper.Single(item => item.Code == "C1861A");
+        var stockedPaper = (await inventory.LoadAsync(CancellationToken.None)).Paper.Single(item => item.Code == "PAPER-1");
         Assert.Equal(5, stockedPaper.CurrentQuantity);
         Assert.Null(stockedPaper.EarliestExpirationDate);
-        Assert.Equal(2, stockedPaper.Entries.Count);
-        Assert.All(stockedPaper.Entries, entry => Assert.Null(entry.ExpirationDate));
+        var paperReceipt = Assert.Single(stockedPaper.Entries);
+        Assert.Equal(5, paperReceipt.Quantity);
+        Assert.Null(paperReceipt.ExpirationDate);
 
         Assert.Equal("That removal would reduce the inventory below zero.", (await inventory.RemoveStockAsync(paper.PrintingConsumableId, 6, false, null, CancellationToken.None)).Message);
         Assert.True((await inventory.RemoveStockAsync(paper.PrintingConsumableId, 4, false, null, CancellationToken.None)).Completed);
-        var reducedPaper = (await inventory.LoadAsync(CancellationToken.None)).Paper.Single(item => item.Code == "C1861A");
+        var reducedPaper = (await inventory.LoadAsync(CancellationToken.None)).Paper.Single(item => item.Code == "PAPER-1");
         var paperEntry = Assert.Single(reducedPaper.Entries);
         Assert.Equal(1, paperEntry.Quantity);
         Assert.Null(paperEntry.ExpirationDate);
         Assert.Equal(ConsumableStock.InStock, reducedPaper.Status);
 
-        Assert.True((await inventory.AddLaminatingMaterialAsync("Double-sided film", null, null, CancellationToken.None)).Completed);
+        Assert.True((await configuration.AddConsumableAsync(ConsumableCategory.Laminating, "Double-sided film", null, null, CancellationToken.None)).Completed);
         var material = (await inventory.LoadAsync(CancellationToken.None)).LaminatingMaterials.Single();
         Assert.True((await inventory.AddStockAsync(material.PrintingConsumableId, 2, null, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(material.PrintingConsumableId, 3, null, CancellationToken.None)).Completed);
         Assert.True((await inventory.AddStockAsync(material.PrintingConsumableId, 1, dated, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(material.PrintingConsumableId, 4, dated, CancellationToken.None)).Completed);
         var stockedMaterial = (await inventory.LoadAsync(CancellationToken.None)).LaminatingMaterials.Single();
-        Assert.Equal(3, stockedMaterial.CurrentQuantity);
+        Assert.Equal(10, stockedMaterial.CurrentQuantity);
         Assert.Equal(dated, stockedMaterial.EarliestExpirationDate);
         Assert.Equal(ConsumableStock.ExpiresWithinSixMonths, stockedMaterial.EarliestExpirationAlert);
-        Assert.Contains(stockedMaterial.Entries, entry => entry.ExpirationDate is null && entry.Quantity == 2 && entry.ExpirationAlert is null);
+        Assert.Equal(2, stockedMaterial.Entries.Count);
+        Assert.Contains(stockedMaterial.Entries, entry => entry.ExpirationDate == dated && entry.Quantity == 5);
+        Assert.Contains(stockedMaterial.Entries, entry => entry.ExpirationDate is null && entry.Quantity == 5 && entry.ExpirationAlert is null);
         Assert.True((await inventory.RemoveStockAsync(material.PrintingConsumableId, 1, false, null, CancellationToken.None)).Completed);
         var afterRemoval = (await inventory.LoadAsync(CancellationToken.None)).LaminatingMaterials.Single();
-        var undated = Assert.Single(afterRemoval.Entries);
-        Assert.Null(undated.ExpirationDate);
-        Assert.Equal(2, undated.Quantity);
+        Assert.Equal(dated, afterRemoval.EarliestExpirationDate);
+        Assert.Contains(afterRemoval.Entries, entry => entry.ExpirationDate == dated && entry.Quantity == 4);
+        Assert.Contains(afterRemoval.Entries, entry => entry.ExpirationDate is null && entry.Quantity == 5);
     }
 
     [Fact]
@@ -193,15 +251,18 @@ public sealed class PrintingInventoryTests
         await ClearInventoryAsync();
         await using var context = _database.CreateContext();
         var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var initial = await inventory.LoadAsync(CancellationToken.None);
-        var matte = initial.Cartridges.Single(item => item.Code == "C9403A");
-        var blue = initial.Cartridges.Single(item => item.Code == "C9371A");
-        var photoBlack = initial.Cartridges.Single(item => item.Code == "C9370A");
-        var yellow = initial.Cartridges.Single(item => item.Code == "C9373A");
-        var photo = initial.Paper.Single(item => item.Code == "C6814A");
+        var matte = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Matte black", "CART-MATTE", null);
+        var blue = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Blue", "CART-BLUE", null);
+        var photoBlack = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Photo black", "CART-BLACK", null);
+        var yellow = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Yellow", "CART-YELLOW", null);
+        await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Extra one", "CART-EXTRA-1", null);
+        await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Extra two", "CART-EXTRA-2", null);
+        await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Plain", "PAPER-PLAIN", null);
+        var photo = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Gloss", "PAPER-GLOSS", null);
 
-        Assert.True((await inventory.UpdateAsync(Thresholds(matte, low: 2, critical: 0), CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(matte.PrintingConsumableId, 2, 0, CancellationToken.None)).Completed);
         Assert.True((await inventory.AddStockAsync(matte.PrintingConsumableId, 1, today.AddMonths(6), CancellationToken.None)).Completed);
         Assert.True((await inventory.AddStockAsync(blue.PrintingConsumableId, 3, today.AddMonths(12), CancellationToken.None)).Completed);
         Assert.True((await inventory.AddStockAsync(photoBlack.PrintingConsumableId, 4, today.AddMonths(12).AddDays(1), CancellationToken.None)).Completed);
@@ -210,10 +271,10 @@ public sealed class PrintingInventoryTests
         Assert.True((await inventory.AddStockAsync(photo.PrintingConsumableId, 1, null, CancellationToken.None)).Completed);
 
         var loaded = await inventory.LoadAsync(CancellationToken.None);
-        var stockedMatte = loaded.Cartridges.Single(item => item.Code == "C9403A");
-        var stockedBlue = loaded.Cartridges.Single(item => item.Code == "C9371A");
-        var stockedPhotoBlack = loaded.Cartridges.Single(item => item.Code == "C9370A");
-        var stockedYellow = loaded.Cartridges.Single(item => item.Code == "C9373A");
+        var stockedMatte = loaded.Cartridges.Single(item => item.Code == "CART-MATTE");
+        var stockedBlue = loaded.Cartridges.Single(item => item.Code == "CART-BLUE");
+        var stockedPhotoBlack = loaded.Cartridges.Single(item => item.Code == "CART-BLACK");
+        var stockedYellow = loaded.Cartridges.Single(item => item.Code == "CART-YELLOW");
         Assert.Equal(ConsumableStock.ExpiresWithinSixMonths, Assert.Single(stockedMatte.Entries).ExpirationAlert);
         Assert.Equal(ConsumableStock.ExpiresWithinTwelveMonths, Assert.Single(stockedBlue.Entries).ExpirationAlert);
         Assert.Null(Assert.Single(stockedPhotoBlack.Entries).ExpirationAlert);
@@ -225,32 +286,73 @@ public sealed class PrintingInventoryTests
         var alerts = await inventory.CriticalAlertsAsync(CancellationToken.None);
         Assert.Equal(3, alerts.Depleted.Count);
         Assert.Single(alerts.LowStock);
-        Assert.Equal("C9403A", alerts.LowStock[0].Code);
+        Assert.Equal("CART-MATTE", alerts.LowStock[0].Code);
         Assert.Equal(3, alerts.ExpiringSoon.Count);
-        Assert.Contains(alerts.ExpiringSoon, alert => alert.Code == "C9403A" && alert.Detail.StartsWith(ConsumableStock.ExpiresWithinSixMonths, StringComparison.Ordinal));
-        Assert.Contains(alerts.ExpiringSoon, alert => alert.Code == "C9371A" && alert.Detail.StartsWith(ConsumableStock.ExpiresWithinTwelveMonths, StringComparison.Ordinal));
-        var yellowAlert = alerts.ExpiringSoon.Single(alert => alert.Code == "C9373A");
+        Assert.Contains(alerts.ExpiringSoon, alert => alert.Code == "CART-MATTE" && alert.Detail.StartsWith(ConsumableStock.ExpiresWithinSixMonths, StringComparison.Ordinal));
+        Assert.Contains(alerts.ExpiringSoon, alert => alert.Code == "CART-BLUE" && alert.Detail.StartsWith(ConsumableStock.ExpiresWithinTwelveMonths, StringComparison.Ordinal));
+        var yellowAlert = alerts.ExpiringSoon.Single(alert => alert.Code == "CART-YELLOW");
         Assert.StartsWith(ConsumableStock.ExpiresWithinSixMonths, yellowAlert.Detail, StringComparison.Ordinal);
         Assert.DoesNotContain(ConsumableStock.ExpiresWithinTwelveMonths, yellowAlert.Detail, StringComparison.Ordinal);
-        Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code == "C9370A");
-        Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code == "C6814A");
-        Assert.DoesNotContain(alerts.Depleted, alert => alert.Code == "C6814A");
+        Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code == "CART-BLACK");
+        Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code == "PAPER-GLOSS");
+        Assert.DoesNotContain(alerts.Depleted, alert => alert.Code == "PAPER-GLOSS");
     }
 
     private async Task ClearInventoryAsync()
     {
         await using var context = _database.CreateContext();
+        await context.PrinterModelConsumables.ExecuteDeleteAsync();
         await context.PrintingStockEntries.ExecuteDeleteAsync();
         await context.PrintingConsumables.ExecuteDeleteAsync();
     }
 
-    private static ConsumableUpdate Thresholds(ConsumableRow row, int low, int critical) => new()
+    private static async Task<ConsumableRow> AddAsync(
+        OperatorConfiguration configuration,
+        PrintingInventory inventory,
+        string category,
+        string name,
+        string code,
+        string? capacity)
     {
-        PrintingConsumableId = row.PrintingConsumableId,
-        LowStockThreshold = low,
-        CriticalStockThreshold = critical,
-        Name = row.Name,
-        Code = row.Code,
-        Capacity = row.Capacity
-    };
+        var outcome = await configuration.AddConsumableAsync(category, name, code, capacity, CancellationToken.None);
+        Assert.True(outcome.Completed, outcome.Message);
+        var view = await inventory.LoadAsync(CancellationToken.None);
+        var rows = category switch
+        {
+            ConsumableCategory.Cartridge => view.Cartridges,
+            ConsumableCategory.Paper => view.Paper,
+            _ => view.LaminatingMaterials
+        };
+        return rows.Single(item => item.Code == code);
+    }
+}
+
+public sealed class PrintingInventorySourceTests
+{
+    [Fact]
+    public void Inventory_does_not_edit_consumable_configuration()
+    {
+        var root = Path.Combine(PosterPrintRequest.Tests.RepositoryPaths.Root(), "src", "PosterPrintRequest.Web");
+        var inventoryPage = File.ReadAllText(Path.Combine(root, "Components", "Pages", "TechnicianInventory.razor"));
+        var table = File.ReadAllText(Path.Combine(root, "Components", "Pages", "ConsumableStockTable.razor"));
+        var inventory = File.ReadAllText(Path.Combine(root, "Requests", "PrintingInventory.cs"));
+        var configurationPage = File.ReadAllText(Path.Combine(root, "Components", "Pages", "TechnicianConfiguration.razor"));
+
+        Assert.Contains("Total quantity", table, StringComparison.Ordinal);
+        Assert.Contains("First expiration", table, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Save<", inventoryPage, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Save<", table, StringComparison.Ordinal);
+        Assert.DoesNotContain("critical threshold", inventoryPage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("low-stock threshold", inventoryPage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Add material", inventoryPage, StringComparison.Ordinal);
+        Assert.DoesNotContain("UpdateAsync", inventory, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddLaminatingMaterialAsync", inventory, StringComparison.Ordinal);
+        Assert.Contains("epx-config-table", configurationPage, StringComparison.Ordinal);
+        Assert.Contains("epx-config-filters", configurationPage, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Status</label>", configurationPage, StringComparison.Ordinal);
+        Assert.Contains("critical threshold", configurationPage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("low-stock threshold", configurationPage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("epx-config-row", configurationPage, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Edit</button>", configurationPage, StringComparison.Ordinal);
+    }
 }

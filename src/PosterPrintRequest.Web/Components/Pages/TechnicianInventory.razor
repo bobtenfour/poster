@@ -8,10 +8,10 @@
 <PageTitle>Inventory</PageTitle>
 
 <section class="epx-blueignix-home" aria-label="Inventory">
-    <PageHeader Kicker="Inventory" Title="Printing consumables" Subtitle="Quantities, thresholds, and expiration for cartridges, paper, and laminating materials." />
+    <PageHeader Kicker="Inventory" Title="Printing consumables" Subtitle="Quantity and first expiration for each configured consumable." />
 
     <Panel Id="inventory-operations" Kicker="Stock" Title="Inventory operations">
-        <p class="epx-helper-text">Each Add stock receipt creates a stock entry. A cartridge entry requires an expiration date. Paper has no expiration date. Laminating material may include one. Removing stock uses the earliest expiration first and cannot take the quantity below zero. A cartridge removal requires acknowledgement of the first expiration date.</p>
+        <p class="epx-helper-text">Add stock increases the entry for that consumable and expiration date, or creates one when that date is not already on record. Paper uses one undated entry. Laminating material groups each expiration date and keeps undated stock separate. Removing stock uses the earliest expiration first and cannot take the quantity below zero. A cartridge removal requires acknowledgement of the first expiration date.</p>
         <h3>Add stock</h3>
         <form class="epx-tech-period" @onsubmit="AddStockAsync" @onsubmit:preventDefault>
             <label class="epx-label" for="add-consumable">Consumable</label>
@@ -72,31 +72,18 @@
         }
     </Panel>
 
-    <Panel Id="cartridges" Kicker="Cartridges" Title="HP 72">
-        <p class="epx-helper-text">MK C9403A, PK C9370A, B Blue C9371A, M C9372A, Y C9373A, and G C9374A. Each cartridge is 130 ml. Each stock entry records its quantity and expiration date.</p>
-        <ConsumableStockTable Drafts="CartridgeDrafts" Busy="Busy" ShowEntries="true" EntryHeading="Cartridge" OnSave="SaveAsync" />
+    <Panel Id="cartridges" Kicker="Cartridges" Title="Cartridges">
+        <p class="epx-helper-text">Total quantity and first expiration come from the cartridge stock entries.</p>
+        <ConsumableStockTable Drafts="CartridgeDrafts" />
     </Panel>
 
-    <Panel Id="paper" Kicker="Paper" Title="Authorized paper">
-        <p class="epx-helper-text">HP Bright White Inkjet Paper C1861A and HP Photo Paper / Photo Paper Gloss C6814A. Paper has no expiration date.</p>
-        <ConsumableStockTable Drafts="PaperDrafts" Busy="Busy" OnSave="SaveAsync" />
+    <Panel Id="paper" Kicker="Paper" Title="Paper">
+        <p class="epx-helper-text">Paper has no expiration date. Receipts share one undated stock entry.</p>
+        <ConsumableStockTable Drafts="PaperDrafts" />
     </Panel>
 
-    <Panel Id="laminating" Kicker="Lamination" Title="Eagle 105 materials">
-        <p class="epx-helper-text">Eagle 105 lamination covers both faces. Record each possible material here. A new material starts at quantity 0 and Depleted. Each stock entry may include an expiration date.</p>
-        <ConsumableStockTable Drafts="LaminatingDrafts" IncludeIdentity="true" Busy="Busy" ShowEntries="true" EntryHeading="Material" OnSave="SaveAsync" />
-        <form class="epx-tech-period" @onsubmit="AddMaterialAsync" @onsubmit:preventDefault>
-            <label class="epx-label" for="laminate-name">Material</label>
-            <input id="laminate-name" class="epx-input" value="@NewName" @onchange="OnNewNameChanged" />
-            <label class="epx-label" for="laminate-code">Code</label>
-            <input id="laminate-code" class="epx-input" value="@NewCode" @onchange="OnNewCodeChanged" />
-            <label class="epx-label" for="laminate-capacity">Capacity</label>
-            <input id="laminate-capacity" class="epx-input" value="@NewCapacity" @onchange="OnNewCapacityChanged" />
-            <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add material</button>
-        </form>
-        @if (!string.IsNullOrWhiteSpace(AddError))
-        {
-            <p class="epx-field-error" role="alert">@AddError</p>
-        }
+    <Panel Id="laminating" Kicker="Lamination" Title="Laminating materials">
+        <p class="epx-helper-text">Dated stock is grouped by expiration date. Undated stock is a separate entry and is used after dated stock.</p>
+        <ConsumableStockTable Drafts="LaminatingDrafts" />
     </Panel>
 </section>
