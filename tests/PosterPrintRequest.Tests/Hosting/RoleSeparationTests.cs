@@ -107,6 +107,10 @@ public sealed class RoleSeparationTests
         Assert.Contains("C6814A", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains("Eagle 105", inventoryHtml, StringComparison.Ordinal);
         Assert.Contains(">None<", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("Add stock", inventoryHtml, StringComparison.Ordinal);
+        Assert.Contains("Remove stock", inventoryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Warning period", inventoryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Expiration warning", inventoryHtml, StringComparison.Ordinal);
 
         foreach (var path in new[] { "/", "/help", "/request" })
         {

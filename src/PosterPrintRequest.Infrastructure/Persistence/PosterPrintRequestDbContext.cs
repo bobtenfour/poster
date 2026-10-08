@@ -26,7 +26,7 @@ public sealed class PosterPrintRequestDbContext : IdentityDbContext<ApplicationU
 
     public DbSet<PrintingConsumable> PrintingConsumables => Set<PrintingConsumable>();
 
-    public DbSet<PrintingInventorySetting> PrintingInventorySettings => Set<PrintingInventorySetting>();
+    public DbSet<PrintingStockEntry> PrintingStockEntries => Set<PrintingStockEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

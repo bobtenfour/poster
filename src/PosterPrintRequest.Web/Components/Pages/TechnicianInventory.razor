@@ -2,6 +2,7 @@
 @layout TechnicianLayout
 @attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
 @rendermode InteractiveServer
+@using System.Globalization
 @using PosterPrintRequest.Web.Requests
 
 <PageTitle>Inventory</PageTitle>
@@ -9,22 +10,71 @@
 <section class="epx-blueignix-home" aria-label="Inventory">
     <PageHeader Kicker="Inventory" Title="Printing consumables" Subtitle="Quantities, thresholds, and expiration for cartridges, paper, and laminating materials." />
 
-    <Panel Id="expiration-warning" Kicker="Thresholds" Title="Expiration warning">
-        <p class="epx-helper-text">Leave the period blank until it is set. A recorded expiration on or before today is expired. A later date is expiring soon only when it falls inside this period. Paper has no expiration date.</p>
-        <div class="epx-tech-period">
-            <label class="epx-label" for="expiration-warning-days">Warning period in days</label>
-            <input id="expiration-warning-days" class="epx-input" inputmode="numeric" value="@WarningDays" @onchange="OnWarningDaysChanged" />
-            <button class="epx-button epx-button-secondary" type="button" disabled="@Busy" @onclick="SaveWarningAsync">Save period</button>
-        </div>
-        @if (!string.IsNullOrWhiteSpace(WarningError))
+    <Panel Id="inventory-operations" Kicker="Stock" Title="Inventory operations">
+        <p class="epx-helper-text">Each Add stock receipt creates a stock entry. A cartridge entry requires an expiration date. Paper has no expiration date. Laminating material may include one. Removing stock uses the earliest expiration first and cannot take the quantity below zero. A cartridge removal requires acknowledgement of the first expiration date.</p>
+        <h3>Add stock</h3>
+        <form class="epx-tech-period" @onsubmit="AddStockAsync" @onsubmit:preventDefault>
+            <label class="epx-label" for="add-consumable">Consumable</label>
+            <select id="add-consumable" class="epx-select" value="@AddConsumableId" @onchange="OnAddConsumableChanged">
+                <option value="">Select a consumable</option>
+                @foreach (var choice in StockChoices)
+                {
+                    <option value="@choice.Id.ToString(CultureInfo.InvariantCulture)">@ChoiceLabel(choice)</option>
+                }
+            </select>
+            <label class="epx-label" for="add-quantity">Quantity</label>
+            <input id="add-quantity" class="epx-input" inputmode="numeric" value="@AddQuantity" @onchange="OnAddQuantityChanged" />
+            @if (AddChoice?.HasExpiration == true)
+            {
+                <label class="epx-label" for="add-expiration">Expiration date</label>
+                <input id="add-expiration" class="epx-input" type="date" value="@AddExpiration" required="@(AddChoice.Category == ConsumableCategory.Cartridge)" @onchange="OnAddExpirationChanged" />
+            }
+            <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add stock</button>
+        </form>
+        @if (!string.IsNullOrWhiteSpace(AddStockError))
         {
-            <p class="epx-field-error" role="alert">@WarningError</p>
+            <p class="epx-field-error" role="alert">@AddStockError</p>
+        }
+        <h3>Remove stock</h3>
+        <form class="epx-tech-period" @onsubmit="RemoveStockAsync" @onsubmit:preventDefault>
+            <label class="epx-label" for="remove-consumable">Consumable</label>
+            <select id="remove-consumable" class="epx-select" value="@RemoveConsumableId" @onchange="OnRemoveConsumableChanged">
+                <option value="">Select a consumable</option>
+                @foreach (var choice in StockChoices)
+                {
+                    <option value="@choice.Id.ToString(CultureInfo.InvariantCulture)">@ChoiceLabel(choice)</option>
+                }
+            </select>
+            <label class="epx-label" for="remove-quantity">Quantity</label>
+            <input id="remove-quantity" class="epx-input" inputmode="numeric" value="@RemoveQuantity" @onchange="OnRemoveQuantityChanged" />
+            @if (RemoveChoice?.Category == ConsumableCategory.Cartridge)
+            {
+                <div class="epx-stock-ack">
+                    @if (string.IsNullOrWhiteSpace(RemoveChoice.EarliestExpiration))
+                    {
+                        <p class="epx-helper-text">No cartridge stock is available.</p>
+                    }
+                    else
+                    {
+                        <p class="epx-helper-text" id="first-expiration">First expiration: @RemoveChoice.EarliestExpiration</p>
+                        <label class="epx-option" for="acknowledge-expiration">
+                            <input id="acknowledge-expiration" class="epx-check" type="checkbox" checked="@EarliestAcknowledged" @onchange="OnAcknowledgeChanged" />
+                            <span>This is the first cartridge to expire.</span>
+                        </label>
+                    }
+                </div>
+            }
+            <button class="epx-button epx-button-secondary" type="submit" disabled="@Busy">Remove stock</button>
+        </form>
+        @if (!string.IsNullOrWhiteSpace(RemoveStockError))
+        {
+            <p class="epx-field-error" role="alert">@RemoveStockError</p>
         }
     </Panel>
 
     <Panel Id="cartridges" Kicker="Cartridges" Title="HP 72">
-        <p class="epx-helper-text">MK C9403A, PK C9370A, B Blue C9371A, M C9372A, Y C9373A, and G C9374A. Each cartridge is 130 ml. Enter an expiration date when the quantity is above zero.</p>
-        <ConsumableStockTable Drafts="CartridgeDrafts" Busy="Busy" OnSave="SaveAsync" />
+        <p class="epx-helper-text">MK C9403A, PK C9370A, B Blue C9371A, M C9372A, Y C9373A, and G C9374A. Each cartridge is 130 ml. Each stock entry records its quantity and expiration date.</p>
+        <ConsumableStockTable Drafts="CartridgeDrafts" Busy="Busy" ShowEntries="true" EntryHeading="Cartridge" OnSave="SaveAsync" />
     </Panel>
 
     <Panel Id="paper" Kicker="Paper" Title="Authorized paper">
@@ -33,8 +83,8 @@
     </Panel>
 
     <Panel Id="laminating" Kicker="Lamination" Title="Eagle 105 materials">
-        <p class="epx-helper-text">Eagle 105 lamination covers both faces. Record each possible material here. A new material starts at quantity 0 and Depleted, and can carry an expiration date.</p>
-        <ConsumableStockTable Drafts="LaminatingDrafts" IncludeIdentity="true" Busy="Busy" OnSave="SaveAsync" />
+        <p class="epx-helper-text">Eagle 105 lamination covers both faces. Record each possible material here. A new material starts at quantity 0 and Depleted. Each stock entry may include an expiration date.</p>
+        <ConsumableStockTable Drafts="LaminatingDrafts" IncludeIdentity="true" Busy="Busy" ShowEntries="true" EntryHeading="Material" OnSave="SaveAsync" />
         <form class="epx-tech-period" @onsubmit="AddMaterialAsync" @onsubmit:preventDefault>
             <label class="epx-label" for="laminate-name">Material</label>
             <input id="laminate-name" class="epx-input" value="@NewName" @onchange="OnNewNameChanged" />

@@ -15,9 +15,21 @@ public partial class TechnicianInventory : ComponentBase
 
     private List<ConsumableDraft> LaminatingDrafts { get; set; } = [];
 
-    private string WarningDays { get; set; } = "";
+    private string AddConsumableId { get; set; } = "";
 
-    private string? WarningError { get; set; }
+    private string AddQuantity { get; set; } = "";
+
+    private string AddExpiration { get; set; } = "";
+
+    private string? AddStockError { get; set; }
+
+    private string RemoveConsumableId { get; set; } = "";
+
+    private string RemoveQuantity { get; set; } = "";
+
+    private bool EarliestAcknowledged { get; set; }
+
+    private string? RemoveStockError { get; set; }
 
     private string NewName { get; set; } = "";
 
@@ -34,13 +46,40 @@ public partial class TechnicianInventory : ComponentBase
     private async Task ReloadAsync()
     {
         var view = await Inventory.LoadAsync(CancellationToken.None);
-        WarningDays = view.ExpirationWarningDays?.ToString(CultureInfo.InvariantCulture) ?? "";
         CartridgeDrafts = view.Cartridges.Select(ConsumableDraft.From).ToList();
         PaperDrafts = view.Paper.Select(ConsumableDraft.From).ToList();
         LaminatingDrafts = view.LaminatingMaterials.Select(ConsumableDraft.From).ToList();
     }
 
-    private void OnWarningDaysChanged(ChangeEventArgs args) => WarningDays = args.Value?.ToString() ?? "";
+    private IEnumerable<ConsumableDraft> StockChoices => CartridgeDrafts.Concat(PaperDrafts).Concat(LaminatingDrafts);
+
+    private ConsumableDraft? AddChoice => FindChoice(AddConsumableId);
+
+    private ConsumableDraft? RemoveChoice => FindChoice(RemoveConsumableId);
+
+    private void OnAddConsumableChanged(ChangeEventArgs args)
+    {
+        AddConsumableId = args.Value?.ToString() ?? "";
+        if (AddChoice?.HasExpiration != true)
+        {
+            AddExpiration = "";
+        }
+    }
+
+    private void OnAddQuantityChanged(ChangeEventArgs args) => AddQuantity = args.Value?.ToString() ?? "";
+
+    private void OnAddExpirationChanged(ChangeEventArgs args) => AddExpiration = args.Value?.ToString() ?? "";
+
+    private void OnRemoveConsumableChanged(ChangeEventArgs args)
+    {
+        RemoveConsumableId = args.Value?.ToString() ?? "";
+        EarliestAcknowledged = false;
+    }
+
+    private void OnRemoveQuantityChanged(ChangeEventArgs args) => RemoveQuantity = args.Value?.ToString() ?? "";
+
+    private void OnAcknowledgeChanged(ChangeEventArgs args) =>
+        EarliestAcknowledged = args.Value is bool selected && selected;
 
     private void OnNewNameChanged(ChangeEventArgs args) => NewName = args.Value?.ToString() ?? "";
 
@@ -48,30 +87,68 @@ public partial class TechnicianInventory : ComponentBase
 
     private void OnNewCapacityChanged(ChangeEventArgs args) => NewCapacity = args.Value?.ToString() ?? "";
 
-    private async Task SaveWarningAsync()
+    private async Task AddStockAsync()
     {
-        WarningError = null;
-        int? days = null;
-        if (!string.IsNullOrWhiteSpace(WarningDays))
+        AddStockError = null;
+        if (!TryMovement(AddConsumableId, AddQuantity, out var id, out var quantity, out var error))
         {
-            if (!int.TryParse(WarningDays.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))
-            {
-                WarningError = "Enter a warning period of zero or more days.";
-                return;
-            }
-
-            days = parsed;
-        }
-
-        Busy = true;
-        var result = await Inventory.SetExpirationWarningDaysAsync(days, CancellationToken.None);
-        Busy = false;
-        if (!result.Completed)
-        {
-            WarningError = result.Message;
+            AddStockError = error;
             return;
         }
 
+        DateOnly? expiration = null;
+        if (AddChoice?.HasExpiration == true && !string.IsNullOrWhiteSpace(AddExpiration))
+        {
+            if (!DateOnly.TryParseExact(AddExpiration.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+            {
+                AddStockError = "Enter a valid expiration date.";
+                return;
+            }
+
+            expiration = parsed;
+        }
+
+        Busy = true;
+        var result = await Inventory.AddStockAsync(id, quantity, expiration, CancellationToken.None);
+        Busy = false;
+        if (!result.Completed)
+        {
+            AddStockError = result.Message;
+            return;
+        }
+
+        AddQuantity = "";
+        AddExpiration = "";
+        await ReloadAsync();
+    }
+
+    private async Task RemoveStockAsync()
+    {
+        RemoveStockError = null;
+        if (!TryMovement(RemoveConsumableId, RemoveQuantity, out var id, out var quantity, out var error))
+        {
+            RemoveStockError = error;
+            return;
+        }
+
+        DateOnly? acknowledged = null;
+        if (RemoveChoice?.Category == ConsumableCategory.Cartridge
+            && DateOnly.TryParseExact(RemoveChoice.EarliestExpiration, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var earliest))
+        {
+            acknowledged = earliest;
+        }
+
+        Busy = true;
+        var result = await Inventory.RemoveStockAsync(id, quantity, EarliestAcknowledged, acknowledged, CancellationToken.None);
+        Busy = false;
+        if (!result.Completed)
+        {
+            RemoveStockError = result.Message;
+            return;
+        }
+
+        RemoveQuantity = "";
+        EarliestAcknowledged = false;
         await ReloadAsync();
     }
 
@@ -97,35 +174,20 @@ public partial class TechnicianInventory : ComponentBase
     {
         var draft = CartridgeDrafts.Concat(PaperDrafts).Concat(LaminatingDrafts).Single(item => item.Id == id);
         draft.Error = null;
-        var quantityOk = TryCount(draft.Quantity, "Enter a quantity of zero or more.", out var quantity, out var quantityError);
         var criticalOk = TryCount(draft.Critical, "Enter a threshold of zero or more.", out var critical, out var criticalError);
         var lowOk = TryCount(draft.Low, "Enter a threshold of zero or more.", out var low, out var lowError);
-        if (!quantityOk || !criticalOk || !lowOk)
+        if (!criticalOk || !lowOk)
         {
-            draft.Error = quantityError ?? criticalError ?? lowError;
+            draft.Error = criticalError ?? lowError;
             return;
-        }
-
-        DateOnly? expiration = null;
-        if (draft.HasExpiration && !string.IsNullOrWhiteSpace(draft.Expiration))
-        {
-            if (!DateOnly.TryParseExact(draft.Expiration.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
-            {
-                draft.Error = "Enter a valid expiration date.";
-                return;
-            }
-
-            expiration = parsed;
         }
 
         Busy = true;
         var result = await Inventory.UpdateAsync(new ConsumableUpdate
         {
             PrintingConsumableId = draft.Id,
-            CurrentQuantity = quantity,
             LowStockThreshold = low,
             CriticalStockThreshold = critical,
-            ExpirationDate = expiration,
             Name = draft.Name,
             Code = draft.Code,
             Capacity = draft.Capacity
@@ -138,6 +200,32 @@ public partial class TechnicianInventory : ComponentBase
         }
 
         await ReloadAsync();
+    }
+
+    private ConsumableDraft? FindChoice(string id) =>
+        StockChoices.FirstOrDefault(item => item.Id.ToString(CultureInfo.InvariantCulture) == id);
+
+    private static string ChoiceLabel(ConsumableDraft draft) =>
+        string.IsNullOrWhiteSpace(draft.Code) ? draft.Name : draft.Name + " " + draft.Code;
+
+    private static bool TryMovement(string consumableId, string quantityText, out int id, out int quantity, out string? error)
+    {
+        id = 0;
+        quantity = 0;
+        if (!int.TryParse(consumableId, NumberStyles.None, CultureInfo.InvariantCulture, out id))
+        {
+            error = "Select a consumable.";
+            return false;
+        }
+
+        if (!int.TryParse(quantityText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out quantity) || quantity <= 0)
+        {
+            error = "Enter a quantity greater than zero.";
+            return false;
+        }
+
+        error = null;
+        return true;
     }
 
     private static bool TryCount(string value, string message, out int count, out string? error)
@@ -158,6 +246,8 @@ public sealed class ConsumableDraft
 {
     public int Id { get; set; }
 
+    public string Category { get; set; } = "";
+
     public bool HasExpiration { get; set; }
 
     public string Name { get; set; } = "";
@@ -172,7 +262,11 @@ public sealed class ConsumableDraft
 
     public string Critical { get; set; } = "0";
 
-    public string Expiration { get; set; } = "";
+    public string EarliestExpiration { get; set; } = "";
+
+    public string? EarliestAlert { get; set; }
+
+    public IReadOnlyList<StockEntryDraft> Entries { get; set; } = [];
 
     public string Status { get; set; } = "";
 
@@ -181,6 +275,7 @@ public sealed class ConsumableDraft
     public static ConsumableDraft From(ConsumableRow row) => new()
     {
         Id = row.PrintingConsumableId,
+        Category = row.Category,
         HasExpiration = row.HasExpirationDate,
         Name = row.Name,
         Code = row.Code ?? "",
@@ -188,7 +283,26 @@ public sealed class ConsumableDraft
         Quantity = row.CurrentQuantity.ToString(CultureInfo.InvariantCulture),
         Low = row.LowStockThreshold.ToString(CultureInfo.InvariantCulture),
         Critical = row.CriticalStockThreshold.ToString(CultureInfo.InvariantCulture),
-        Expiration = row.ExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+        EarliestExpiration = row.EarliestExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+        EarliestAlert = row.EarliestExpirationAlert,
+        Entries = row.Entries.Select(entry => new StockEntryDraft
+        {
+            Id = entry.PrintingStockEntryId,
+            Quantity = entry.Quantity,
+            Expiration = entry.ExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+            Alert = entry.ExpirationAlert
+        }).ToList(),
         Status = row.Status
     };
+}
+
+public sealed class StockEntryDraft
+{
+    public int Id { get; set; }
+
+    public int Quantity { get; set; }
+
+    public string Expiration { get; set; } = "";
+
+    public string? Alert { get; set; }
 }

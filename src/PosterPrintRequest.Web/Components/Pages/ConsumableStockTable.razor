@@ -1,3 +1,5 @@
+@using PosterPrintRequest.Web.Requests
+
 <div class="epx-table-wrap">
     <table class="epx-table">
         <thead>
@@ -11,7 +13,7 @@
                 <th scope="col">Quantity</th>
                 <th scope="col">Critical</th>
                 <th scope="col">Low stock</th>
-                <th scope="col">Expiration</th>
+                <th scope="col">@(ShowEntries ? "Earliest expiration" : "Expiration")</th>
                 <th scope="col">Status</th>
                 <th scope="col"><span class="epx-sr-only">Save</span></th>
             </tr>
@@ -39,17 +41,25 @@
                         <td><input class="epx-input" aria-label="@($"{draft.Name} code")" value="@draft.Code" @onchange="args => draft.Code = args.Value?.ToString() ?? string.Empty" /></td>
                         <td><input class="epx-input" aria-label="@($"{draft.Name} capacity")" value="@draft.Capacity" @onchange="args => draft.Capacity = args.Value?.ToString() ?? string.Empty" /></td>
                     }
-                    <td><input class="epx-input" aria-label="@($"{draft.Name} quantity")" inputmode="numeric" value="@draft.Quantity" @onchange="args => draft.Quantity = args.Value?.ToString() ?? string.Empty" /></td>
+                    <td>@draft.Quantity</td>
                     <td><input class="epx-input" aria-label="@($"{draft.Name} critical threshold")" inputmode="numeric" value="@draft.Critical" @onchange="args => draft.Critical = args.Value?.ToString() ?? string.Empty" /></td>
                     <td><input class="epx-input" aria-label="@($"{draft.Name} low-stock threshold")" inputmode="numeric" value="@draft.Low" @onchange="args => draft.Low = args.Value?.ToString() ?? string.Empty" /></td>
                     <td>
-                        @if (draft.HasExpiration)
+                        @if (!draft.HasExpiration)
                         {
-                            <input class="epx-input" type="date" aria-label="@($"{draft.Name} expiration date")" value="@draft.Expiration" @onchange="args => draft.Expiration = args.Value?.ToString() ?? string.Empty" />
+                            <span>None</span>
+                        }
+                        else if (string.IsNullOrWhiteSpace(draft.EarliestExpiration))
+                        {
+                            <span>—</span>
                         }
                         else
                         {
-                            <span>None</span>
+                            <span>@draft.EarliestExpiration</span>
+                            @if (!string.IsNullOrWhiteSpace(draft.EarliestAlert))
+                            {
+                                <span class="epx-status @AlertClass(draft.EarliestAlert) epx-semantic-indicator">@draft.EarliestAlert</span>
+                            }
                         }
                     </td>
                     <td>
@@ -66,6 +76,58 @@
     </table>
 </div>
 
+@if (ShowEntries)
+{
+    <h3>Stock entries</h3>
+    <div class="epx-table-wrap">
+        <table class="epx-table">
+            <thead>
+                <tr>
+                    <th scope="col">@EntryHeading</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Expiration</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Drafts.Any(draft => draft.Entries.Count > 0))
+                {
+                    <tr>
+                        <td colspan="4">No stock entries.</td>
+                    </tr>
+                }
+                @foreach (var draft in Drafts)
+                {
+                    @foreach (var entry in draft.Entries)
+                    {
+                        <tr>
+                            <td>
+                                <div>@draft.Name</div>
+                                @if (!string.IsNullOrWhiteSpace(draft.Code))
+                                {
+                                    <div class="epx-helper-text">@draft.Code</div>
+                                }
+                            </td>
+                            <td>@entry.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                            <td>@(string.IsNullOrWhiteSpace(entry.Expiration) ? "None" : entry.Expiration)</td>
+                            <td>
+                                @if (string.IsNullOrWhiteSpace(entry.Alert))
+                                {
+                                    <span>—</span>
+                                }
+                                else
+                                {
+                                    <span class="epx-status @AlertClass(entry.Alert) epx-semantic-indicator">@entry.Alert</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
 @code {
     [Parameter]
     public IReadOnlyList<ConsumableDraft> Drafts { get; set; } = [];
@@ -74,8 +136,17 @@
     public bool IncludeIdentity { get; set; }
 
     [Parameter]
+    public bool ShowEntries { get; set; }
+
+    [Parameter]
+    public string EntryHeading { get; set; } = "Consumable";
+
+    [Parameter]
     public bool Busy { get; set; }
 
     [Parameter]
     public EventCallback<int> OnSave { get; set; }
+
+    private static string AlertClass(string alert) =>
+        alert == ConsumableStock.ExpiresWithinTwelveMonths ? "epx-status-warning" : "epx-status-danger";
 }

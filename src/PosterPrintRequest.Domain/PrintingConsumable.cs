@@ -14,15 +14,13 @@ public sealed class PrintingConsumable
 
     public bool HasExpirationDate { get; set; }
 
-    public int CurrentQuantity { get; set; }
-
     public int LowStockThreshold { get; set; }
 
     public int CriticalStockThreshold { get; set; }
 
     public string Status { get; set; } = string.Empty;
 
-    public DateOnly? ExpirationDate { get; set; }
-
     public bool Active { get; set; }
+
+    public List<PrintingStockEntry> StockEntries { get; set; } = [];
 }

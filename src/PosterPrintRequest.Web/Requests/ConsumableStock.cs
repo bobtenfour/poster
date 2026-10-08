@@ -19,7 +19,9 @@ public static class ConsumableStock
 
     public const string Expired = "Expired";
 
-    public const string ExpiringSoon = "Expiring soon";
+    public const string ExpiresWithinSixMonths = "Expires within 6 months";
+
+    public const string ExpiresWithinTwelveMonths = "Expires within 12 months";
 
     public static string FromQuantity(int quantity, int lowStockThreshold, int criticalStockThreshold)
     {
@@ -36,9 +38,9 @@ public static class ConsumableStock
         return InStock;
     }
 
-    public static string? ExpirationAlert(bool hasExpirationDate, DateOnly? expirationDate, DateOnly today, int? warningDays)
+    public static string? ExpirationAlert(DateOnly? expirationDate, DateOnly today)
     {
-        if (!hasExpirationDate || expirationDate is null)
+        if (expirationDate is null)
         {
             return null;
         }
@@ -48,21 +50,16 @@ public static class ConsumableStock
             return Expired;
         }
 
-        if (warningDays is null)
+        if (expirationDate.Value <= today.AddMonths(6))
         {
-            return null;
+            return ExpiresWithinSixMonths;
         }
 
-        DateOnly latest;
-        try
+        if (expirationDate.Value <= today.AddMonths(12))
         {
-            latest = today.AddDays(warningDays.Value);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return null;
+            return ExpiresWithinTwelveMonths;
         }
 
-        return expirationDate.Value <= latest ? ExpiringSoon : null;
+        return null;
     }
 }

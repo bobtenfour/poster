@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PosterPrintRequest.Domain;
@@ -27,13 +28,26 @@ public sealed class ConsumableRow
 
     public required string Status { get; init; }
 
+    public DateOnly? EarliestExpirationDate { get; init; }
+
+    public string? EarliestExpirationAlert { get; init; }
+
+    public required IReadOnlyList<StockEntryRow> Entries { get; init; }
+}
+
+public sealed class StockEntryRow
+{
+    public required int PrintingStockEntryId { get; init; }
+
+    public required int Quantity { get; init; }
+
     public DateOnly? ExpirationDate { get; init; }
+
+    public string? ExpirationAlert { get; init; }
 }
 
 public sealed class PrintingInventoryView
 {
-    public int? ExpirationWarningDays { get; init; }
-
     public required IReadOnlyList<ConsumableRow> Cartridges { get; init; }
 
     public required IReadOnlyList<ConsumableRow> Paper { get; init; }
@@ -73,13 +87,9 @@ public sealed class ConsumableUpdate
 {
     public required int PrintingConsumableId { get; init; }
 
-    public required int CurrentQuantity { get; init; }
-
     public required int LowStockThreshold { get; init; }
 
     public required int CriticalStockThreshold { get; init; }
-
-    public DateOnly? ExpirationDate { get; init; }
 
     public string? Name { get; init; }
 
@@ -103,13 +113,20 @@ public interface IPrintingInventory
 {
     Task<PrintingInventoryView> LoadAsync(CancellationToken cancellationToken);
 
-    Task<ConsumableAttention> CriticalAlertsAsync(DateOnly today, CancellationToken cancellationToken);
+    Task<ConsumableAttention> CriticalAlertsAsync(CancellationToken cancellationToken);
 
     Task<InventoryOutcome> UpdateAsync(ConsumableUpdate update, CancellationToken cancellationToken);
 
-    Task<InventoryOutcome> AddLaminatingMaterialAsync(string? name, string? code, string? capacity, CancellationToken cancellationToken);
+    Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken);
 
-    Task<InventoryOutcome> SetExpirationWarningDaysAsync(int? days, CancellationToken cancellationToken);
+    Task<InventoryOutcome> RemoveStockAsync(
+        int printingConsumableId,
+        int quantity,
+        bool earliestExpirationAcknowledged,
+        DateOnly? acknowledgedExpirationDate,
+        CancellationToken cancellationToken);
+
+    Task<InventoryOutcome> AddLaminatingMaterialAsync(string? name, string? code, string? capacity, CancellationToken cancellationToken);
 }
 
 public sealed class PrintingInventory : IPrintingInventory
@@ -127,6 +144,7 @@ public sealed class PrintingInventory : IPrintingInventory
     {
         await EnsureCatalogAsync(cancellationToken);
         var items = await _db.PrintingConsumables
+            .Include(item => item.StockEntries)
             .Where(item => item.Active)
             .ToListAsync(cancellationToken);
         var changed = ApplyDerivedStatus(items);
@@ -135,23 +153,21 @@ public sealed class PrintingInventory : IPrintingInventory
             await _db.SaveChangesAsync(cancellationToken);
         }
 
-        var setting = await SettingAsync(cancellationToken);
+        var today = DateOnly.FromDateTime(DateTime.Today);
         return new PrintingInventoryView
         {
-            ExpirationWarningDays = setting.ExpirationWarningDays,
-            Cartridges = Rows(items, ConsumableCategory.Cartridge),
-            Paper = Rows(items, ConsumableCategory.Paper),
-            LaminatingMaterials = Rows(items, ConsumableCategory.Laminating)
+            Cartridges = Rows(items, ConsumableCategory.Cartridge, today),
+            Paper = Rows(items, ConsumableCategory.Paper, today),
+            LaminatingMaterials = Rows(items, ConsumableCategory.Laminating, today)
         };
     }
 
-    public async Task<ConsumableAttention> CriticalAlertsAsync(DateOnly today, CancellationToken cancellationToken)
+    public async Task<ConsumableAttention> CriticalAlertsAsync(CancellationToken cancellationToken)
     {
         var view = await LoadAsync(cancellationToken);
         var rows = view.Cartridges.Concat(view.Paper).Concat(view.LaminatingMaterials).ToList();
         var depleted = new List<ConsumableAlert>();
         var lowStock = new List<ConsumableAlert>();
-        var expiring = new List<ConsumableAlert>();
         foreach (var row in rows)
         {
             if (row.Status == ConsumableStock.Depleted)
@@ -160,13 +176,21 @@ public sealed class PrintingInventory : IPrintingInventory
             }
             else if (row.Status == ConsumableStock.LowStock)
             {
-                lowStock.Add(Alert(row, "Low stock, quantity " + row.CurrentQuantity.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                lowStock.Add(Alert(row, "Low stock, quantity " + row.CurrentQuantity.ToString(CultureInfo.InvariantCulture)));
             }
+        }
 
-            var expiration = ConsumableStock.ExpirationAlert(row.HasExpirationDate, row.ExpirationDate, today, view.ExpirationWarningDays);
-            if (expiration is not null && row.ExpirationDate is not null)
+        var expiringSoon = new List<ConsumableAlert>();
+        foreach (var row in rows)
+        {
+            var upcoming = row.Entries.FirstOrDefault(entry =>
+                entry.ExpirationAlert is ConsumableStock.ExpiresWithinSixMonths or ConsumableStock.ExpiresWithinTwelveMonths);
+            if (upcoming?.ExpirationDate is DateOnly expirationDate && upcoming.ExpirationAlert is not null)
             {
-                expiring.Add(Alert(row, expiration + ", " + row.ExpirationDate.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)));
+                expiringSoon.Add(Alert(
+                    row,
+                    upcoming.ExpirationAlert + ", " + expirationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    expirationDate));
             }
         }
 
@@ -174,7 +198,7 @@ public sealed class PrintingInventory : IPrintingInventory
         {
             Depleted = depleted,
             LowStock = lowStock,
-            ExpiringSoon = expiring
+            ExpiringSoon = expiringSoon
         };
     }
 
@@ -182,28 +206,17 @@ public sealed class PrintingInventory : IPrintingInventory
     {
         await EnsureCatalogAsync(cancellationToken);
         var item = await _db.PrintingConsumables
+            .Include(candidate => candidate.StockEntries)
             .SingleOrDefaultAsync(candidate => candidate.PrintingConsumableId == update.PrintingConsumableId && candidate.Active, cancellationToken);
         if (item is null)
         {
             return InventoryOutcome.Failure("That consumable is not in the inventory.");
         }
 
-        var thresholds = ValidateThresholds(update.CurrentQuantity, update.LowStockThreshold, update.CriticalStockThreshold);
+        var thresholds = ValidateThresholds(update.LowStockThreshold, update.CriticalStockThreshold);
         if (thresholds is not null)
         {
             return thresholds;
-        }
-
-        if (!item.HasExpirationDate)
-        {
-            if (update.ExpirationDate is not null)
-            {
-                return InventoryOutcome.Failure("This material does not use an expiration date.");
-            }
-        }
-        else if (update.CurrentQuantity > 0 && update.ExpirationDate is null)
-        {
-            return InventoryOutcome.Failure("Enter the expiration date.");
         }
 
         if (item.Category == ConsumableCategory.Laminating)
@@ -215,16 +228,13 @@ public sealed class PrintingInventory : IPrintingInventory
             }
         }
 
-        item.CurrentQuantity = update.CurrentQuantity;
         item.LowStockThreshold = update.LowStockThreshold;
         item.CriticalStockThreshold = update.CriticalStockThreshold;
-        item.ExpirationDate = item.HasExpirationDate ? update.ExpirationDate : null;
-        item.Status = ConsumableStock.FromQuantity(item.CurrentQuantity, item.LowStockThreshold, item.CriticalStockThreshold);
+        item.Status = ConsumableStock.FromQuantity(TotalQuantity(item), item.LowStockThreshold, item.CriticalStockThreshold);
         await _db.SaveChangesAsync(cancellationToken);
         _logger.LogInformation(
-            "Technician updated consumable {Consumable} to quantity {Quantity} and status {Status}.",
+            "Technician updated thresholds for {Consumable}. Status is {Status}.",
             item.Code ?? item.Name,
-            item.CurrentQuantity,
             item.Status);
         return InventoryOutcome.Success();
     }
@@ -235,7 +245,6 @@ public sealed class PrintingInventory : IPrintingInventory
         {
             Category = ConsumableCategory.Laminating,
             HasExpirationDate = true,
-            CurrentQuantity = 0,
             LowStockThreshold = 0,
             CriticalStockThreshold = 0,
             Status = ConsumableStock.Depleted,
@@ -261,51 +270,176 @@ public sealed class PrintingInventory : IPrintingInventory
         return InventoryOutcome.Success();
     }
 
-    public async Task<InventoryOutcome> SetExpirationWarningDaysAsync(int? days, CancellationToken cancellationToken)
+    public async Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken)
     {
-        if (days is < 0)
+        await EnsureCatalogAsync(cancellationToken);
+        var item = await FindActiveAsync(printingConsumableId, cancellationToken);
+        if (item is null)
         {
-            return InventoryOutcome.Failure("Enter a warning period of zero or more days.");
+            return InventoryOutcome.Failure("That consumable is not in the inventory.");
         }
 
-        if (days is not null && days.Value > DateOnly.MaxValue.DayNumber)
+        if (quantity <= 0)
         {
-            return InventoryOutcome.Failure("Enter a shorter warning period.");
+            return InventoryOutcome.Failure("Enter a quantity greater than zero.");
         }
 
-        var setting = await SettingAsync(cancellationToken);
-        setting.ExpirationWarningDays = days;
+        var current = TotalQuantity(item);
+        if (current > int.MaxValue - quantity)
+        {
+            return InventoryOutcome.Failure("Enter a smaller quantity.");
+        }
+
+        if (item.Category == ConsumableCategory.Paper)
+        {
+            if (expirationDate is not null)
+            {
+                return InventoryOutcome.Failure("This material does not use an expiration date.");
+            }
+        }
+        else if (item.Category == ConsumableCategory.Cartridge && expirationDate is null)
+        {
+            return InventoryOutcome.Failure("Enter the expiration date.");
+        }
+
+        item.StockEntries.Add(new PrintingStockEntry
+        {
+            Quantity = quantity,
+            ExpirationDate = expirationDate
+        });
+        item.Status = ConsumableStock.FromQuantity(current + quantity, item.LowStockThreshold, item.CriticalStockThreshold);
         await _db.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Technician set the consumable expiration warning to {Days} days.", days);
+        _logger.LogInformation(
+            "Technician added {Quantity} of {Consumable} expiring {ExpirationDate}. Quantity is now {CurrentQuantity}.",
+            quantity,
+            item.Code ?? item.Name,
+            expirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "none",
+            current + quantity);
         return InventoryOutcome.Success();
     }
 
-    private static IReadOnlyList<ConsumableRow> Rows(IEnumerable<PrintingConsumable> items, string category)
+    public async Task<InventoryOutcome> RemoveStockAsync(
+        int printingConsumableId,
+        int quantity,
+        bool earliestExpirationAcknowledged,
+        DateOnly? acknowledgedExpirationDate,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCatalogAsync(cancellationToken);
+        var item = await FindActiveAsync(printingConsumableId, cancellationToken);
+        if (item is null)
+        {
+            return InventoryOutcome.Failure("That consumable is not in the inventory.");
+        }
+
+        if (quantity <= 0)
+        {
+            return InventoryOutcome.Failure("Enter a quantity greater than zero.");
+        }
+
+        var ordered = RemovalOrder(item);
+        if (item.Category == ConsumableCategory.Cartridge && ordered.Count > 0)
+        {
+            var earliest = ordered[0].ExpirationDate;
+            if (!earliestExpirationAcknowledged || acknowledgedExpirationDate != earliest)
+            {
+                var shown = earliest?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return InventoryOutcome.Failure(
+                    "Acknowledge that " + shown + " is the first expiration before removing this cartridge.");
+            }
+        }
+
+        if (quantity > TotalQuantity(item))
+        {
+            return InventoryOutcome.Failure("That removal would reduce the inventory below zero.");
+        }
+
+        var remaining = quantity;
+        foreach (var entry in ordered)
+        {
+            var take = Math.Min(entry.Quantity, remaining);
+            entry.Quantity -= take;
+            remaining -= take;
+            if (entry.Quantity == 0)
+            {
+                _db.Remove(entry);
+            }
+
+            if (remaining == 0)
+            {
+                break;
+            }
+        }
+
+        var current = TotalQuantity(item);
+        item.Status = ConsumableStock.FromQuantity(current, item.LowStockThreshold, item.CriticalStockThreshold);
+        await _db.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Technician removed {Quantity} of {Consumable}. Quantity is now {CurrentQuantity}.",
+            quantity,
+            item.Code ?? item.Name,
+            current);
+        return InventoryOutcome.Success();
+    }
+
+    private static IReadOnlyList<ConsumableRow> Rows(IEnumerable<PrintingConsumable> items, string category, DateOnly today)
     {
         return items
             .Where(item => item.Category == category)
             .OrderBy(CatalogRank)
             .ThenBy(item => item.Name, StringComparer.Ordinal)
-            .Select(ToRow)
+            .Select(item => ToRow(item, today))
             .ToList();
     }
 
-    private static ConsumableRow ToRow(PrintingConsumable item) => new()
-    {
-        PrintingConsumableId = item.PrintingConsumableId,
-        Category = item.Category,
-        Name = item.Name,
-        Code = item.Code,
-        Capacity = item.Capacity,
-        HasExpirationDate = item.HasExpirationDate,
-        CurrentQuantity = item.CurrentQuantity,
-        LowStockThreshold = item.LowStockThreshold,
-        CriticalStockThreshold = item.CriticalStockThreshold,
-        Status = item.Status,
-        ExpirationDate = item.ExpirationDate
-    };
+    private async Task<PrintingConsumable?> FindActiveAsync(int printingConsumableId, CancellationToken cancellationToken) =>
+        await _db.PrintingConsumables
+            .Include(candidate => candidate.StockEntries)
+            .SingleOrDefaultAsync(
+                candidate => candidate.PrintingConsumableId == printingConsumableId && candidate.Active,
+                cancellationToken);
 
-    private static ConsumableAlert Alert(ConsumableRow row, string detail) => new()
+    private static ConsumableRow ToRow(PrintingConsumable item, DateOnly today)
+    {
+        var entries = RemovalOrder(item)
+            .Select(entry => new StockEntryRow
+            {
+                PrintingStockEntryId = entry.PrintingStockEntryId,
+                Quantity = entry.Quantity,
+                ExpirationDate = entry.ExpirationDate,
+                ExpirationAlert = ConsumableStock.ExpirationAlert(entry.ExpirationDate, today)
+            })
+            .ToList();
+        var earliest = entries.FirstOrDefault(entry => entry.ExpirationDate is not null);
+        return new ConsumableRow
+        {
+            PrintingConsumableId = item.PrintingConsumableId,
+            Category = item.Category,
+            Name = item.Name,
+            Code = item.Code,
+            Capacity = item.Capacity,
+            HasExpirationDate = item.HasExpirationDate,
+            CurrentQuantity = entries.Sum(entry => entry.Quantity),
+            LowStockThreshold = item.LowStockThreshold,
+            CriticalStockThreshold = item.CriticalStockThreshold,
+            Status = item.Status,
+            EarliestExpirationDate = earliest?.ExpirationDate,
+            EarliestExpirationAlert = earliest?.ExpirationAlert,
+            Entries = entries
+        };
+    }
+
+    private static List<PrintingStockEntry> RemovalOrder(PrintingConsumable item) =>
+        item.StockEntries
+            .Where(entry => entry.Quantity > 0)
+            .OrderBy(entry => entry.ExpirationDate ?? DateOnly.MaxValue)
+            .ThenBy(entry => entry.PrintingStockEntryId)
+            .ToList();
+
+    private static int TotalQuantity(PrintingConsumable item) =>
+        item.StockEntries.Where(entry => entry.Quantity > 0).Sum(entry => entry.Quantity);
+
+    private static ConsumableAlert Alert(ConsumableRow row, string detail, DateOnly? expirationDate = null) => new()
     {
         PrintingConsumableId = row.PrintingConsumableId,
         Category = row.Category,
@@ -313,17 +447,12 @@ public sealed class PrintingInventory : IPrintingInventory
         Code = row.Code,
         CurrentQuantity = row.CurrentQuantity,
         Status = row.Status,
-        ExpirationDate = row.ExpirationDate,
+        ExpirationDate = expirationDate ?? row.EarliestExpirationDate,
         Detail = detail
     };
 
-    private static InventoryOutcome? ValidateThresholds(int quantity, int low, int critical)
+    private static InventoryOutcome? ValidateThresholds(int low, int critical)
     {
-        if (quantity < 0)
-        {
-            return InventoryOutcome.Failure("Enter a quantity of zero or more.");
-        }
-
         if (low < 0 || critical < 0)
         {
             return InventoryOutcome.Failure("Enter a threshold of zero or more.");
@@ -389,7 +518,7 @@ public sealed class PrintingInventory : IPrintingInventory
         var changed = false;
         foreach (var item in items)
         {
-            var status = ConsumableStock.FromQuantity(item.CurrentQuantity, item.LowStockThreshold, item.CriticalStockThreshold);
+            var status = ConsumableStock.FromQuantity(TotalQuantity(item), item.LowStockThreshold, item.CriticalStockThreshold);
             if (!string.Equals(item.Status, status, StringComparison.Ordinal))
             {
                 item.Status = status;
@@ -422,7 +551,6 @@ public sealed class PrintingInventory : IPrintingInventory
                 Code = entry.Code,
                 Capacity = entry.Capacity,
                 HasExpirationDate = entry.HasExpirationDate,
-                CurrentQuantity = 0,
                 LowStockThreshold = 0,
                 CriticalStockThreshold = 0,
                 Status = ConsumableStock.Depleted,
@@ -435,20 +563,6 @@ public sealed class PrintingInventory : IPrintingInventory
         {
             await _db.SaveChangesAsync(cancellationToken);
         }
-    }
-
-    private async Task<PrintingInventorySetting> SettingAsync(CancellationToken cancellationToken)
-    {
-        var setting = await _db.PrintingInventorySettings.SingleOrDefaultAsync(cancellationToken);
-        if (setting is not null)
-        {
-            return setting;
-        }
-
-        setting = new PrintingInventorySetting();
-        _db.PrintingInventorySettings.Add(setting);
-        await _db.SaveChangesAsync(cancellationToken);
-        return setting;
     }
 
     private static int CatalogRank(PrintingConsumable item)

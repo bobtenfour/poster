@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosterPrintRequest.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PosterPrintRequest.Infrastructure.Persistence;
 namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PosterPrintRequestDbContext))]
-    partial class PosterPrintRequestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008000705_RemovePrintingInventorySetting")]
+    partial class RemovePrintingInventorySetting
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -374,6 +377,12 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Property<int>("CriticalStockThreshold")
                         .HasColumnType("int");
 
+                    b.Property<int>("CurrentQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date");
+
                     b.Property<bool>("HasExpirationDate")
                         .HasColumnType("bit");
 
@@ -397,30 +406,6 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .HasFilter("[Code] IS NOT NULL");
 
                     b.ToTable("PrintingConsumables");
-                });
-
-            modelBuilder.Entity("PosterPrintRequest.Domain.PrintingStockEntry", b =>
-                {
-                    b.Property<int>("PrintingStockEntryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PrintingStockEntryId"));
-
-                    b.Property<DateOnly?>("ExpirationDate")
-                        .HasColumnType("date");
-
-                    b.Property<int>("PrintingConsumableId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.HasKey("PrintingStockEntryId");
-
-                    b.HasIndex("PrintingConsumableId");
-
-                    b.ToTable("PrintingStockEntries");
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.Reason", b =>
@@ -613,17 +598,6 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Navigation("Reason");
                 });
 
-            modelBuilder.Entity("PosterPrintRequest.Domain.PrintingStockEntry", b =>
-                {
-                    b.HasOne("PosterPrintRequest.Domain.PrintingConsumable", "PrintingConsumable")
-                        .WithMany("StockEntries")
-                        .HasForeignKey("PrintingConsumableId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PrintingConsumable");
-                });
-
             modelBuilder.Entity("PosterPrintRequest.Domain.Department", b =>
                 {
                     b.Navigation("PosterRequests");
@@ -638,11 +612,6 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
 
                     b.Navigation("PosterProcessing")
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("PosterPrintRequest.Domain.PrintingConsumable", b =>
-                {
-                    b.Navigation("StockEntries");
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.Reason", b =>

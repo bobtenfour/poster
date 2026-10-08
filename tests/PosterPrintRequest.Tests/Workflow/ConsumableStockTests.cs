@@ -20,15 +20,14 @@ public sealed class ConsumableStockTests
     }
 
     [Fact]
-    public void Expiration_uses_only_a_recorded_date_and_a_configured_period()
+    public void Expiration_alerts_use_today_and_give_six_months_precedence()
     {
-        Assert.Null(ConsumableStock.ExpirationAlert(false, new DateOnly(2026, 10, 1), Today, 30));
-        Assert.Null(ConsumableStock.ExpirationAlert(true, null, Today, 30));
-        Assert.Null(ConsumableStock.ExpirationAlert(true, new DateOnly(2026, 10, 20), Today, null));
-        Assert.Equal(ConsumableStock.Expired, ConsumableStock.ExpirationAlert(true, Today, Today, null));
-        Assert.Equal(ConsumableStock.Expired, ConsumableStock.ExpirationAlert(true, new DateOnly(2026, 10, 6), Today, 30));
-        Assert.Equal(ConsumableStock.ExpiringSoon, ConsumableStock.ExpirationAlert(true, new DateOnly(2026, 10, 20), Today, 30));
-        Assert.Null(ConsumableStock.ExpirationAlert(true, new DateOnly(2026, 12, 1), Today, 30));
-        Assert.Equal(ConsumableStock.ExpiringSoon, ConsumableStock.ExpirationAlert(true, Today.AddDays(7), Today, 7));
+        Assert.Null(ConsumableStock.ExpirationAlert(null, Today));
+        Assert.Equal(ConsumableStock.Expired, ConsumableStock.ExpirationAlert(Today, Today));
+        Assert.Equal(ConsumableStock.Expired, ConsumableStock.ExpirationAlert(Today.AddDays(-1), Today));
+        Assert.Equal(ConsumableStock.ExpiresWithinSixMonths, ConsumableStock.ExpirationAlert(Today.AddMonths(6), Today));
+        Assert.Equal(ConsumableStock.ExpiresWithinTwelveMonths, ConsumableStock.ExpirationAlert(Today.AddMonths(6).AddDays(1), Today));
+        Assert.Equal(ConsumableStock.ExpiresWithinTwelveMonths, ConsumableStock.ExpirationAlert(Today.AddMonths(12), Today));
+        Assert.Null(ConsumableStock.ExpirationAlert(Today.AddMonths(12).AddDays(1), Today));
     }
 }

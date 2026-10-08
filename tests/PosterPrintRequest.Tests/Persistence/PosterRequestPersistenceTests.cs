@@ -105,16 +105,19 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         AssertColumn(columns, "PrintingConsumables", "Code", "nvarchar", nullable: true, characterMaximumLength: 32);
         AssertColumn(columns, "PrintingConsumables", "Capacity", "nvarchar", nullable: true, characterMaximumLength: 80);
         AssertColumn(columns, "PrintingConsumables", "HasExpirationDate", "bit", nullable: false);
-        AssertColumn(columns, "PrintingConsumables", "CurrentQuantity", "int", nullable: false);
         AssertColumn(columns, "PrintingConsumables", "LowStockThreshold", "int", nullable: false);
         AssertColumn(columns, "PrintingConsumables", "CriticalStockThreshold", "int", nullable: false);
         AssertColumn(columns, "PrintingConsumables", "Status", "nvarchar", nullable: false, characterMaximumLength: 32);
-        AssertColumn(columns, "PrintingConsumables", "ExpirationDate", "date", nullable: true);
         AssertColumn(columns, "PrintingConsumables", "Active", "bit", nullable: false);
+        Assert.DoesNotContain(columns.Keys, key => key == "PrintingConsumables.CurrentQuantity");
+        Assert.DoesNotContain(columns.Keys, key => key == "PrintingConsumables.ExpirationDate");
+        AssertColumn(columns, "PrintingStockEntries", "PrintingStockEntryId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "PrintingStockEntries", "PrintingConsumableId", "int", nullable: false);
+        AssertColumn(columns, "PrintingStockEntries", "Quantity", "int", nullable: false);
+        AssertColumn(columns, "PrintingStockEntries", "ExpirationDate", "date", nullable: true);
         Assert.Contains("PrintingConsumables.Code", uniqueColumns);
-
-        AssertColumn(columns, "PrintingInventorySettings", "PrintingInventorySettingId", "int", nullable: false, identity: true);
-        AssertColumn(columns, "PrintingInventorySettings", "ExpirationWarningDays", "int", nullable: true);
+        Assert.Equal("CASCADE", ReadForeignKeys(context)["PrintingStockEntries.PrintingConsumableId"]);
+        Assert.DoesNotContain(columns.Keys, key => key.StartsWith("PrintingInventorySettings.", StringComparison.Ordinal));
     }
 
     [Fact]

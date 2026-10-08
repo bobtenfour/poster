@@ -41,8 +41,5 @@ public sealed class PrintingConsumableConfiguration : IEntityTypeConfiguration<P
         builder.Property(item => item.Status)
             .HasMaxLength(StatusMaxLength)
             .IsRequired();
-
-        builder.Property(item => item.ExpirationDate)
-            .HasColumnType("date");
     }
 }

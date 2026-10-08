@@ -1307,6 +1307,12 @@ label.epx-button {
   width: min(16rem, 100%);
 }
 
+.epx-stock-ack {
+  flex: 1 0 100%;
+  display: grid;
+  gap: 0.35rem;
+}
+
 .epx-blueignix-topbar:has(.epx-tech-search) {
   flex-wrap: nowrap;
   align-items: center;

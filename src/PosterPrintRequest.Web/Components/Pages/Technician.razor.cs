@@ -43,7 +43,7 @@ public partial class Technician : ComponentBase
         }
 
         Snapshot = await Dashboard.LoadAsync(year, month, CancellationToken.None);
-        Attention = await Inventory.CriticalAlertsAsync(DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
+        Attention = await Inventory.CriticalAlertsAsync(CancellationToken.None);
         if (string.IsNullOrWhiteSpace(PosterIdQuery))
         {
             return;
