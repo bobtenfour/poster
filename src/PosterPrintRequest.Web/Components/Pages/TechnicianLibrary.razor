@@ -9,7 +9,7 @@
 <section class="epx-blueignix-home" aria-label="Poster library">
     <PageHeader Kicker="Library"
                 Title="Poster library"
-                Subtitle="Events hold the event and year, then each poster. Requests without an event are grouped by year." />
+                Subtitle="Events and requests without an event each have a blue TO BE PRINTED folder and a green PRINTED folder." />
 
     @if (Listing is null)
     {
@@ -71,7 +71,7 @@
                 @foreach (var entry in Listing.Entries)
                 {
                     <li>
-                        <article class="epx-folder-card">
+                        <article class="@FolderClass(entry)">
                             <p class="epx-blueignix-kicker">@entry.Kind</p>
                             @if (entry.NavigateHref is not null)
                             {
@@ -120,4 +120,11 @@
         segments.Count <= 1
             ? "/technician/library"
             : PosterPrintRequest.Web.Requests.TechnicianLibrary.LibraryHref(segments.Take(segments.Count - 1));
+
+    private static string FolderClass(LibraryEntry entry) => entry.Tone switch
+    {
+        PrintFolderPaths.ToBePrintedTone => "epx-folder-card epx-folder-to-be-printed",
+        PrintFolderPaths.PrintedTone => "epx-folder-card epx-folder-printed",
+        _ => "epx-folder-card"
+    };
 }

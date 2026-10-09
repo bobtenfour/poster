@@ -90,7 +90,7 @@ public sealed class AcceptedStorage
         var storeApproval = includeApproval && !string.IsNullOrWhiteSpace(eventName);
         if (string.IsNullOrWhiteSpace(eventName))
         {
-            relativeDirectory = $"{StorageNames.WithoutEvent}/{StorageNames.Year(dateIn)}/{posterFolder}";
+            relativeDirectory = $"{PrintFolderPaths.WithoutEventToBePrinted}/{StorageNames.Year(dateIn)}/{posterFolder}";
         }
         else
         {
@@ -101,7 +101,7 @@ public sealed class AcceptedStorage
                 return false;
             }
 
-            relativeDirectory = $"{StorageNames.Events}/{eventFolder}/{posterFolder}";
+            relativeDirectory = $"{StorageNames.Events}/{eventFolder}{PrintFolderPaths.ToBePrintedSuffix}/{posterFolder}";
         }
 
         var directoryFull = Resolve(relativeDirectory);
@@ -157,6 +157,69 @@ public sealed class AcceptedStorage
         return true;
     }
 
+    public bool TryMoveDirectory(string? sourceRelative, string? destinationRelative)
+    {
+        var source = Resolve(sourceRelative);
+        var destination = Resolve(destinationRelative);
+        if (source is null || destination is null || string.Equals(source, destination, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!Directory.Exists(source) || IsReparsePoint(source) || Directory.Exists(destination) || File.Exists(destination))
+        {
+            return false;
+        }
+
+        var parent = Path.GetDirectoryName(destination);
+        if (string.IsNullOrEmpty(parent))
+        {
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(parent);
+            Directory.Move(source, destination);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return !Directory.Exists(source) && Directory.Exists(destination) && !IsReparsePoint(destination);
+    }
+
+    public bool DirectorySettled(string sourceDirectory, string destinationDirectory, string posterFile, string? approvalFile)
+    {
+        var source = Resolve(sourceDirectory);
+        var destination = Resolve(destinationDirectory);
+        var poster = Resolve(posterFile);
+        if (source is null || destination is null || poster is null)
+        {
+            return false;
+        }
+
+        if (Directory.Exists(source) || !Directory.Exists(destination) || !File.Exists(poster))
+        {
+            return false;
+        }
+
+        if (approvalFile is null)
+        {
+            return true;
+        }
+
+        var approval = Resolve(approvalFile);
+        return approval is not null
+            && File.Exists(approval)
+            && !File.Exists(Path.Combine(source, Path.GetFileName(approval)));
+    }
+
     public void DeletePlacement(string? directoryRelative)
     {
         var full = Resolve(directoryRelative);
@@ -171,6 +234,22 @@ public sealed class AcceptedStorage
         }
         catch (IOException)
         {
+        }
+    }
+
+    private static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 }

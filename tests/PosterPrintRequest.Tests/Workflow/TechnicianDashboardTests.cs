@@ -1,5 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using PosterPrintRequest.Domain;
+using PosterPrintRequest.Infrastructure.Storage;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Tests.Workflow;
@@ -80,9 +83,30 @@ public sealed class TechnicianDashboardTests
         string[] openIds = ["POSTER-2026-000818", "POSTER-2026-000810", "POSTER-2026-000811", "POSTER-2026-000812"];
         Assert.Equal(openIds, after.Queue.Select(item => item.PosterId).Where(openIds.Contains).ToArray());
 
-        await using var workflowContext = _database.CreateContext();
-        var workflow = new TechnicianWorkflow(workflowContext, NullLogger<TechnicianWorkflow>.Instance);
-        Assert.True((await workflow.MarkPrintedAsync("POSTER-2026-000810", "On the plotter", CancellationToken.None)).Completed);
+        var root = Path.Combine(Path.GetTempPath(), "poster-dashboard-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var folder = Path.Combine(root, PrintFolderPaths.WithoutEventToBePrinted, "2026", "Queue Person - POSTER-2026-000810");
+            Directory.CreateDirectory(folder);
+            await File.WriteAllBytesAsync(Path.Combine(folder, StorageNames.PosterPdf), "pdf"u8.ToArray());
+            await using var workflowContext = _database.CreateContext();
+            var printing = await workflowContext.PosterRequests.Include(request => request.PosterFile).SingleAsync(request => request.PosterId == "POSTER-2026-000810");
+            printing.PosterFile.StoragePath = "WITHOUT-EVENT TO BE PRINTED/2026/Queue Person - POSTER-2026-000810/Poster.pdf";
+            await workflowContext.SaveChangesAsync();
+            var storage = new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = root }), new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = root })));
+            var workflow = new TechnicianWorkflow(workflowContext, NullLogger<TechnicianWorkflow>.Instance, storage);
+            Assert.True((await workflow.MarkPrintedAsync("POSTER-2026-000810", "On the plotter", CancellationToken.None)).Completed);
+            Assert.False(Directory.Exists(folder));
+            Assert.True(File.Exists(Path.Combine(root, PrintFolderPaths.WithoutEventPrinted, "2026", "Queue Person - POSTER-2026-000810", StorageNames.PosterPdf)));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
 
         await using var laterContext = _database.CreateContext();
         var later = await new TechnicianDashboard(laterContext).LoadAsync(2026, 10, CancellationToken.None);

@@ -34,7 +34,8 @@ public sealed class TechnicianWorkflowTests : IDisposable
 
         await using var context = _database.CreateContext();
         var logger = new ListLogger<TechnicianWorkflow>();
-        var workflow = new TechnicianWorkflow(context, logger);
+        var storage = new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), _files);
+        var workflow = new TechnicianWorkflow(context, logger, storage);
 
         Assert.Equal("Mark the poster received before continuing.", (await workflow.MarkPrintedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
 
@@ -44,7 +45,16 @@ public sealed class TechnicianWorkflowTests : IDisposable
         Assert.Equal("Mark the poster printed before continuing.", (await workflow.MarkLaminatedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
         Assert.Equal("Mark the poster printed before continuing.", (await workflow.MarkNotifiedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
 
+        var beforePrint = await context.PosterRequests
+            .Where(request => request.PosterId == laminated.PosterId)
+            .Select(request => request.PosterFile.StoragePath)
+            .SingleAsync();
+        Assert.Contains("WITHOUT-EVENT TO BE PRINTED/", beforePrint, StringComparison.Ordinal);
         Assert.True((await workflow.MarkPrintedAsync(laminated.PosterId, "On the plotter", CancellationToken.None)).Completed);
+        var printedPath = beforePrint.Replace("WITHOUT-EVENT TO BE PRINTED/", "WITHOUT-EVENT PRINTED/", StringComparison.Ordinal);
+        Assert.False(File.Exists(storage.Resolve(beforePrint)!));
+        Assert.True(File.Exists(storage.Resolve(printedPath)!));
+        Assert.False(Directory.Exists(storage.Resolve(PrintFolderPaths.DirectoryOf(beforePrint))!));
         Assert.Equal("Mark lamination before continuing.", (await workflow.MarkNotifiedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
         Assert.True((await workflow.MarkLaminatedAsync(laminated.PosterId, "Laminated", CancellationToken.None)).Completed);
         Assert.True((await workflow.MarkNotifiedAsync(laminated.PosterId, "Called", CancellationToken.None)).Completed);

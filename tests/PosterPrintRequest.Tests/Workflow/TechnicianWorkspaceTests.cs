@@ -24,13 +24,15 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         using var factory = new ConfiguredPosterFactory(_database.ConnectionString, _root);
         Directory.CreateDirectory(Path.Combine(_root, "drafts"));
         File.WriteAllText(Path.Combine(_root, "drafts", "secret.txt"), "draft-secret");
-        var posterFolder = Path.Combine(_root, StorageNames.WithoutEvent, "2031", "Queue Person - POSTER-2031-000002");
+        var posterFolder = Path.Combine(_root, PrintFolderPaths.WithoutEventToBePrinted, "2031", "Queue Person - POSTER-2031-000002");
         Directory.CreateDirectory(posterFolder);
         var posterBytes = "poster-bytes"u8.ToArray();
         await File.WriteAllBytesAsync(Path.Combine(posterFolder, StorageNames.PosterPdf), posterBytes);
         await File.WriteAllBytesAsync(Path.Combine(posterFolder, StorageNames.ApprovalSheet), "sheet-bytes"u8.ToArray());
-        Directory.CreateDirectory(Path.Combine(_root, StorageNames.WithoutEvent, "10"));
-        Directory.CreateDirectory(Path.Combine(_root, StorageNames.Events, "Example event 2031", "Queue Person - POSTER-2031-000003"));
+        Directory.CreateDirectory(Path.Combine(_root, PrintFolderPaths.WithoutEventToBePrinted, "10"));
+        Directory.CreateDirectory(Path.Combine(_root, StorageNames.WithoutEvent, "2031"));
+        Directory.CreateDirectory(Path.Combine(_root, StorageNames.Events, "Example event 2031 TO BE PRINTED", "Queue Person - POSTER-2031-000003"));
+        Directory.CreateDirectory(Path.Combine(_root, StorageNames.Events, "Example event 2031"));
         Directory.CreateDirectory(Path.Combine(_root, "Example event"));
 
         int departmentId;
@@ -41,7 +43,7 @@ public sealed class TechnicianWorkspaceTests : IDisposable
             await context.SaveChangesAsync();
             departmentId = department.DepartmentId;
             context.PosterRequests.Add(Request(departmentId, "POSTER-2031-000001", "Sloane Harper", new DateOnly(2026, 10, 4), printed: true, dateOut: new DateOnly(2026, 10, 5)));
-            context.PosterRequests.Add(Request(departmentId, "POSTER-2031-000002", null, null, printed: false, dateOut: null, storagePath: "WITHOUT-EVENT/2031/Queue Person - POSTER-2031-000002/Poster.pdf", approvalPath: "WITHOUT-EVENT/2031/Queue Person - POSTER-2031-000002/Approval-Sheet.pdf"));
+            context.PosterRequests.Add(Request(departmentId, "POSTER-2031-000002", null, null, printed: false, dateOut: null, storagePath: "WITHOUT-EVENT TO BE PRINTED/2031/Queue Person - POSTER-2031-000002/Poster.pdf", approvalPath: "WITHOUT-EVENT TO BE PRINTED/2031/Queue Person - POSTER-2031-000002/Approval-Sheet.pdf"));
             await context.SaveChangesAsync();
         }
 
@@ -81,24 +83,32 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         library.EnsureSuccessStatusCode();
         var libraryHtml = await library.Content.ReadAsStringAsync();
         Assert.Contains("epx-folder-card", libraryHtml, StringComparison.Ordinal);
-        Assert.Contains("EVENTS", libraryHtml, StringComparison.Ordinal);
-        Assert.Contains("WITHOUT-EVENT", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains("EVENTS%20TO%20BE%20PRINTED", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains("EVENTS%20PRINTED", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains(">TO BE PRINTED<", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains(">PRINTED<", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains("WITHOUT-EVENT%20TO%20BE%20PRINTED", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains("epx-folder-to-be-printed", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains("WITHOUT-EVENT%20PRINTED", libraryHtml, StringComparison.Ordinal);
+        Assert.Contains("epx-folder-printed", libraryHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Example event", libraryHtml, StringComparison.Ordinal);
         Assert.DoesNotContain(">drafts<", libraryHtml, StringComparison.Ordinal);
         Assert.DoesNotContain(_root, libraryHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("draft-secret", libraryHtml, StringComparison.Ordinal);
 
-        var eventsPage = await allowed.GetAsync("/technician/library/EVENTS");
+        var eventsPage = await allowed.GetAsync("/technician/library/EVENTS%20TO%20BE%20PRINTED");
         eventsPage.EnsureSuccessStatusCode();
-        Assert.Contains("Example event 2031", await eventsPage.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var eventsHtml = await eventsPage.Content.ReadAsStringAsync();
+        Assert.Contains("Example event 2031 TO BE PRINTED", eventsHtml, StringComparison.Ordinal);
+        Assert.Contains("epx-folder-to-be-printed", eventsHtml, StringComparison.Ordinal);
 
-        var yearsPage = await allowed.GetAsync("/technician/library/WITHOUT-EVENT");
+        var yearsPage = await allowed.GetAsync("/technician/library/WITHOUT-EVENT%20TO%20BE%20PRINTED");
         yearsPage.EnsureSuccessStatusCode();
         var yearsHtml = await yearsPage.Content.ReadAsStringAsync();
         Assert.Contains("2031", yearsHtml, StringComparison.Ordinal);
         Assert.DoesNotContain(">10<", yearsHtml, StringComparison.Ordinal);
 
-        var posterPage = await allowed.GetAsync("/technician/library/WITHOUT-EVENT/2031/Queue%20Person%20-%20POSTER-2031-000002");
+        var posterPage = await allowed.GetAsync("/technician/library/WITHOUT-EVENT%20TO%20BE%20PRINTED/2031/Queue%20Person%20-%20POSTER-2031-000002");
         posterPage.EnsureSuccessStatusCode();
         var posterHtml = await posterPage.Content.ReadAsStringAsync();
         Assert.Contains("Poster.pdf", posterHtml, StringComparison.Ordinal);

@@ -26,6 +26,8 @@ public sealed class LibraryEntry
     public string? WorkHref { get; init; }
 
     public string? ViewHref { get; init; }
+
+    public string? Tone { get; init; }
 }
 
 public interface ITechnicianLibrary
@@ -67,14 +69,15 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             return RootListing();
         }
 
-        var resolved = _accepted.Resolve(requested);
         segments = requested.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (!IsAllowedLocation(segments))
         {
             return null;
         }
 
-        if (resolved is null || !Directory.Exists(resolved) || !IsInside(root, resolved) || !Reconstructs(root, resolved, segments))
+        var physical = PhysicalSegments(segments);
+        var resolved = _accepted.Resolve(string.Join('/', physical));
+        if (resolved is null || !Directory.Exists(resolved) || !IsInside(root, resolved) || !Reconstructs(root, resolved, physical))
         {
             return segments.Count == 1
                 ? new LibraryListing { Available = true, Segments = segments, Entries = [] }
@@ -112,9 +115,9 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 continue;
             }
 
-            var childRelative = segments.Count == 0 ? name : string.Join('/', segments) + "/" + name;
-            var childFull = _accepted.Resolve(childRelative);
-            if (childFull is null || !IsInside(root, childFull) || !Reconstructs(root, childFull, segments.Append(name).ToArray()))
+            var childPhysical = physical.Append(name).ToArray();
+            var childFull = _accepted.Resolve(string.Join('/', childPhysical));
+            if (childFull is null || !IsInside(root, childFull) || !Reconstructs(root, childFull, childPhysical))
             {
                 continue;
             }
@@ -124,6 +127,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 Name = name,
                 Directory = directory,
                 Kind = Kind(segments, name, directory),
+                Tone = directory ? PrintFolderPaths.Tone(name) : null,
                 NavigateHref = directory ? LibraryHref(segments.Append(name)) : null,
                 WorkHref = directory && StorageNames.PosterIdFromFolder(name) is { } posterId
                     ? "/technician/work/" + posterId
@@ -158,19 +162,39 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             Segments = [],
             Entries =
             [
-                Folder(StorageNames.Events, "Events", []),
-                Folder(StorageNames.WithoutEvent, "Without event", [])
+                Folder("TO BE PRINTED", "Events", PrintFolderPaths.ToBePrintedTone, [PrintFolderPaths.EventsToBePrinted]),
+                Folder("PRINTED", "Events", PrintFolderPaths.PrintedTone, [PrintFolderPaths.EventsPrinted]),
+                Folder("TO BE PRINTED", "Without event", PrintFolderPaths.ToBePrintedTone, [PrintFolderPaths.WithoutEventToBePrinted]),
+                Folder("PRINTED", "Without event", PrintFolderPaths.PrintedTone, [PrintFolderPaths.WithoutEventPrinted])
             ]
         };
 
-    private static LibraryEntry Folder(string name, string kind, IReadOnlyList<string> parent) =>
+    private static LibraryEntry Folder(string name, string kind, string tone, IReadOnlyList<string> hrefSegments) =>
         new()
         {
             Name = name,
             Directory = true,
             Kind = kind,
-            NavigateHref = LibraryHref(parent.Append(name))
+            Tone = tone,
+            NavigateHref = LibraryHref(hrefSegments)
         };
+
+    private static string[] PhysicalSegments(IReadOnlyList<string> segments)
+    {
+        if (segments.Count == 0 || !PrintFolderPaths.IsVirtualEventsRoot(segments[0]))
+        {
+            return segments.ToArray();
+        }
+
+        var physical = new string[segments.Count];
+        physical[0] = StorageNames.Events;
+        for (var index = 1; index < segments.Count; index++)
+        {
+            physical[index] = segments[index];
+        }
+
+        return physical;
+    }
 
     private string? NormalizedRoot()
     {
@@ -218,17 +242,14 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
         if (segments.Count == 1)
         {
-            return segments[0] == StorageNames.Events || segments[0] == StorageNames.WithoutEvent;
+            return segments[0] == StorageNames.Events
+                || PrintFolderPaths.IsVirtualEventsRoot(segments[0])
+                || PrintFolderPaths.IsWithoutPrintRoot(segments[0]);
         }
 
-        if (segments[0] == StorageNames.Events)
+        if (PrintFolderPaths.IsVirtualEventsRoot(segments[0]))
         {
-            if (segments.Count == 1)
-            {
-                return true;
-            }
-
-            if (!IsEventFolder(segments[1]))
+            if (!MatchesVirtualEvents(segments[0], segments[1]))
             {
                 return false;
             }
@@ -237,7 +258,18 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 || (segments.Count == 3 && StorageNames.PosterIdFromFolder(segments[2]) is not null);
         }
 
-        if (segments[0] != StorageNames.WithoutEvent)
+        if (segments[0] == StorageNames.Events)
+        {
+            if (!PrintFolderPaths.IsPrintEventFolder(segments[1]))
+            {
+                return false;
+            }
+
+            return segments.Count == 2
+                || (segments.Count == 3 && StorageNames.PosterIdFromFolder(segments[2]) is not null);
+        }
+
+        if (!PrintFolderPaths.IsWithoutPrintRoot(segments[0]))
         {
             return false;
         }
@@ -265,25 +297,30 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
         if (parent.Count == 0)
         {
-            return directory && (name == StorageNames.Events || name == StorageNames.WithoutEvent);
+            return directory && (name == StorageNames.Events || PrintFolderPaths.IsWithoutPrintRoot(name));
         }
 
         if (parent.Count == 1 && parent[0] == StorageNames.Events)
         {
-            return directory && IsEventFolder(name);
+            return directory && PrintFolderPaths.IsPrintEventFolder(name);
         }
 
-        if (parent.Count == 1 && parent[0] == StorageNames.WithoutEvent)
+        if (parent.Count == 1 && PrintFolderPaths.IsVirtualEventsRoot(parent[0]))
+        {
+            return directory && MatchesVirtualEvents(parent[0], name);
+        }
+
+        if (parent.Count == 1 && PrintFolderPaths.IsWithoutPrintRoot(parent[0]))
         {
             return directory && IsYear(name);
         }
 
-        if (parent.Count == 2 && parent[0] == StorageNames.Events && IsEventFolder(parent[1]))
+        if (parent.Count == 2 && IsEventLibraryRoot(parent[0]) && PrintFolderPaths.IsPrintEventFolder(parent[1]))
         {
             return directory && StorageNames.PosterIdFromFolder(name) is not null;
         }
 
-        if (parent.Count == 2 && parent[0] == StorageNames.WithoutEvent && IsYear(parent[1]))
+        if (parent.Count == 2 && PrintFolderPaths.IsWithoutPrintRoot(parent[0]) && IsYear(parent[1]))
         {
             return directory && StorageNames.PosterIdFromFolder(name) is not null;
         }
@@ -306,7 +343,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             return true;
         }
 
-        return parent.Count > 0 && parent[0] == StorageNames.Events && name == StorageNames.ApprovalSheet;
+        return parent.Count > 0 && IsEventLibraryRoot(parent[0]) && name == StorageNames.ApprovalSheet;
     }
 
     private static string Kind(IReadOnlyList<string> parent, string name, bool directory)
@@ -326,7 +363,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             return "Events";
         }
 
-        if (name == StorageNames.WithoutEvent)
+        if (PrintFolderPaths.IsWithoutPrintRoot(name))
         {
             return "Without event";
         }
@@ -336,7 +373,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             return "Poster";
         }
 
-        return IsYear(name) && parent.Count == 1 && parent[0] == StorageNames.WithoutEvent ? "Year" : "Event";
+        return IsYear(name) && parent.Count == 1 && PrintFolderPaths.IsWithoutPrintRoot(parent[0]) ? "Year" : "Event";
     }
 
     private static string? ViewHref(IReadOnlyList<string> parent, string name, bool directory)
@@ -362,26 +399,25 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             : null;
     }
 
-    private static bool IsReserved(string name) =>
-        name.Equals("drafts", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("requests", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSafeDirectoryName(string name)
+    private static bool MatchesVirtualEvents(string virtualRoot, string name)
     {
-        var segment = StorageNames.Segment(name);
-        return segment is not null && string.Equals(segment, name, StringComparison.Ordinal);
-    }
-
-    private static bool IsEventFolder(string name)
-    {
-        if (!IsSafeDirectoryName(name))
+        if (!PrintFolderPaths.IsPrintEventFolder(name))
         {
             return false;
         }
 
-        var space = name.LastIndexOf(' ');
-        return space > 0 && IsYear(name[(space + 1)..]);
+        var toBePrinted = name.EndsWith(PrintFolderPaths.ToBePrintedSuffix, StringComparison.Ordinal);
+        return virtualRoot == PrintFolderPaths.EventsToBePrinted
+            ? toBePrinted
+            : !toBePrinted;
     }
+
+    private static bool IsEventLibraryRoot(string name) =>
+        name == StorageNames.Events || PrintFolderPaths.IsVirtualEventsRoot(name);
+
+    private static bool IsReserved(string name) =>
+        name.Equals("drafts", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("requests", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsYear(string name) =>
         name.Length == 4

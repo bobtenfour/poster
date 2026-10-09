@@ -79,12 +79,14 @@ public interface ITechnicianWorkflow
 public sealed class TechnicianWorkflow : ITechnicianWorkflow
 {
     private readonly PosterPrintRequestDbContext _db;
+    private readonly AcceptedStorage _storage;
     private readonly ILogger<TechnicianWorkflow> _logger;
 
-    public TechnicianWorkflow(PosterPrintRequestDbContext db, ILogger<TechnicianWorkflow> logger)
+    public TechnicianWorkflow(PosterPrintRequestDbContext db, ILogger<TechnicianWorkflow> logger, AcceptedStorage storage)
     {
         _db = db;
         _logger = logger;
+        _storage = storage;
     }
 
     public async Task<TechnicianView?> FindAsync(string? posterId, CancellationToken cancellationToken)
@@ -145,9 +147,90 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             return TechnicianOutcome.Failure("This poster is already marked printed.");
         }
 
+        if (!PrintFolderPaths.TryMapPrintedFile(request.PosterFile.StoragePath, out var destinationPoster))
+        {
+            return TechnicianOutcome.Failure("The poster could not be moved to the printed folder.");
+        }
+
+        var sourceDirectory = PrintFolderPaths.DirectoryOf(request.PosterFile.StoragePath);
+        var destinationDirectory = PrintFolderPaths.DirectoryOf(destinationPoster);
+        if (sourceDirectory is null || destinationDirectory is null)
+        {
+            return TechnicianOutcome.Failure("The poster could not be moved to the printed folder.");
+        }
+
+        string? destinationApproval = null;
+        if (request.ApprovalSheet is not null)
+        {
+            destinationApproval = PrintFolderPaths.RewritePrefix(request.ApprovalSheet.StoragePath, sourceDirectory, destinationDirectory);
+            if (destinationApproval is null)
+            {
+                return TechnicianOutcome.Failure("The poster could not be moved to the printed folder.");
+            }
+        }
+
+        if (!_storage.TryMoveDirectory(sourceDirectory, destinationDirectory))
+        {
+            return TechnicianOutcome.Failure("The poster could not be moved to the printed folder.");
+        }
+
+        var previousPoster = request.PosterFile.StoragePath;
+        var previousApproval = request.ApprovalSheet?.StoragePath;
+        var previousComments = request.PosterProcessing.Comments;
+        request.PosterFile.StoragePath = destinationPoster;
+        if (request.ApprovalSheet is not null)
+        {
+            request.ApprovalSheet.StoragePath = destinationApproval!;
+        }
+
         request.PosterProcessing.Printed = true;
         ApplyComments(request.PosterProcessing, comments);
-        return await SaveStageAsync(request, "Printed", cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            RestorePrintedMove(request, destinationDirectory, sourceDirectory, previousPoster, previousApproval, previousComments);
+            return TechnicianOutcome.Failure("The request could not be updated.");
+        }
+
+        if (_storage.DirectorySettled(sourceDirectory, destinationDirectory, destinationPoster, destinationApproval))
+        {
+            _logger.LogInformation("Technician recorded {Stage} for poster {PosterId}.", "Printed", request.PosterId);
+            return TechnicianOutcome.Success();
+        }
+
+        RestorePrintedMove(request, destinationDirectory, sourceDirectory, previousPoster, previousApproval, previousComments);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            _logger.LogWarning("Printed transition could not restore poster {PosterId}.", request.PosterId);
+        }
+
+        return TechnicianOutcome.Failure("The poster could not be moved to the printed folder.");
+    }
+
+    private void RestorePrintedMove(
+        PosterRequest request,
+        string destinationDirectory,
+        string sourceDirectory,
+        string previousPoster,
+        string? previousApproval,
+        string? previousComments)
+    {
+        _storage.TryMoveDirectory(destinationDirectory, sourceDirectory);
+        request.PosterFile.StoragePath = previousPoster;
+        if (request.ApprovalSheet is not null && previousApproval is not null)
+        {
+            request.ApprovalSheet.StoragePath = previousApproval;
+        }
+
+        request.PosterProcessing.Printed = false;
+        request.PosterProcessing.Comments = previousComments;
     }
 
     public async Task<TechnicianOutcome> MarkLaminatedAsync(string posterId, string? comments, CancellationToken cancellationToken)

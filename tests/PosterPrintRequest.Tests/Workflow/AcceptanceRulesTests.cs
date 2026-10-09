@@ -104,8 +104,8 @@ public sealed class AcceptanceRulesTests : IDisposable
             out var placed,
             out var error));
         Assert.Null(error);
-        Assert.Equal("EVENTS/Example event 2026/Ada Lovelace - POSTER-2026-000004/Poster.pdf", placed!.PosterRelative);
-        Assert.Equal("EVENTS/Example event 2026/Ada Lovelace - POSTER-2026-000004/Approval-Sheet.pdf", placed.ApprovalRelative);
+        Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/Poster.pdf", placed!.PosterRelative);
+        Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/Approval-Sheet.pdf", placed.ApprovalRelative);
         Assert.Equal(poster, await File.ReadAllBytesAsync(storage.Resolve(placed.PosterRelative)!));
         Assert.Equal(sheet, await File.ReadAllBytesAsync(storage.Resolve(placed.ApprovalRelative)!));
         Assert.Empty(Directory.EnumerateFiles(storage.Resolve(placed.DirectoryRelative)!, "*.txt"));
@@ -124,7 +124,7 @@ public sealed class AcceptanceRulesTests : IDisposable
             "PPTX",
             out var withoutEvent,
             out _));
-        Assert.Equal("WITHOUT-EVENT/2026/Ada Lovelace - POSTER-2026-000005/Poster.pptx", withoutEvent!.PosterRelative);
+        Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2026/Ada Lovelace - POSTER-2026-000005/Poster.pptx", withoutEvent!.PosterRelative);
         Assert.Null(withoutEvent.ApprovalRelative);
         var withoutDirectory = storage.Resolve(withoutEvent.DirectoryRelative)!;
         Assert.Equal(slides, await File.ReadAllBytesAsync(Path.Combine(withoutDirectory, StorageNames.PosterPptx)));
@@ -144,12 +144,12 @@ public sealed class AcceptanceRulesTests : IDisposable
             "PDF",
             out var later,
             out _));
-        Assert.Equal("WITHOUT-EVENT/2027/Grace Hopper - POSTER-2027-000001/Poster.pdf", later!.PosterRelative);
+        Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2027/Grace Hopper - POSTER-2027-000001/Poster.pdf", later!.PosterRelative);
         Assert.Equal(
             new[] { "2026", "2027" },
-            Directory.GetDirectories(Path.Combine(_root, StorageNames.WithoutEvent)).Select(Path.GetFileName).OrderBy(name => name).ToArray());
+            Directory.GetDirectories(Path.Combine(_root, PrintFolderPaths.WithoutEventToBePrinted)).Select(Path.GetFileName).OrderBy(name => name).ToArray());
         Assert.DoesNotContain(
-            Directory.GetDirectories(Path.Combine(_root, StorageNames.WithoutEvent)).Select(Path.GetFileName),
+            Directory.GetDirectories(Path.Combine(_root, PrintFolderPaths.WithoutEventToBePrinted)).Select(Path.GetFileName),
             name => name is { Length: 2 });
     }
 

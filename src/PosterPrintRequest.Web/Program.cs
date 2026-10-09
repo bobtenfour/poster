@@ -34,6 +34,7 @@ builder.Services.AddScoped<AcceptanceLookup>();
 builder.Services.AddScoped<ITechnicianWorkflow, TechnicianWorkflow>();
 builder.Services.AddScoped<ITechnicianDashboard, TechnicianDashboard>();
 builder.Services.AddScoped<ITechnicianLibrary, TechnicianLibrary>();
+builder.Services.AddScoped<PrintFolderMigration>();
 builder.Services.AddScoped<IPrintingInventory, PrintingInventory>();
 builder.Services.AddScoped<IOperatorConfiguration, OperatorConfiguration>();
 
@@ -99,6 +100,9 @@ var entry = Assembly.GetEntryAssembly()?.GetName().Name;
 if (!string.Equals(entry, "ef", StringComparison.OrdinalIgnoreCase))
 {
     await DemoEvaluationUsersSeeder.SeedAsync(app.Services, app.Environment, app.Logger);
+    await using var scope = app.Services.CreateAsyncScope();
+    var migration = scope.ServiceProvider.GetRequiredService<PrintFolderMigration>();
+    await migration.MigrateAsync(CancellationToken.None);
 }
 
 app.Run();

@@ -66,7 +66,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.False(saved.PosterProcessing.Printed);
         Assert.False(saved.PosterProcessing.Laminated);
         Assert.False(saved.PosterProcessing.Notified);
-        var folder = $"EVENTS/Example event, mentor and approval sheet required {saved.DateIn.Year}/Ada Lovelace - {saved.PosterId}";
+        var folder = $"EVENTS/Example event, mentor and approval sheet required {saved.DateIn.Year} TO BE PRINTED/Ada Lovelace - {saved.PosterId}";
         Assert.Equal($"{folder}/Poster.pdf", saved.PosterFile.StoragePath);
         Assert.Equal($"{folder}/Approval-Sheet.pdf", saved.ApprovalSheet.StoragePath);
         Assert.DoesNotContain(_root, saved.PosterFile.StoragePath, StringComparison.OrdinalIgnoreCase);
@@ -135,7 +135,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.Equal(36m, saved.PosterFile.Width);
         Assert.Equal(72m, saved.PosterFile.Length);
         var year = saved.DateIn.ToString("yyyy", CultureInfo.InvariantCulture);
-        Assert.Equal($"WITHOUT-EVENT/{year}/Landscape - {saved.PosterId}/Poster.pdf", saved.PosterFile.StoragePath);
+        Assert.Equal($"WITHOUT-EVENT TO BE PRINTED/{year}/Landscape - {saved.PosterId}/Poster.pdf", saved.PosterFile.StoragePath);
         Assert.Equal(poster, await File.ReadAllBytesAsync(Full(saved.PosterFile.StoragePath)));
         Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(Full(saved.PosterFile.StoragePath))!, "*.txt"));
     }
