@@ -1730,6 +1730,16 @@ a.epx-folder-name:focus-visible {
   text-decoration: underline;
 }
 
+.epx-folder-to-be-printed .epx-folder-name,
+.epx-folder-to-be-printed a.epx-folder-name {
+  color: var(--epx-blueignix-blue);
+}
+
+.epx-folder-printed .epx-folder-name,
+.epx-folder-printed a.epx-folder-name {
+  color: var(--epx-blueignix-green);
+}
+
 .epx-folder-actions {
   display: flex;
   flex-wrap: wrap;
