@@ -74,6 +74,17 @@ public sealed class ConsumableAlert
     public required string Detail { get; init; }
 }
 
+public sealed class SupplyCategorySummary
+{
+    public required int Cartridges { get; init; }
+
+    public required int Paper { get; init; }
+
+    public required int LaminatingMaterials { get; init; }
+
+    public int Total => Cartridges + Paper + LaminatingMaterials;
+}
+
 public sealed class ConsumableAttention
 {
     public required IReadOnlyList<ConsumableAlert> Depleted { get; init; }
@@ -81,6 +92,10 @@ public sealed class ConsumableAttention
     public required IReadOnlyList<ConsumableAlert> LowStock { get; init; }
 
     public required IReadOnlyList<ConsumableAlert> ExpiringSoon { get; init; }
+
+    public required SupplyCategorySummary NeedsReorder { get; init; }
+
+    public required SupplyCategorySummary ExpiringSoonSummary { get; init; }
 }
 
 public sealed class InventoryOutcome
@@ -178,7 +193,9 @@ public sealed class PrintingInventory : IPrintingInventory
         {
             Depleted = depleted,
             LowStock = lowStock,
-            ExpiringSoon = expiringSoon
+            ExpiringSoon = expiringSoon,
+            NeedsReorder = Summarize(depleted.Concat(lowStock)),
+            ExpiringSoonSummary = Summarize(expiringSoon)
         };
     }
 
@@ -359,6 +376,41 @@ public sealed class PrintingInventory : IPrintingInventory
 
     private static int TotalQuantity(PrintingConsumable item) =>
         item.StockEntries.Where(entry => entry.Quantity > 0).Sum(entry => entry.Quantity);
+
+    private static SupplyCategorySummary Summarize(IEnumerable<ConsumableAlert> alerts)
+    {
+        var distinct = new Dictionary<int, string>();
+        foreach (var alert in alerts)
+        {
+            distinct.TryAdd(alert.PrintingConsumableId, alert.Category);
+        }
+
+        var cartridges = 0;
+        var paper = 0;
+        var laminating = 0;
+        foreach (var category in distinct.Values)
+        {
+            switch (category)
+            {
+                case ConsumableCategory.Cartridge:
+                    cartridges++;
+                    break;
+                case ConsumableCategory.Paper:
+                    paper++;
+                    break;
+                case ConsumableCategory.Laminating:
+                    laminating++;
+                    break;
+            }
+        }
+
+        return new SupplyCategorySummary
+        {
+            Cartridges = cartridges,
+            Paper = paper,
+            LaminatingMaterials = laminating
+        };
+    }
 
     private static ConsumableAlert Alert(ConsumableRow row, string detail, DateOnly? expirationDate = null) => new()
     {

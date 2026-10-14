@@ -85,10 +85,20 @@ public sealed class RoleSeparationTests
         Assert.Contains("href=\"/technician/configuration\"", html, StringComparison.Ordinal);
         Assert.Contains("Printing Supplies", html, StringComparison.Ordinal);
         Assert.Contains("Monitor toner, paper, and lamination stock.", html, StringComparison.Ordinal);
-        Assert.Contains(">Depleted<", html, StringComparison.Ordinal);
-        Assert.Contains(">Low Stock<", html, StringComparison.Ordinal);
+        Assert.Contains(">Needs Reorder<", html, StringComparison.Ordinal);
+        Assert.Contains("Items at or below reorder threshold.", html, StringComparison.Ordinal);
         Assert.Contains(">Expiring Soon<", html, StringComparison.Ordinal);
+        Assert.Contains("Items approaching expiration date.", html, StringComparison.Ordinal);
+        Assert.Contains("Ink Cartridges", html, StringComparison.Ordinal);
+        Assert.Contains(">Paper<", html, StringComparison.Ordinal);
+        Assert.Contains("Lamination Materials", html, StringComparison.Ordinal);
+        Assert.Equal(2, CountOccurrences(html, "href=\"/technician/inventory#cartridges\""));
+        Assert.Equal(2, CountOccurrences(html, "href=\"/technician/inventory#paper\""));
+        Assert.Equal(2, CountOccurrences(html, "href=\"/technician/inventory#laminating\""));
         Assert.Contains("View Inventory", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Depleted<", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Low Stock<", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Needs attention", html, StringComparison.Ordinal);
         Assert.DoesNotContain("C9403A", html, StringComparison.Ordinal);
         Assert.Contains("usero", html, StringComparison.Ordinal);
@@ -177,6 +187,19 @@ public sealed class RoleSeparationTests
         using var provider = services.BuildServiceProvider();
         var environment = new HostingEnvironment { EnvironmentName = Environments.Production };
         await DemoEvaluationUsersSeeder.SeedAsync(provider, environment, NullLogger.Instance);
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
     }
 }
 

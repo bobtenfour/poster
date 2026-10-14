@@ -60,13 +60,20 @@ public partial class Technician : ComponentBase
         SearchState = SearchView is null ? "missing" : "found";
     }
 
-    private static string SupplyCardAction(int count, string action) => count == 0 ? "Clear" : action;
-
     private static ConsumableAttention EmptyAttention() => new()
     {
         Depleted = [],
         LowStock = [],
-        ExpiringSoon = []
+        ExpiringSoon = [],
+        NeedsReorder = EmptySummary(),
+        ExpiringSoonSummary = EmptySummary()
+    };
+
+    private static SupplyCategorySummary EmptySummary() => new()
+    {
+        Cartridges = 0,
+        Paper = 0,
+        LaminatingMaterials = 0
     };
 
     private static TechnicianDashboardSnapshot Empty()

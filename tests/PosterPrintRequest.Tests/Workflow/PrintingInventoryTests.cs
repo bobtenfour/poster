@@ -296,6 +296,85 @@ public sealed class PrintingInventoryTests
         Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code == "CART-BLACK");
         Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code == "PAPER-GLOSS");
         Assert.DoesNotContain(alerts.Depleted, alert => alert.Code == "PAPER-GLOSS");
+        Assert.Equal(3, alerts.NeedsReorder.Cartridges);
+        Assert.Equal(1, alerts.NeedsReorder.Paper);
+        Assert.Equal(0, alerts.NeedsReorder.LaminatingMaterials);
+        Assert.Equal(alerts.Depleted.Count + alerts.LowStock.Count, alerts.NeedsReorder.Total);
+        Assert.Equal(3, alerts.ExpiringSoonSummary.Cartridges);
+        Assert.Equal(0, alerts.ExpiringSoonSummary.Paper);
+        Assert.Equal(0, alerts.ExpiringSoonSummary.LaminatingMaterials);
+        Assert.Equal(alerts.ExpiringSoon.Count, alerts.ExpiringSoonSummary.Total);
+        Assert.Equal(
+            alerts.Depleted.Select(alert => alert.PrintingConsumableId).Concat(alerts.LowStock.Select(alert => alert.PrintingConsumableId)).Distinct().Count(),
+            alerts.NeedsReorder.Total);
+        Assert.Equal(alerts.ExpiringSoon.Select(alert => alert.PrintingConsumableId).Distinct().Count(), alerts.ExpiringSoonSummary.Total);
+    }
+
+    [Fact]
+    public async Task Reorder_summary_uses_the_low_stock_threshold_and_counts_each_consumable_once()
+    {
+        await ClearInventoryAsync();
+        await using var context = _database.CreateContext();
+        var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+        var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var atThreshold = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "At threshold", "RE-AT", null);
+        var aboveThreshold = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Above threshold", "RE-ABOVE", null);
+        var atCritical = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "At critical", "RE-CRITICAL", null);
+        var zeroStock = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Zero stock", "RE-ZERO", null);
+        var twoLots = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Two lots", "RE-LOTS", null);
+        var plainPaper = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Zero paper", "RE-P0", null);
+        var paperAtThreshold = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Paper at threshold", "RE-PAT", null);
+        var splitFilm = await AddAsync(configuration, inventory, ConsumableCategory.Laminating, "Split film", "RE-FILM", null);
+        var undatedFilm = await AddAsync(configuration, inventory, ConsumableCategory.Laminating, "Undated film", "RE-UNDATED", null);
+        var hidden = await AddAsync(configuration, inventory, ConsumableCategory.Cartridge, "Hidden cartridge", "RE-HIDDEN", null);
+        var later = today.AddMonths(14);
+
+        Assert.True((await configuration.SetConsumableThresholdsAsync(atThreshold.PrintingConsumableId, 2, 0, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(aboveThreshold.PrintingConsumableId, 2, 0, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(atCritical.PrintingConsumableId, 4, 1, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(zeroStock.PrintingConsumableId, 5, 0, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(twoLots.PrintingConsumableId, 3, 0, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(paperAtThreshold.PrintingConsumableId, 4, 0, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(splitFilm.PrintingConsumableId, 1, 0, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableThresholdsAsync(undatedFilm.PrintingConsumableId, 1, 0, CancellationToken.None)).Completed);
+
+        Assert.True((await inventory.AddStockAsync(atThreshold.PrintingConsumableId, 2, later, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(aboveThreshold.PrintingConsumableId, 3, later, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(atCritical.PrintingConsumableId, 1, later, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(twoLots.PrintingConsumableId, 2, today.AddMonths(2), CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(twoLots.PrintingConsumableId, 2, today.AddMonths(4), CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(paperAtThreshold.PrintingConsumableId, 4, null, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(splitFilm.PrintingConsumableId, 3, today, CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(splitFilm.PrintingConsumableId, 2, today.AddMonths(8), CancellationToken.None)).Completed);
+        Assert.True((await inventory.AddStockAsync(undatedFilm.PrintingConsumableId, 4, null, CancellationToken.None)).Completed);
+        Assert.True((await configuration.SetConsumableActiveAsync(hidden.PrintingConsumableId, false, CancellationToken.None)).Completed);
+
+        var alerts = await inventory.CriticalAlertsAsync(CancellationToken.None);
+        Assert.Equal(3, alerts.NeedsReorder.Cartridges);
+        Assert.Equal(2, alerts.NeedsReorder.Paper);
+        Assert.Equal(0, alerts.NeedsReorder.LaminatingMaterials);
+        Assert.Equal(5, alerts.NeedsReorder.Total);
+        Assert.Equal(alerts.Depleted.Count + alerts.LowStock.Count, alerts.NeedsReorder.Total);
+        Assert.Contains(alerts.LowStock, alert => alert.Code == "RE-AT");
+        Assert.Contains(alerts.LowStock, alert => alert.Code == "RE-PAT");
+        Assert.Contains(alerts.Depleted, alert => alert.Code == "RE-CRITICAL");
+        Assert.Contains(alerts.Depleted, alert => alert.Code == "RE-ZERO");
+        Assert.Contains(alerts.Depleted, alert => alert.Code == "RE-P0");
+        Assert.DoesNotContain(alerts.Depleted.Concat(alerts.LowStock), alert => alert.Code is "RE-ABOVE" or "RE-LOTS" or "RE-FILM" or "RE-UNDATED" or "RE-HIDDEN");
+        Assert.Equal(
+            alerts.Depleted.Select(alert => alert.PrintingConsumableId).Concat(alerts.LowStock.Select(alert => alert.PrintingConsumableId)).Distinct().Count(),
+            alerts.NeedsReorder.Total);
+
+        Assert.Equal(1, alerts.ExpiringSoonSummary.Cartridges);
+        Assert.Equal(0, alerts.ExpiringSoonSummary.Paper);
+        Assert.Equal(1, alerts.ExpiringSoonSummary.LaminatingMaterials);
+        Assert.Equal(2, alerts.ExpiringSoonSummary.Total);
+        Assert.Equal(alerts.ExpiringSoon.Count, alerts.ExpiringSoonSummary.Total);
+        Assert.Single(alerts.ExpiringSoon, alert => alert.Code == "RE-LOTS");
+        Assert.Single(alerts.ExpiringSoon, alert => alert.Code == "RE-FILM");
+        Assert.DoesNotContain(alerts.ExpiringSoon, alert => alert.Code is "RE-AT" or "RE-ABOVE" or "RE-CRITICAL" or "RE-P0" or "RE-PAT" or "RE-UNDATED" or "RE-HIDDEN");
+        Assert.Equal(alerts.ExpiringSoon.Select(alert => alert.PrintingConsumableId).Distinct().Count(), alerts.ExpiringSoon.Count);
     }
 
     private async Task ClearInventoryAsync()
@@ -354,5 +433,33 @@ public sealed class PrintingInventorySourceTests
         Assert.Contains("low-stock threshold", configurationPage, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("epx-config-row", configurationPage, StringComparison.Ordinal);
         Assert.DoesNotContain(">Edit</button>", configurationPage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Dashboard_projects_inventory_summaries_without_local_rules()
+    {
+        var web = Path.Combine(PosterPrintRequest.Tests.RepositoryPaths.Root(), "src", "PosterPrintRequest.Web");
+        var page = File.ReadAllText(Path.Combine(web, "Components", "Pages", "Technician.razor"));
+        var code = File.ReadAllText(Path.Combine(web, "Components", "Pages", "Technician.razor.cs"));
+        var tiles = File.ReadAllText(Path.Combine(web, "Components", "Pages", "SupplyCategoryTiles.razor"));
+
+        Assert.Contains("Needs Reorder", page, StringComparison.Ordinal);
+        Assert.Contains("Expiring Soon", page, StringComparison.Ordinal);
+        Assert.Contains("Attention.NeedsReorder", page, StringComparison.Ordinal);
+        Assert.Contains("Attention.ExpiringSoonSummary", page, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/inventory\"", page, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Depleted<", page, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Low Stock<", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("LowStockThreshold", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("CriticalStockThreshold", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("ExpirationAlert", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("LowStockThreshold", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("CriticalStockThreshold", code, StringComparison.Ordinal);
+        Assert.Contains("Ink Cartridges", tiles, StringComparison.Ordinal);
+        Assert.Contains(">Paper<", tiles, StringComparison.Ordinal);
+        Assert.Contains("Lamination Materials", tiles, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/inventory#cartridges\"", tiles, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/inventory#paper\"", tiles, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician/inventory#laminating\"", tiles, StringComparison.Ordinal);
     }
 }
