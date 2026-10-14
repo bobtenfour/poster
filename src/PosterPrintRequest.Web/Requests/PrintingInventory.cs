@@ -1,4 +1,6 @@
+using System.Data;
 using System.Globalization;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PosterPrintRequest.Domain;
@@ -199,7 +201,12 @@ public sealed class PrintingInventory : IPrintingInventory
         };
     }
 
-    public async Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken)
+    public Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(
+            token => AddStockCoreAsync(printingConsumableId, quantity, expirationDate, token),
+            cancellationToken);
+
+    private async Task<InventoryOutcome> AddStockCoreAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken)
     {
         var item = await FindActiveAsync(printingConsumableId, cancellationToken);
         if (item is null)
@@ -257,7 +264,17 @@ public sealed class PrintingInventory : IPrintingInventory
         return InventoryOutcome.Success();
     }
 
-    public async Task<InventoryOutcome> RemoveStockAsync(
+    public Task<InventoryOutcome> RemoveStockAsync(
+        int printingConsumableId,
+        int quantity,
+        bool earliestExpirationAcknowledged,
+        DateOnly? acknowledgedExpirationDate,
+        CancellationToken cancellationToken) =>
+        ExecuteExclusiveAsync(
+            token => RemoveStockCoreAsync(printingConsumableId, quantity, earliestExpirationAcknowledged, acknowledgedExpirationDate, token),
+            cancellationToken);
+
+    private async Task<InventoryOutcome> RemoveStockCoreAsync(
         int printingConsumableId,
         int quantity,
         bool earliestExpirationAcknowledged,
@@ -328,6 +345,52 @@ public sealed class PrintingInventory : IPrintingInventory
             .ThenBy(item => item.Code ?? string.Empty, StringComparer.Ordinal)
             .Select(item => ToRow(item, today))
             .ToList();
+    }
+
+    private async Task<InventoryOutcome> ExecuteExclusiveAsync(
+        Func<CancellationToken, Task<InventoryOutcome>> action,
+        CancellationToken cancellationToken)
+    {
+        const int attempts = 3;
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            try
+            {
+                var outcome = await action(cancellationToken);
+                if (!outcome.Completed)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return outcome;
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                return outcome;
+            }
+            catch (Exception exception) when (IsDeadlock(exception))
+            {
+                _db.ChangeTracker.Clear();
+                if (attempt == attempts)
+                {
+                    return InventoryOutcome.Failure("The inventory changed while this update was saved. Enter it again.");
+                }
+            }
+        }
+
+        throw new InvalidOperationException("The inventory update did not finish.");
+    }
+
+    private static bool IsDeadlock(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is SqlException sql && sql.Number == 1205)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<PrintingConsumable?> FindActiveAsync(int printingConsumableId, CancellationToken cancellationToken) =>

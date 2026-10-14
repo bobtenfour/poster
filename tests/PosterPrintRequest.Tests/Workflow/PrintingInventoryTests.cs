@@ -377,6 +377,70 @@ public sealed class PrintingInventoryTests
         Assert.Equal(alerts.ExpiringSoon.Select(alert => alert.PrintingConsumableId).Distinct().Count(), alerts.ExpiringSoon.Count);
     }
 
+    [Fact]
+    public async Task Concurrent_additions_keep_both_quantities()
+    {
+        await ClearInventoryAsync();
+        int consumableId;
+        await using (var context = _database.CreateContext())
+        {
+            var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+            var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
+            var paper = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Concurrent paper", "PAPER-CONCURRENT", "36 in");
+            consumableId = paper.PrintingConsumableId;
+        }
+
+        async Task<InventoryOutcome> Add()
+        {
+            await using var context = _database.CreateContext();
+            var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+            return await inventory.AddStockAsync(consumableId, 4, null, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(Add(), Add());
+        Assert.All(results, result => Assert.True(result.Completed, result.Message));
+
+        await using var verify = _database.CreateContext();
+        var saved = await verify.PrintingConsumables
+            .Include(item => item.StockEntries)
+            .SingleAsync(item => item.PrintingConsumableId == consumableId);
+        Assert.Equal(8, saved.StockEntries.Sum(entry => entry.Quantity));
+        Assert.Equal(ConsumableStock.FromQuantity(8, saved.LowStockThreshold, saved.CriticalStockThreshold), saved.Status);
+    }
+
+    [Fact]
+    public async Task Concurrent_removals_do_not_drop_the_quantity_below_zero()
+    {
+        await ClearInventoryAsync();
+        int consumableId;
+        await using (var context = _database.CreateContext())
+        {
+            var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+            var configuration = new OperatorConfiguration(context, NullLogger<OperatorConfiguration>.Instance);
+            var paper = await AddAsync(configuration, inventory, ConsumableCategory.Paper, "Removal paper", "PAPER-REMOVAL", "36 in");
+            consumableId = paper.PrintingConsumableId;
+            Assert.True((await inventory.AddStockAsync(consumableId, 5, null, CancellationToken.None)).Completed);
+        }
+
+        async Task<InventoryOutcome> Remove()
+        {
+            await using var context = _database.CreateContext();
+            var inventory = new PrintingInventory(context, NullLogger<PrintingInventory>.Instance);
+            return await inventory.RemoveStockAsync(consumableId, 3, false, null, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(Remove(), Remove());
+        Assert.Equal(1, results.Count(result => result.Completed));
+        Assert.Contains(results, result => !result.Completed && result.Message == "That removal would reduce the inventory below zero.");
+
+        await using var verify = _database.CreateContext();
+        var saved = await verify.PrintingConsumables
+            .Include(item => item.StockEntries)
+            .SingleAsync(item => item.PrintingConsumableId == consumableId);
+        Assert.Equal(2, saved.StockEntries.Sum(entry => entry.Quantity));
+        Assert.Equal(ConsumableStock.FromQuantity(2, saved.LowStockThreshold, saved.CriticalStockThreshold), saved.Status);
+    }
+
     private async Task ClearInventoryAsync()
     {
         await using var context = _database.CreateContext();
