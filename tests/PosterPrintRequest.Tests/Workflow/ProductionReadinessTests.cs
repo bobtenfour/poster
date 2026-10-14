@@ -91,6 +91,7 @@ public sealed class ProductionReadinessTests : IDisposable
             var files = scope.ServiceProvider.GetRequiredService<DraftFileStore>();
             var options = scope.ServiceProvider.GetRequiredService<IRequesterOptionSource>();
             var submission = scope.ServiceProvider.GetRequiredService<IRequesterSubmission>();
+            scope.ServiceProvider.GetRequiredService<SignedInAccount>().UserName = "usera";
             var choices = await options.LoadAsync(CancellationToken.None);
             var draft = new RequesterDraft
             {
@@ -202,6 +203,64 @@ public sealed class ProductionReadinessTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Acceptance_confirmation_stays_with_the_submitting_requester()
+    {
+        const string ownId = "POSTER-2033-000001";
+        const string otherId = "POSTER-2033-000002";
+        await using (var context = _database.CreateContext())
+        {
+            await RequesterOptionExamples.EnsureAsync(context);
+            var department = await context.Departments.FirstAsync();
+            context.PosterRequests.Add(AcceptedPoster(department, ownId, "usera", "Visible Requester"));
+            context.PosterRequests.Add(AcceptedPoster(department, otherId, "other-requester", "Hidden Requester"));
+            await context.SaveChangesAsync();
+        }
+
+        using var factory = new ConfiguredPosterFactory(_database.ConnectionString, _root);
+        using var owner = await PosterSignIn.SignInAsync(factory, "usera");
+        var ownHtml = await owner.GetStringAsync("/request/accepted/" + ownId);
+        Assert.Contains("Request accepted", ownHtml, StringComparison.Ordinal);
+        Assert.Contains(ownId, ownHtml, StringComparison.Ordinal);
+        Assert.Contains("Visible Requester", ownHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hidden Requester", ownHtml, StringComparison.Ordinal);
+
+        var otherHtml = await owner.GetStringAsync("/request/accepted/" + otherId);
+        Assert.Contains("Request not found", otherHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hidden Requester", otherHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain(otherId, otherHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Visible Requester", otherHtml, StringComparison.Ordinal);
+
+        var missingHtml = await owner.GetStringAsync("/request/accepted/POSTER-2033-000099");
+        Assert.Contains("Request not found", missingHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Visible Requester", missingHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hidden Requester", missingHtml, StringComparison.Ordinal);
+
+        var invalidHtml = await owner.GetStringAsync("/request/accepted/not-a-poster");
+        Assert.Contains("Request not found", invalidHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Visible Requester", invalidHtml, StringComparison.Ordinal);
+
+        using var anonymous = factory.CreateClient();
+        var anonymousResponse = await anonymous.GetAsync("/request/accepted/" + ownId);
+        var anonymousHtml = await anonymousResponse.Content.ReadAsStringAsync();
+        Assert.Contains("/Account/Login", anonymousResponse.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        Assert.DoesNotContain("Visible Requester", anonymousHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hidden Requester", anonymousHtml, StringComparison.Ordinal);
+
+        using var technician = await PosterSignIn.SignInAsync(factory, "usero");
+        var denied = await technician.GetAsync("/request/accepted/" + ownId);
+        Assert.Contains("/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        var deniedHtml = await denied.Content.ReadAsStringAsync();
+        Assert.Contains("Your account cannot open this area.", deniedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Visible Requester", deniedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hidden Requester", deniedHtml, StringComparison.Ordinal);
+
+        var workHtml = await technician.GetStringAsync("/technician/" + ownId);
+        Assert.Contains(ownId, workHtml, StringComparison.Ordinal);
+        Assert.Contains("Take this request", workHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Create the TDX ticket yourself", workHtml, StringComparison.Ordinal);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
@@ -209,4 +268,27 @@ public sealed class ProductionReadinessTests : IDisposable
             Directory.Delete(_root, recursive: true);
         }
     }
+
+    private static PosterRequest AcceptedPoster(Department department, string posterId, string userName, string requesterName) => new()
+    {
+        PosterId = posterId,
+        Name = requesterName,
+        SubmittedByUserName = userName,
+        DepartmentId = department.DepartmentId,
+        DepartmentName = department.Name,
+        Room = "4",
+        Phone = "555-0140",
+        Email = "acceptance@example.edu",
+        DateIn = new DateTime(2026, 10, 14, 9, 0, 0),
+        PosterFile = new PosterFile
+        {
+            OriginalFileName = "Poster.pdf",
+            DetectedFormat = "PDF",
+            PageCount = 1,
+            Width = 24,
+            Length = 36,
+            StoragePath = "WITHOUT-EVENT TO BE PRINTED/2026/" + posterId + "/Poster.pdf"
+        },
+        PosterProcessing = new PosterProcessing()
+    };
 }
