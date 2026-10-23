@@ -1,5 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@inject IAuthorizationService Authorization
 
 <a class="epx-skip-link" href="#epx-main-content">Skip to main content</a>
 <div class="epx-shell">
@@ -24,6 +26,12 @@
                     <li>
                         <ShellNavLink Href="/request">Request</ShellNavLink>
                     </li>
+                    @if (AlsoTechnician)
+                    {
+                        <li>
+                            <ShellNavLink Href="/technician">Technician</ShellNavLink>
+                        </li>
+                    }
                 </ul>
             </div>
         </nav>
@@ -38,10 +46,6 @@
                 <span class="epx-blueignix-context-label">Audience</span>
                 <span class="epx-blueignix-context-value">Students and staff</span>
             </div>
-            <form class="epx-sign-out" method="post" action="/Account/Logout" data-enhance="false">
-                <AntiforgeryToken />
-                <button class="epx-button" type="submit">Log out</button>
-            </form>
         </div>
         <main id="epx-main-content" class="epx-landmark-main" tabindex="-1">
             @Body
@@ -64,6 +68,8 @@
 
     private string SignedIn { get; set; } = "Student or staff";
 
+    private bool AlsoTechnician { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthenticationState is null)
@@ -77,5 +83,7 @@
         {
             SignedIn = name;
         }
+
+        AlsoTechnician = (await Authorization.AuthorizeAsync(state.User, PosterAccess.OperatorPolicy)).Succeeded;
     }
 }

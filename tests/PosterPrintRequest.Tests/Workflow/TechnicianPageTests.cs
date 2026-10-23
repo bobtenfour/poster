@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Bunit;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using PosterPrintRequest.Tests.Hosting;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Components.Pages;
 using PosterPrintRequest.Web.Requests;
 
@@ -14,6 +16,7 @@ public sealed class TechnicianPageTests : TestContext
     public TechnicianPageTests()
     {
         Services.AddSingleton<ITechnicianWorkflow>(_workflow);
+        Services.AddSingleton<IInstitutionalActorSource, UnavailableActorSource>();
         Services.AddSingleton<AuthenticationStateProvider, AnonymousAuthenticationStateProvider>();
     }
 
@@ -75,7 +78,7 @@ public sealed class TechnicianPageTests : TestContext
         public Task<TechnicianView?> FindAsync(string? posterId, CancellationToken cancellationToken) =>
             Task.FromResult(View);
 
-        public Task<TechnicianOutcome> TakeAsync(string posterId, string? itPerson, DateOnly? received, string? comments, CancellationToken cancellationToken) =>
+        public Task<TechnicianOutcome> TakeAsync(string posterId, InstitutionalActor? actor, DateOnly? received, string? comments, CancellationToken cancellationToken) =>
             Task.FromResult(TechnicianOutcome.Failure("unused"));
 
         public Task<TechnicianOutcome> MarkPrintedAsync(string posterId, string? comments, CancellationToken cancellationToken) =>

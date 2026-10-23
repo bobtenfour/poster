@@ -38,6 +38,12 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
 
     public async Task<SubmissionOutcome> SubmitAsync(RequesterDraft draft, CancellationToken cancellationToken)
     {
+        var actor = _account?.Actor;
+        if (actor is null || !actor.IsValid)
+        {
+            return SubmissionOutcome.Failure("The signed-in identity could not be verified.");
+        }
+
         var choices = await new RequesterOptionCatalog(_db).LoadAsync(cancellationToken);
         var errors = Validate(draft, choices);
         if (errors.Count > 0)
@@ -130,7 +136,8 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
             var request = new PosterRequest
             {
                 PosterId = posterId,
-                SubmittedByUserName = SignedInName(),
+                SubmittedByAccountName = actor.AccountName,
+                SubmittedBySecurityIdentifier = actor.SecurityIdentifier,
                 Name = draft.Name.Trim(),
                 Mentor = string.IsNullOrWhiteSpace(draft.Mentor) ? null : draft.Mentor.Trim(),
                 DepartmentId = departmentId,
@@ -292,12 +299,6 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
         }
 
         return false;
-    }
-
-    private string? SignedInName()
-    {
-        var name = _account?.UserName;
-        return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
     }
 
     private static async Task SafeRollbackAsync(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken cancellationToken)

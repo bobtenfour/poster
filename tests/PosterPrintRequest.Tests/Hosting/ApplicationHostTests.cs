@@ -15,12 +15,10 @@ public sealed class ApplicationHostTests
         using var factory = new PosterWebApplicationFactory();
         using var client = factory.CreateClient();
         var response = await client.GetAsync("/");
-        response.EnsureSuccessStatusCode();
         var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Poster Print Request System", html, StringComparison.Ordinal);
-        Assert.Contains("Log in", html, StringComparison.Ordinal);
-        Assert.Contains("plotter-technician.jpg", html, StringComparison.Ordinal);
-        Assert.Contains("/Account/Login", response.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.DoesNotContain("type=\"password\"", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
 
         using var signedIn = await PosterSignIn.SignInAsync(factory, "usera");
         var home = await signedIn.GetStringAsync("/");

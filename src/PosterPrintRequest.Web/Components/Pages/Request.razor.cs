@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Components.Foundation;
 using PosterPrintRequest.Web.Requests;
 
@@ -31,6 +32,9 @@ public partial class Request : ComponentBase
 
     [Inject]
     private SignedInAccount Account { get; set; } = null!;
+
+    [Inject]
+    private IInstitutionalActorSource Actors { get; set; } = null!;
 
     [Inject]
     private NavigationManager Navigation { get; set; } = null!;
@@ -280,8 +284,7 @@ public partial class Request : ComponentBase
         if (AuthenticationState is not null)
         {
             var state = await AuthenticationState;
-            var name = state.User.Identity?.IsAuthenticated == true ? state.User.Identity.Name : null;
-            Account.UserName = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            Account.Actor = Actors.FromPrincipal(state.User);
         }
 
         var outcome = await Submission.SubmitAsync(Draft, CancellationToken.None);

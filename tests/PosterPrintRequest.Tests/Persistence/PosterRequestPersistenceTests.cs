@@ -40,7 +40,8 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         AssertColumn(columns, "PosterRequests", "Room", "nvarchar", nullable: false, characterMaximumLength: -1);
         AssertColumn(columns, "PosterRequests", "Phone", "nvarchar", nullable: false, characterMaximumLength: -1);
         AssertColumn(columns, "PosterRequests", "Email", "nvarchar", nullable: false, characterMaximumLength: -1);
-        AssertColumn(columns, "PosterRequests", "SubmittedByUserName", "nvarchar", nullable: true, characterMaximumLength: 256);
+        AssertColumn(columns, "PosterRequests", "SubmittedByAccountName", "nvarchar", nullable: true, characterMaximumLength: 256);
+        AssertColumn(columns, "PosterRequests", "SubmittedBySecurityIdentifier", "nvarchar", nullable: true, characterMaximumLength: 184);
         AssertColumn(columns, "PosterRequests", "ReasonId", "int", nullable: true);
         AssertColumn(columns, "PosterRequests", "LaminationRequested", "bit", nullable: false);
         AssertColumn(columns, "PosterRequests", "ApprovalSheetUploaded", "bit", nullable: false);
@@ -62,7 +63,8 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
 
         AssertColumn(columns, "PosterProcessings", "PosterProcessingId", "int", nullable: false, identity: true);
         AssertColumn(columns, "PosterProcessings", "PosterRequestId", "int", nullable: false);
-        AssertColumn(columns, "PosterProcessings", "ITPerson", "nvarchar", nullable: true, characterMaximumLength: -1);
+        AssertColumn(columns, "PosterProcessings", "ProcessedByAccountName", "nvarchar", nullable: true, characterMaximumLength: 256);
+        AssertColumn(columns, "PosterProcessings", "ProcessedBySecurityIdentifier", "nvarchar", nullable: true, characterMaximumLength: 184);
         AssertColumn(columns, "PosterProcessings", "Received", "date", nullable: true);
         AssertColumn(columns, "PosterProcessings", "Printed", "bit", nullable: false);
         AssertColumn(columns, "PosterProcessings", "Laminated", "bit", nullable: false);
@@ -82,8 +84,9 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         };
         AssertColumn(columns, "PosterRequests", "DepartmentName", "nvarchar", nullable: false, characterMaximumLength: 128);
         AssertColumn(columns, "PosterRequests", "ReasonName", "nvarchar", nullable: true, characterMaximumLength: 128);
-        Assert.Equal(45, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
-        Assert.Contains(columns.Keys, key => key.StartsWith("AspNetUsers.", StringComparison.Ordinal));
+        Assert.Equal(47, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
+        Assert.DoesNotContain(columns.Keys, key => key.StartsWith("AspNet", StringComparison.Ordinal));
+        Assert.DoesNotContain(columns.Keys, key => key.EndsWith(".PasswordHash", StringComparison.Ordinal));
         Assert.Equal("NO_ACTION", foreignKeys["PosterRequests.DepartmentId"]);
         Assert.Equal("NO_ACTION", foreignKeys["PosterRequests.ReasonId"]);
         Assert.Equal("CASCADE", foreignKeys["PosterFiles.PosterRequestId"]);
@@ -208,7 +211,7 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
             Assert.Equal("CRD/POSTER-2026-000123/Poster.pdf", request.PosterFile.StoragePath);
             Assert.Equal("Approval-Sheet.pdf", request.ApprovalSheet!.FileName);
             Assert.Equal("CRD/POSTER-2026-000123/Approval-Sheet.pdf", request.ApprovalSheet.StoragePath);
-            Assert.Null(request.PosterProcessing.ITPerson);
+            Assert.Null(request.PosterProcessing.ProcessedByAccountName);
             Assert.Null(request.PosterProcessing.Received);
             Assert.False(request.PosterProcessing.Printed);
             Assert.False(request.PosterProcessing.Laminated);
@@ -271,7 +274,7 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
             context.PosterRequests.Add(request);
             context.SaveChanges();
 
-            request.PosterProcessing.ITPerson = "Alex Rivera";
+            request.PosterProcessing.ProcessedByAccountName = "Alex Rivera";
             request.PosterProcessing.Received = new DateOnly(2026, 10, 7);
             request.PosterProcessing.Printed = true;
             request.PosterProcessing.Laminated = false;
@@ -289,7 +292,7 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
                 .Single(item => item.PosterId == posterId);
 
             Assert.Equal("John Smith", request.Name);
-            Assert.Equal("Alex Rivera", request.PosterProcessing.ITPerson);
+            Assert.Equal("Alex Rivera", request.PosterProcessing.ProcessedByAccountName);
             Assert.Equal(new DateOnly(2026, 10, 7), request.PosterProcessing.Received);
             Assert.True(request.PosterProcessing.Printed);
             Assert.False(request.PosterProcessing.Laminated);

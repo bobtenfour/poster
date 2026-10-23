@@ -65,7 +65,7 @@ public interface ITechnicianWorkflow
 {
     Task<TechnicianView?> FindAsync(string? posterId, CancellationToken cancellationToken);
 
-    Task<TechnicianOutcome> TakeAsync(string posterId, string? itPerson, DateOnly? received, string? comments, CancellationToken cancellationToken);
+    Task<TechnicianOutcome> TakeAsync(string posterId, InstitutionalActor? actor, DateOnly? received, string? comments, CancellationToken cancellationToken);
 
     Task<TechnicianOutcome> MarkPrintedAsync(string posterId, string? comments, CancellationToken cancellationToken);
 
@@ -97,7 +97,7 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
 
     public async Task<TechnicianOutcome> TakeAsync(
         string posterId,
-        string? itPerson,
+        InstitutionalActor? actor,
         DateOnly? received,
         string? comments,
         CancellationToken cancellationToken)
@@ -113,9 +113,9 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             return TechnicianOutcome.Failure("This request has already been received.");
         }
 
-        if (string.IsNullOrWhiteSpace(itPerson))
+        if (actor is null || !actor.IsValid)
         {
-            return TechnicianOutcome.Failure("Enter the IT person taking this request.");
+            return TechnicianOutcome.Failure("The technician identity could not be verified.");
         }
 
         if (received is null)
@@ -123,7 +123,8 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             return TechnicianOutcome.Failure("Enter the date received.");
         }
 
-        request.PosterProcessing.ITPerson = itPerson.Trim();
+        request.PosterProcessing.ProcessedByAccountName = actor.AccountName;
+        request.PosterProcessing.ProcessedBySecurityIdentifier = actor.SecurityIdentifier;
         request.PosterProcessing.Received = received;
         ApplyComments(request.PosterProcessing, comments);
         return await SaveStageAsync(request, "Received", cancellationToken);
@@ -383,7 +384,7 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             PosterFileName = FileName(request.PosterFile.StoragePath),
             ApprovalFileName = request.ApprovalSheet is null ? null : FileName(request.ApprovalSheet.StoragePath),
             Folder = DirectoryOf(request.PosterFile.StoragePath),
-            ItPerson = processing.ITPerson,
+            ItPerson = processing.ProcessedByAccountName,
             Received = processing.Received,
             Printed = processing.Printed,
             Laminated = processing.Laminated,

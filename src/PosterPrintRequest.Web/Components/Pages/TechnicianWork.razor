@@ -141,11 +141,7 @@
         @if (Stage == "receive")
         {
             <Panel Kicker="Next" Title="Receive the request">
-                <TextField FieldId="technician-it-person"
-                           Label="IT person"
-                           Required="true"
-                           Value="@ItPerson"
-                           ValueChanged="OnItPersonChanged" />
+                <p id="technician-it-person">@TechnicianAccount</p>
                 <TextField FieldId="technician-received"
                            Label="Date received"
                            Required="true"

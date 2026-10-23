@@ -4,10 +4,9 @@
             <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
                 <NotAuthorized>
                     <LayoutView Layout="typeof(Layout.EntryLayout)">
-                        <PageTitle>Sign in</PageTitle>
-                        <section class="epx-entry-panel" aria-label="Sign in">
-                            <PageHeader Kicker="BlueIgnix" Title="Sign in" Subtitle="Sign in to continue." />
-                            <a class="epx-button epx-button-primary" href="/Account/Login">Log in</a>
+                        <PageTitle>Access denied</PageTitle>
+                        <section class="epx-entry-panel" aria-label="Access denied">
+                            <PageHeader Kicker="BlueIgnix" Title="Access denied" Subtitle="Your account cannot open this area." />
                         </section>
                     </LayoutView>
                 </NotAuthorized>

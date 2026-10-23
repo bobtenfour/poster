@@ -1,15 +1,9 @@
-using Microsoft.AspNetCore.Identity;
-using PosterPrintRequest.Infrastructure.Identity;
-using PosterPrintRequest.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 
 namespace PosterPrintRequest.Web;
-
-public static class PosterRoles
-{
-    public const string User = "User";
-
-    public const string Operator = "Operator";
-}
 
 public static class PosterAccess
 {
@@ -17,35 +11,53 @@ public static class PosterAccess
 
     public const string OperatorPolicy = "TechnicianOperations";
 
-    public static IServiceCollection AddPosterAuthentication(
-        this IServiceCollection services,
-        IHostEnvironment environment,
-        IConfiguration configuration)
+    public static IServiceCollection AddPosterAuthentication(this IServiceCollection services)
     {
-        services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-            {
-                options.SignIn.RequireConfirmedAccount = false;
-                options.User.RequireUniqueEmail = false;
-                if (!environment.IsProduction())
-                {
-                    options.Password.RequiredLength = 4;
-                    options.Password.RequireDigit = false;
-                    options.Password.RequireLowercase = false;
-                    options.Password.RequireUppercase = false;
-                    options.Password.RequireNonAlphanumeric = false;
-                }
-            })
-            .AddEntityFrameworkStores<PosterPrintRequestDbContext>()
-            .AddDefaultTokenProviders();
-
-        services.Configure<SessionSecurityOptions>(configuration.GetSection(SessionSecurityOptions.SectionName));
-        services.Configure<DemoEvaluationUsersOptions>(configuration.GetSection(DemoEvaluationUsersOptions.SectionName));
-        services.ConfigureOptions<ApplicationCookieConfigurator>();
+        services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+            .AddNegotiate();
+        services.AddSingleton<IInstitutionalActorSource, WindowsActorSource>();
+        services.AddSingleton<IInstitutionalGroupVerifier, WindowsGroupVerifier>();
+        services.AddSingleton<IAuthorizationHandler, InstitutionalGroupHandler>();
+        services.AddSingleton<IAuthorizationHandler, InstitutionalParticipantHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, InstitutionalAuthorizationResultHandler>();
         services.AddAuthorization(options =>
         {
-            options.AddPolicy(UserPolicy, policy => policy.RequireRole(PosterRoles.User));
-            options.AddPolicy(OperatorPolicy, policy => policy.RequireRole(PosterRoles.Operator));
+            options.AddPolicy(UserPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new InstitutionalGroupRequirement(InstitutionalGroups.Requesters)));
+            options.AddPolicy(OperatorPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new InstitutionalGroupRequirement(InstitutionalGroups.Technicians)));
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new InstitutionalParticipantRequirement())
+                .Build();
         });
         return services;
+    }
+}
+
+public sealed class InstitutionalAuthorizationResultHandler : IAuthorizationMiddlewareResultHandler
+{
+    public async Task HandleAsync(
+        RequestDelegate next,
+        HttpContext context,
+        AuthorizationPolicy policy,
+        PolicyAuthorizationResult authorizeResult)
+    {
+        if (authorizeResult.Succeeded)
+        {
+            await next(context);
+            return;
+        }
+
+        if (!authorizeResult.Forbidden
+            || context.Request.Path.StartsWithSegments("/Account/AccessDenied"))
+        {
+            await context.ChallengeAsync();
+            return;
+        }
+
+        context.Response.Redirect("/Account/AccessDenied");
     }
 }

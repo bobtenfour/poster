@@ -44,8 +44,16 @@ public sealed class RequestPageTests
         var response = await client.GetAsync("/request/received");
         var html = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.DoesNotContain("Request saved", html, StringComparison.Ordinal);
         Assert.DoesNotContain("StoragePath", html, StringComparison.Ordinal);
+
+        using var signedIn = await PosterSignIn.SignInAsync(factory, "usera");
+        var signed = await signedIn.GetAsync("/request/received");
+        var signedHtml = await signed.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, signed.StatusCode);
+        Assert.Contains("Page not found", signedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Request saved", signedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("StoragePath", signedHtml, StringComparison.Ordinal);
     }
 }

@@ -5,7 +5,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using PosterPrintRequest.Domain;
 using PosterPrintRequest.Infrastructure.Storage;
+using PosterPrintRequest.Tests.Hosting;
 using PosterPrintRequest.Tests.Requests;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Tests.Workflow;
@@ -13,6 +15,8 @@ namespace PosterPrintRequest.Tests.Workflow;
 [Collection("Workflow database")]
 public sealed class TechnicianWorkflowTests : IDisposable
 {
+    private static readonly InstitutionalActor Jordan = new("S-1-5-21-9999999999-8888888888-7777777777-42", "Jordan Lee");
+
     private readonly WorkflowDatabaseFixture _database;
     private readonly string _root = Path.Combine(Path.GetTempPath(), "poster-workflow-" + Guid.NewGuid().ToString("N"));
     private readonly DraftFileStore _files;
@@ -40,7 +44,7 @@ public sealed class TechnicianWorkflowTests : IDisposable
         Assert.Equal("Mark the poster received before continuing.", (await workflow.MarkPrintedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
 
         var received = new DateOnly(2026, 10, 6);
-        var taken = await workflow.TakeAsync(laminated.PosterId, "Jordan Lee", received, "Queued", CancellationToken.None);
+        var taken = await workflow.TakeAsync(laminated.PosterId, Jordan, received, "Queued", CancellationToken.None);
         Assert.True(taken.Completed);
         Assert.Equal("Mark the poster printed before continuing.", (await workflow.MarkLaminatedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
         Assert.Equal("Mark the poster printed before continuing.", (await workflow.MarkNotifiedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
@@ -70,7 +74,8 @@ public sealed class TechnicianWorkflowTests : IDisposable
         Assert.Equal(laminated.Email, saved.Email);
         Assert.Equal(laminated.DateIn, saved.DateIn);
         Assert.Equal(laminated.PosterId, saved.PosterId);
-        Assert.Equal("Jordan Lee", saved.PosterProcessing.ITPerson);
+        Assert.Equal(Jordan.AccountName, saved.PosterProcessing.ProcessedByAccountName);
+        Assert.Equal(Jordan.SecurityIdentifier, saved.PosterProcessing.ProcessedBySecurityIdentifier);
         Assert.Equal(received, saved.PosterProcessing.Received);
         Assert.True(saved.PosterProcessing.Printed);
         Assert.True(saved.PosterProcessing.Laminated);
@@ -80,7 +85,7 @@ public sealed class TechnicianWorkflowTests : IDisposable
         Assert.Equal("Picked up", saved.PosterProcessing.Comments);
 
         Assert.Equal("Lamination was not requested.", (await workflow.MarkLaminatedAsync(plain.PosterId, null, CancellationToken.None)).Message);
-        Assert.True((await workflow.TakeAsync(plain.PosterId, "Jordan Lee", received, null, CancellationToken.None)).Completed);
+        Assert.True((await workflow.TakeAsync(plain.PosterId, Jordan, received, null, CancellationToken.None)).Completed);
         Assert.True((await workflow.MarkPrintedAsync(plain.PosterId, null, CancellationToken.None)).Completed);
         Assert.Equal("Lamination was not requested.", (await workflow.MarkLaminatedAsync(plain.PosterId, null, CancellationToken.None)).Message);
         Assert.True((await workflow.MarkNotifiedAsync(plain.PosterId, null, CancellationToken.None)).Completed);
@@ -205,7 +210,8 @@ public sealed class TechnicianWorkflowTests : IDisposable
             new PosterPreflight(_files),
             new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), _files),
             new ApprovalSheetCheck(_files),
-            NullLogger<RequesterSubmissionService>.Instance).SubmitAsync(draft, CancellationToken.None);
+            NullLogger<RequesterSubmissionService>.Instance,
+            new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
 
     private async Task<RequesterDraft> CreateDraftAsync(string departmentId, string reasonId)
     {

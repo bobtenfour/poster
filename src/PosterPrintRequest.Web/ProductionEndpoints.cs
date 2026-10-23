@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PosterPrintRequest.Infrastructure.Persistence;
@@ -32,8 +33,8 @@ public static class ProductionEndpoints
 {
     public static void MapProductionEndpoints(this WebApplication app)
     {
-        app.MapGet("/health", Ready);
-        app.MapGet("/health/ready", Ready);
+        app.MapGet("/health", Ready).AllowAnonymous();
+        app.MapGet("/health/ready", Ready).AllowAnonymous();
 
         app.MapGet("/technician/files/{posterId}/poster", (string posterId, bool? inline, PosterPrintRequestDbContext db, AcceptedStorage storage, CancellationToken cancellationToken) =>
             SendFileAsync(posterId, approval: false, inline == true, db, storage, cancellationToken))

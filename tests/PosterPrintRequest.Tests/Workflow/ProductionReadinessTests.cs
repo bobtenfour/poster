@@ -37,6 +37,7 @@ public sealed class ConfiguredPosterFactory : WebApplicationFactory<Program>
             });
         });
 
+        InstitutionalTestHost.UseTestAuthentication(builder);
         builder.ConfigureServices(services =>
         {
             var optionsDescriptor = services.SingleOrDefault(service =>
@@ -91,7 +92,7 @@ public sealed class ProductionReadinessTests : IDisposable
             var files = scope.ServiceProvider.GetRequiredService<DraftFileStore>();
             var options = scope.ServiceProvider.GetRequiredService<IRequesterOptionSource>();
             var submission = scope.ServiceProvider.GetRequiredService<IRequesterSubmission>();
-            scope.ServiceProvider.GetRequiredService<SignedInAccount>().UserName = "usera";
+            scope.ServiceProvider.GetRequiredService<SignedInAccount>().Actor = InstitutionalTestIdentities.Requester;
             var choices = await options.LoadAsync(CancellationToken.None);
             var draft = new RequesterDraft
             {
@@ -240,10 +241,10 @@ public sealed class ProductionReadinessTests : IDisposable
         Assert.Contains("Request not found", invalidHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Visible Requester", invalidHtml, StringComparison.Ordinal);
 
-        using var anonymous = factory.CreateClient();
+        using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var anonymousResponse = await anonymous.GetAsync("/request/accepted/" + ownId);
         var anonymousHtml = await anonymousResponse.Content.ReadAsStringAsync();
-        Assert.Contains("/Account/Login", anonymousResponse.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
         Assert.DoesNotContain("Visible Requester", anonymousHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Hidden Requester", anonymousHtml, StringComparison.Ordinal);
 
@@ -273,7 +274,12 @@ public sealed class ProductionReadinessTests : IDisposable
     {
         PosterId = posterId,
         Name = requesterName,
-        SubmittedByUserName = userName,
+        SubmittedByAccountName = userName == "usera"
+            ? InstitutionalTestIdentities.RequesterAccount
+            : InstitutionalTestIdentities.TechnicianAccount,
+        SubmittedBySecurityIdentifier = userName == "usera"
+            ? InstitutionalTestIdentities.RequesterSid
+            : InstitutionalTestIdentities.TechnicianSid,
         DepartmentId = department.DepartmentId,
         DepartmentName = department.Name,
         Room = "4",

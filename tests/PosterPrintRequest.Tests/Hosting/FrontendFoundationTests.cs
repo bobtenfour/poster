@@ -46,7 +46,13 @@ public sealed class FrontendFoundationTests
         Assert.Contains("The request could not be completed.", errorHtml, StringComparison.Ordinal);
 
         var missing = await client.GetAsync("/not-a-page");
-        var missingHtml = await missing.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, missing.StatusCode);
+        Assert.DoesNotContain("Page not found", await missing.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        using var signedIn = await PosterSignIn.SignInAsync(factory, "usera");
+        var signedMissing = await signedIn.GetAsync("/not-a-page");
+        var missingHtml = await signedMissing.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, signedMissing.StatusCode);
         Assert.Contains("Page not found", missingHtml, StringComparison.Ordinal);
         Assert.Contains("epx-nav-primary", missingHtml, StringComparison.Ordinal);
     }

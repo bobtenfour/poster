@@ -111,7 +111,7 @@ public sealed class TechnicianDashboard : ITechnicianDashboard
                 request.ReasonName,
                 request.DateIn,
                 request.LaminationRequested,
-                request.PosterProcessing.ITPerson,
+                request.PosterProcessing.ProcessedByAccountName,
                 request.PosterProcessing.Received,
                 request.PosterProcessing.Printed,
                 request.PosterProcessing.Laminated,

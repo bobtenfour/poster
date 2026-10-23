@@ -5,14 +5,15 @@ namespace PosterPrintRequest.Web.Requests;
 
 public static class UserActivityQuery
 {
-    public static async Task<UserActivity> ForUserAsync(
+    public static async Task<UserActivity> ForActorAsync(
         PosterPrintRequestDbContext db,
-        string userName,
+        InstitutionalActor actor,
         CancellationToken cancellationToken)
     {
         var posters = await db.PosterRequests
             .AsNoTracking()
-            .Where(request => request.SubmittedByUserName == userName)
+            .Where(request => request.SubmittedBySecurityIdentifier == actor.SecurityIdentifier
+                || (request.SubmittedBySecurityIdentifier == null && request.SubmittedByAccountName == actor.AccountName))
             .OrderByDescending(request => request.DateIn)
             .Select(request => new UserPosterActivity(
                 request.PosterId,

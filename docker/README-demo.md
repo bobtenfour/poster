@@ -11,7 +11,7 @@
 | SQL Server | Existing `dentalinventory-demo-sql` on network `dentalinventory-demo_default` (alias `sqlserver:1433`) |
 | Database | **`POSTER` only** |
 | Shared storage | Named volume `posterprintrequest-demo-storage` mounted at `/var/poster-print-request` |
-| Accounts | `usera` / `prueba1` role User; `usero` / `prueba1` role Operator |
+| Accounts | Application-managed passwords are not used. This evaluation host is not the institutional Windows authentication environment. |
 
 This compose file does not create a SQL Server container and does not change DentalInventory or KeyInventory databases, volumes, or site blocks.
 
@@ -50,4 +50,4 @@ curl -fsS https://poster.blueignix.com/health
 
 `install-poster-caddy-site.sh` appends `docker/caddy/poster.blueignix.caddy` to `/etc/caddy/Caddyfile` only when `poster.blueignix.com` is absent. It leaves the file unchanged when validation fails, and it does not rewrite `dinventory.blueignix.com` or `kinventory.blueignix.com`.
 
-Sign in at `https://poster.blueignix.com` as `usera` or `usero` with password `prueba1`.
+The evaluation host does not provide a password sign-in form. Institutional sign-in uses Windows Integrated Authentication on the university IIS site.

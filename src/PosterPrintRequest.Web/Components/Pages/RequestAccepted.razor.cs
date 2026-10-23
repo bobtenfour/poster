@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Web.Components.Pages;
@@ -12,6 +13,9 @@ public partial class RequestAccepted : ComponentBase
     [Inject]
     private AcceptanceLookup Lookup { get; set; } = null!;
 
+    [Inject]
+    private IInstitutionalActorSource Actors { get; set; } = null!;
+
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationState { get; set; }
 
@@ -19,19 +23,13 @@ public partial class RequestAccepted : ComponentBase
 
     protected override async Task OnParametersSetAsync()
     {
-        var name = await SignedInNameAsync();
-        Details = await Lookup.FindAsync(PosterId, name, CancellationToken.None);
-    }
-
-    private async Task<string?> SignedInNameAsync()
-    {
-        if (AuthenticationState is null)
+        InstitutionalActor? actor = null;
+        if (AuthenticationState is not null)
         {
-            return null;
+            var state = await AuthenticationState;
+            actor = Actors.FromPrincipal(state.User);
         }
 
-        var state = await AuthenticationState;
-        var name = state.User.Identity?.IsAuthenticated == true ? state.User.Identity.Name : null;
-        return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        Details = await Lookup.FindAsync(PosterId, actor, CancellationToken.None);
     }
 }

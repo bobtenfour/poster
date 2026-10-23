@@ -19,8 +19,8 @@ builder.Host.UseDefaultServiceProvider((context, options) =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddPosterAuthentication(builder.Environment, builder.Configuration);
-builder.Services.AddPosterPrintRequestPersistence(builder.Configuration);
+builder.Services.AddPosterAuthentication();
+builder.Services.AddPosterPrintRequestPersistence(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddSharedStorage(builder.Configuration);
 builder.Services.AddScoped<DraftFileStore>();
 builder.Services.AddScoped<IDraftFileStore>(services => services.GetRequiredService<DraftFileStore>());
@@ -43,7 +43,7 @@ if (!builder.Environment.IsDevelopment())
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.KnownNetworks.Clear();
+        options.KnownIPNetworks.Clear();
         options.KnownProxies.Clear();
     });
 }
@@ -91,7 +91,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapAccountEndpoints();
 app.MapProductionEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
@@ -99,7 +98,6 @@ app.MapRazorComponents<App>()
 var entry = Assembly.GetEntryAssembly()?.GetName().Name;
 if (!string.Equals(entry, "ef", StringComparison.OrdinalIgnoreCase))
 {
-    await DemoEvaluationUsersSeeder.SeedAsync(app.Services, app.Environment, app.Logger);
     await using var scope = app.Services.CreateAsyncScope();
     var migration = scope.ServiceProvider.GetRequiredService<PrintFolderMigration>();
     await migration.MigrateAsync(CancellationToken.None);

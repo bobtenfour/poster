@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using PosterPrintRequest.Infrastructure.Persistence;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Web.Components.Pages;
@@ -9,6 +10,9 @@ public partial class UserHome
 {
     [Inject]
     private PosterPrintRequestDbContext Db { get; set; } = null!;
+
+    [Inject]
+    private IInstitutionalActorSource Actors { get; set; } = null!;
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationState { get; set; }
@@ -23,12 +27,12 @@ public partial class UserHome
         }
 
         var state = await AuthenticationState;
-        var name = state.User.Identity?.Name;
-        if (string.IsNullOrWhiteSpace(name))
+        var actor = Actors.FromPrincipal(state.User);
+        if (actor is null || !actor.IsValid)
         {
             return;
         }
 
-        Activity = await UserActivityQuery.ForUserAsync(Db, name, CancellationToken.None);
+        Activity = await UserActivityQuery.ForActorAsync(Db, actor, CancellationToken.None);
     }
 }

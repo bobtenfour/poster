@@ -1,10 +1,7 @@
 using System.Net;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Hosting.Internal;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using PosterPrintRequest.Domain;
 using PosterPrintRequest.Web;
 using PosterPrintRequest.Tests.Workflow;
@@ -14,24 +11,18 @@ namespace PosterPrintRequest.Tests.Hosting;
 public sealed class RoleSeparationTests
 {
     [Fact]
-    public async Task Anonymous_entry_is_the_login_screen()
+    public async Task Anonymous_entry_is_challenged_without_a_password_form()
     {
         using var factory = new PosterWebApplicationFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var response = await client.GetAsync("/");
-        response.EnsureSuccessStatusCode();
         var html = await response.Content.ReadAsStringAsync();
 
-        Assert.Contains("/Account/Login", response.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
-        Assert.Contains("Log in", html, StringComparison.Ordinal);
-        Assert.Contains("Username", html, StringComparison.Ordinal);
-        Assert.Contains("plotter-technician.jpg", html, StringComparison.Ordinal);
-        Assert.Contains("A technician printing a poster on a large-format plotter.", html, StringComparison.Ordinal);
-        Assert.Contains("Session-only sign-in.", html, StringComparison.Ordinal);
-        Assert.Contains("Self-registration is not available.", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("What this system does", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.DoesNotContain("type=\"password\"", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Invalid login attempt.", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -141,52 +132,49 @@ public sealed class RoleSeparationTests
     }
 
     [Fact]
-    public async Task Logout_ends_the_session()
+    public async Task Neither_group_is_denied_and_one_group_does_not_grant_the_other()
     {
         using var factory = new PosterWebApplicationFactory();
-        using var client = await PosterSignIn.SignInAsync(factory, "usera", allowAutoRedirect: false);
-        var home = await client.GetAsync("/");
-        Assert.Equal(HttpStatusCode.OK, home.StatusCode);
-        var token = PosterSignIn.ReadToken(await home.Content.ReadAsStringAsync());
-        var logout = await client.PostAsync("/Account/Logout", new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["__RequestVerificationToken"] = token
-        }));
-        Assert.Equal(HttpStatusCode.Redirect, logout.StatusCode);
-        Assert.Contains("/Account/Login", logout.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        using var neither = await PosterSignIn.SignInAsync(factory, "neither");
+        var denied = await neither.GetAsync("/");
+        Assert.Contains("/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        var deniedHtml = await denied.Content.ReadAsStringAsync();
+        Assert.Contains("not in an authorized group", deniedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Personal activity", deniedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Posters pending printing", deniedHtml, StringComparison.Ordinal);
 
-        var again = await client.GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, again.StatusCode);
-        Assert.Contains("/Account/Login", again.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        var technicianDenied = await neither.GetAsync("/technician");
+        Assert.Contains("/Account/AccessDenied", technicianDenied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+
+        using var both = await PosterSignIn.SignInAsync(factory, "both");
+        var requester = await both.GetAsync("/");
+        requester.EnsureSuccessStatusCode();
+        var requesterHtml = await requester.Content.ReadAsStringAsync();
+        Assert.Contains("Personal activity", requesterHtml, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician\"", requesterHtml, StringComparison.Ordinal);
+
+        var technician = await both.GetAsync("/technician");
+        technician.EnsureSuccessStatusCode();
+        var technicianHtml = await technician.Content.ReadAsStringAsync();
+        Assert.Contains("Posters pending printing", technicianHtml, StringComparison.Ordinal);
+        Assert.Contains("Requester home", technicianHtml, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Invalid_login_stays_on_the_sign_in_screen()
+    public void Windows_group_verification_does_not_accept_a_claim_that_is_not_a_windows_identity()
     {
-        using var factory = new PosterWebApplicationFactory();
-        using var client = factory.CreateClient();
-        var response = await PosterSignIn.PostCredentialsAsync(client, "usera", "wrong-password");
-        var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Invalid login attempt.", html, StringComparison.Ordinal);
-        Assert.Contains("/Account/Login", response.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
-        Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
-    }
+        var verifier = new WindowsGroupVerifier();
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Name, @"UNIVERSITY\someone"),
+                new Claim(ClaimTypes.Role, InstitutionalGroups.Technicians),
+                new Claim(ClaimTypes.Role, InstitutionalGroups.Requesters)
+            ],
+            "Test"));
 
-    [Fact]
-    public async Task Production_does_not_create_temporary_accounts()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.Configure<DemoEvaluationUsersOptions>(options =>
-        {
-            options.Enabled = true;
-            options.Password = PosterSignIn.Password;
-            options.UserNames = ["usera", "usero"];
-        });
-        using var provider = services.BuildServiceProvider();
-        var environment = new HostingEnvironment { EnvironmentName = Environments.Production };
-        await DemoEvaluationUsersSeeder.SeedAsync(provider, environment, NullLogger.Instance);
+        Assert.False(verifier.IsMember(principal, InstitutionalGroups.Technicians));
+        Assert.False(verifier.IsMember(principal, InstitutionalGroups.Requesters));
+        Assert.False(new WindowsActorSource().FromPrincipal(principal)?.IsValid == true);
     }
 
     private static int CountOccurrences(string text, string value)
@@ -231,11 +219,25 @@ public sealed class UserActivityTests
 
         using var factory = new ConfiguredPosterFactory(_database.ConnectionString, Path.GetTempPath());
         using var client = await PosterSignIn.SignInAsync(factory, "usera");
+        await using var verification = _database.CreateContext();
+        var owned = await verification.PosterRequests
+            .AsNoTracking()
+            .Where(request => request.SubmittedBySecurityIdentifier == InstitutionalTestIdentities.RequesterSid)
+            .Select(request => new { request.ReasonName, request.PosterProcessing.Printed })
+            .ToListAsync();
+        var expectedPrinted = owned.Count(poster => poster.Printed);
+        Assert.True(expectedPrinted >= 1);
+        var expectedEvents = owned
+            .Select(poster => poster.ReasonName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
         var html = await client.GetStringAsync("/");
         Assert.Contains("POSTER-2032-000001", html, StringComparison.Ordinal);
         Assert.Contains(eventName, html, StringComparison.Ordinal);
-        Assert.Contains("id=\"stat-posters-printed\">1<", html, StringComparison.Ordinal);
-        Assert.Contains("id=\"stat-events-participated\">1<", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"stat-posters-printed\">" + expectedPrinted + "<", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"stat-events-participated\">" + expectedEvents + "<", html, StringComparison.Ordinal);
         Assert.DoesNotContain("POSTER-2032-000002", html, StringComparison.Ordinal);
     }
 
@@ -243,7 +245,12 @@ public sealed class UserActivityTests
     {
         PosterId = posterId,
         Name = "Activity Person",
-        SubmittedByUserName = userName,
+        SubmittedByAccountName = userName == "usera"
+            ? InstitutionalTestIdentities.RequesterAccount
+            : InstitutionalTestIdentities.TechnicianAccount,
+        SubmittedBySecurityIdentifier = userName == "usera"
+            ? InstitutionalTestIdentities.RequesterSid
+            : InstitutionalTestIdentities.TechnicianSid,
         DepartmentId = departmentId,
         DepartmentName = departmentName,
         ReasonId = reasonId,

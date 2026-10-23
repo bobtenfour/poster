@@ -1,11 +1,9 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using PosterPrintRequest.Infrastructure.Identity;
 using PosterPrintRequest.Infrastructure.Persistence;
 using PosterPrintRequest.Infrastructure.Storage;
 using PosterPrintRequest.Web;
@@ -27,9 +25,9 @@ public sealed class DemoDeploymentTests
 
         Assert.Contains("\"AllowedHosts\": \"poster.blueignix.com\"", demo, StringComparison.Ordinal);
         Assert.Contains("\"RootPath\": \"/var/poster-print-request\"", demo, StringComparison.Ordinal);
-        Assert.Contains("\"usera\"", demo, StringComparison.Ordinal);
-        Assert.Contains("\"usero\"", demo, StringComparison.Ordinal);
-        Assert.Contains("\"prueba1\"", demo, StringComparison.Ordinal);
+        Assert.DoesNotContain("prueba1", demo, StringComparison.Ordinal);
+        Assert.DoesNotContain("DemoEvaluationUsers", demo, StringComparison.Ordinal);
+        Assert.DoesNotContain("Password", demo, StringComparison.Ordinal);
 
         Assert.Contains("127.0.0.1:$${PORT:-8080}/health/ready", compose, StringComparison.Ordinal);
         Assert.DoesNotContain("$${PORT:-8080}/health\\\"", compose, StringComparison.Ordinal);
@@ -59,9 +57,7 @@ public sealed class DemoDeploymentTests
         Assert.Contains("Database=POSTER", configuration.GetConnectionString("PosterPrintRequest"), StringComparison.Ordinal);
         Assert.Equal("/var/poster-print-request", configuration["SharedStorage:RootPath"]);
         Assert.Equal("poster.blueignix.com", configuration["AllowedHosts"]);
-        Assert.True(configuration.GetValue<bool>("DemoEvaluationUsers:Enabled"));
-        Assert.Equal("usera", configuration["DemoEvaluationUsers:UserNames:0"]);
-        Assert.Equal("usero", configuration["DemoEvaluationUsers:UserNames:1"]);
+        Assert.Null(configuration["DemoEvaluationUsers:Enabled"]);
     }
 
     [Fact]
@@ -78,11 +74,8 @@ public sealed class DemoDeploymentTests
                 Assert.NotNull(services.GetRequiredService<PosterPrintRequestDbContext>());
                 Assert.NotNull(services.GetRequiredService<AcceptedStorage>());
                 Assert.NotNull(services.GetRequiredService<ITechnicianLibrary>());
-                Assert.NotNull(services.GetRequiredService<UserManager<ApplicationUser>>());
                 Assert.Equal(storageRoot, services.GetRequiredService<IOptions<SharedStorageOptions>>().Value.RootPath);
-                var accounts = services.GetRequiredService<IOptions<DemoEvaluationUsersOptions>>().Value;
-                Assert.True(accounts.Enabled);
-                Assert.Equal(["usera", "usero"], accounts.UserNames);
+                Assert.IsType<TestGroupVerifier>(services.GetRequiredService<IInstitutionalGroupVerifier>());
             }
 
             using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -101,12 +94,19 @@ public sealed class DemoDeploymentTests
                 Assert.DoesNotContain("/var/poster-print-request", healthBody, StringComparison.Ordinal);
             }
 
-            var requester = await PosterSignIn.PostCredentialsAsync(client, "usera", PosterSignIn.Password);
-            requester.EnsureSuccessStatusCode();
-            var requesterHome = await requester.Content.ReadAsStringAsync();
+            using var requesterClient = factory.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = true,
+                HandleCookies = true,
+                BaseAddress = new Uri("http://poster.blueignix.com")
+            });
+            PosterSignIn.Apply(requesterClient, "usera");
+            var requesterHomeResponse = await requesterClient.GetAsync("/");
+            requesterHomeResponse.EnsureSuccessStatusCode();
+            var requesterHome = await requesterHomeResponse.Content.ReadAsStringAsync();
             Assert.Contains("Personal activity", requesterHome, StringComparison.Ordinal);
             Assert.DoesNotContain("Posters pending printing", requesterHome, StringComparison.Ordinal);
-            var requesterDenied = await client.GetAsync("/technician");
+            var requesterDenied = await requesterClient.GetAsync("/technician");
             Assert.Contains("/Account/AccessDenied", requesterDenied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
 
             using var technicianClient = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -115,7 +115,8 @@ public sealed class DemoDeploymentTests
                 HandleCookies = true,
                 BaseAddress = new Uri("http://poster.blueignix.com")
             });
-            var technician = await PosterSignIn.PostCredentialsAsync(technicianClient, "usero", PosterSignIn.Password);
+            PosterSignIn.Apply(technicianClient, "usero");
+            var technician = await technicianClient.GetAsync("/technician");
             technician.EnsureSuccessStatusCode();
             var technicianHome = await technician.Content.ReadAsStringAsync();
             Assert.Contains("Posters pending printing", technicianHome, StringComparison.Ordinal);
@@ -157,6 +158,7 @@ public sealed class DemoDeploymentTests
                     [$"{SharedStorageOptions.SectionName}:RootPath"] = _storageRoot
                 });
             });
+            InstitutionalTestHost.UseTestAuthentication(builder);
             builder.ConfigureServices(services =>
             {
                 services.PostConfigure<SharedStorageOptions>(options => options.RootPath = _storageRoot);

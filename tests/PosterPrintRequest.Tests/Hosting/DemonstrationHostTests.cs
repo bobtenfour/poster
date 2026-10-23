@@ -1,6 +1,11 @@
 using System.Net;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using PosterPrintRequest.Web;
 
 namespace PosterPrintRequest.Tests.Hosting;
 
@@ -21,6 +26,14 @@ public sealed class DemonstrationHostTests
             StringComparison.Ordinal);
 
         using var factory = new DemonstrationFactory();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var schemes = scope.ServiceProvider.GetRequiredService<IOptions<AuthenticationOptions>>().Value;
+            Assert.Equal(NegotiateDefaults.AuthenticationScheme, schemes.DefaultScheme);
+            Assert.IsType<WindowsGroupVerifier>(scope.ServiceProvider.GetRequiredService<IInstitutionalGroupVerifier>());
+            Assert.IsType<WindowsActorSource>(scope.ServiceProvider.GetRequiredService<IInstitutionalActorSource>());
+        }
+
         using var local = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         Assert.Equal(HttpStatusCode.BadRequest, (await local.GetAsync("/health")).StatusCode);
 
@@ -30,19 +43,9 @@ public sealed class DemonstrationHostTests
             BaseAddress = new Uri("http://poster.blueignix.com")
         });
 
-        var plain = await publicClient.GetAsync("/request");
-        Assert.Equal(HttpStatusCode.Found, plain.StatusCode);
-        Assert.Equal(
-            "http://poster.blueignix.com/Account/Login?ReturnUrl=%2Frequest",
-            plain.Headers.Location?.ToString());
-
-        var secureRequest = new HttpRequestMessage(HttpMethod.Get, "/request");
-        secureRequest.Headers.Add("X-Forwarded-Proto", "https");
-        var secure = await publicClient.SendAsync(secureRequest);
-        Assert.Equal(HttpStatusCode.Found, secure.StatusCode);
-        Assert.Equal(
-            "https://poster.blueignix.com/Account/Login?ReturnUrl=%2Frequest",
-            secure.Headers.Location?.ToString());
+        var thrown = await Assert.ThrowsAsync<NotSupportedException>(() => publicClient.GetAsync("/request"));
+        Assert.Contains("Negotiate authentication requires a server", thrown.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("/Account/Login", thrown.ToString(), StringComparison.Ordinal);
     }
 
     private static string RepositoryRoot()

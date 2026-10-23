@@ -152,7 +152,7 @@ public sealed class TechnicianDashboardTests
             },
             PosterProcessing = new PosterProcessing
             {
-                ITPerson = itPerson,
+                ProcessedByAccountName = itPerson,
                 Received = received,
                 Printed = printed,
                 Laminated = laminated,

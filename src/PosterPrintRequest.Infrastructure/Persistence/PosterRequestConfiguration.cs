@@ -8,6 +8,10 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
 {
     public const int PosterIdMaxLength = 64;
 
+    public const int AccountNameMaxLength = 256;
+
+    public const int SecurityIdentifierMaxLength = 184;
+
     public void Configure(EntityTypeBuilder<PosterRequest> builder)
     {
         builder.HasKey(request => request.PosterRequestId);
@@ -34,8 +38,11 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
         builder.Property(request => request.Email)
             .IsRequired();
 
-        builder.Property(request => request.SubmittedByUserName)
-            .HasMaxLength(256);
+        builder.Property(request => request.SubmittedByAccountName)
+            .HasMaxLength(AccountNameMaxLength);
+
+        builder.Property(request => request.SubmittedBySecurityIdentifier)
+            .HasMaxLength(SecurityIdentifierMaxLength);
 
         builder.Property(request => request.LaminationRequested)
             .IsRequired();

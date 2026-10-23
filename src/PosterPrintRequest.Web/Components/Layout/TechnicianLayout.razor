@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@inject IAuthorizationService Authorization
 
 <a class="epx-skip-link" href="#epx-main-content">Skip to main content</a>
 <div class="epx-shell">
@@ -27,6 +29,12 @@
                     <li>
                         <ShellNavLink Href="/technician/configuration">Configuration</ShellNavLink>
                     </li>
+                    @if (AlsoRequester)
+                    {
+                        <li>
+                            <ShellNavLink Href="/">Requester home</ShellNavLink>
+                        </li>
+                    }
                 </ul>
             </div>
         </nav>
@@ -41,10 +49,6 @@
                 <label class="epx-label" for="workspace-poster-id">Poster ID</label>
                 <input id="workspace-poster-id" class="epx-input" name="posterId" type="search" autocomplete="off" spellcheck="false" />
                 <button class="epx-button epx-button-primary" type="submit">Find</button>
-            </form>
-            <form class="epx-sign-out" method="post" action="/Account/Logout" data-enhance="false">
-                <AntiforgeryToken />
-                <button class="epx-button" type="submit">Log out</button>
             </form>
         </div>
         <main id="epx-main-content" class="epx-landmark-main" tabindex="-1">
@@ -68,6 +72,8 @@
 
     private string SignedIn { get; set; } = "Technician";
 
+    private bool AlsoRequester { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthenticationState is null)
@@ -81,5 +87,7 @@
         {
             SignedIn = name;
         }
+
+        AlsoRequester = (await Authorization.AuthorizeAsync(state.User, PosterAccess.UserPolicy)).Succeeded;
     }
 }

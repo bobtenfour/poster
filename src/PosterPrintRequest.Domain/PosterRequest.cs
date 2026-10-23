@@ -22,7 +22,9 @@ public sealed class PosterRequest
 
     public string Email { get; set; } = string.Empty;
 
-    public string? SubmittedByUserName { get; set; }
+    public string? SubmittedByAccountName { get; set; }
+
+    public string? SubmittedBySecurityIdentifier { get; set; }
 
     public int? ReasonId { get; set; }
 

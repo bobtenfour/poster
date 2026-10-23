@@ -178,7 +178,7 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         ApprovalSheet = approvalPath is null ? null : new ApprovalSheet { FileName = "Approval-Sheet.pdf", StoragePath = approvalPath },
         PosterProcessing = new PosterProcessing
         {
-            ITPerson = itPerson,
+            ProcessedByAccountName = itPerson,
             Received = received,
             Printed = printed,
             DateOut = dateOut

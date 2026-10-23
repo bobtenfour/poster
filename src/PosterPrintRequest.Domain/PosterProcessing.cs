@@ -8,7 +8,9 @@ public sealed class PosterProcessing
 
     public PosterRequest PosterRequest { get; set; } = null!;
 
-    public string? ITPerson { get; set; }
+    public string? ProcessedByAccountName { get; set; }
+
+    public string? ProcessedBySecurityIdentifier { get; set; }
 
     public DateOnly? Received { get; set; }
 

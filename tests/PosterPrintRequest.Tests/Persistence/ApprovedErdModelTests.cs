@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using PosterPrintRequest.Domain;
-using PosterPrintRequest.Infrastructure.Identity;
 using PosterPrintRequest.Infrastructure.Persistence;
 
 namespace PosterPrintRequest.Tests.Persistence;
@@ -33,9 +32,12 @@ public sealed class ApprovedErdModelTests
                 nameof(Reason)
             },
             names);
-        Assert.Contains(
+        Assert.DoesNotContain(
             context.Model.GetEntityTypes(),
-            entity => entity.ClrType == typeof(ApplicationUser));
+            entity => entity.GetTableName() is { } table && table.StartsWith("AspNet", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            context.Model.GetEntityTypes(),
+            entity => entity.ClrType.Name == "ApplicationUser");
     }
 
     [Fact]
@@ -79,7 +81,8 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterRequest.ReasonId),
                 nameof(PosterRequest.ReasonName),
                 nameof(PosterRequest.Room),
-                nameof(PosterRequest.SubmittedByUserName)
+                nameof(PosterRequest.SubmittedByAccountName),
+                nameof(PosterRequest.SubmittedBySecurityIdentifier)
             },
             PropertyNames(typeof(PosterRequest)));
 
@@ -114,7 +117,6 @@ public sealed class ApprovedErdModelTests
             {
                 nameof(PosterProcessing.Comments),
                 nameof(PosterProcessing.DateOut),
-                nameof(PosterProcessing.ITPerson),
                 nameof(PosterProcessing.Laminated),
                 nameof(PosterProcessing.Notified),
                 nameof(PosterProcessing.PickedUpBy),
@@ -122,6 +124,8 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterProcessing.PosterRequest),
                 nameof(PosterProcessing.PosterRequestId),
                 nameof(PosterProcessing.Printed),
+                nameof(PosterProcessing.ProcessedByAccountName),
+                nameof(PosterProcessing.ProcessedBySecurityIdentifier),
                 nameof(PosterProcessing.Received)
             },
             PropertyNames(typeof(PosterProcessing)));
@@ -203,7 +207,10 @@ public sealed class ApprovedErdModelTests
         var processing = context.Model.FindEntityType(typeof(PosterProcessing))!;
         Assert.Equal("date", processing.FindProperty(nameof(PosterProcessing.Received))!.GetColumnType());
         Assert.Equal("date", processing.FindProperty(nameof(PosterProcessing.DateOut))!.GetColumnType());
-        Assert.True(processing.FindProperty(nameof(PosterProcessing.ITPerson))!.IsNullable);
+        Assert.True(processing.FindProperty(nameof(PosterProcessing.ProcessedByAccountName))!.IsNullable);
+        Assert.True(processing.FindProperty(nameof(PosterProcessing.ProcessedBySecurityIdentifier))!.IsNullable);
+        Assert.Equal(256, processing.FindProperty(nameof(PosterProcessing.ProcessedByAccountName))!.GetMaxLength());
+        Assert.Equal(184, processing.FindProperty(nameof(PosterProcessing.ProcessedBySecurityIdentifier))!.GetMaxLength());
         Assert.True(processing.FindProperty(nameof(PosterProcessing.Received))!.IsNullable);
         Assert.True(processing.FindProperty(nameof(PosterProcessing.DateOut))!.IsNullable);
         Assert.True(processing.FindProperty(nameof(PosterProcessing.PickedUpBy))!.IsNullable);

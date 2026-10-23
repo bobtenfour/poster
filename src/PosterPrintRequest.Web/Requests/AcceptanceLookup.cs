@@ -25,17 +25,18 @@ public sealed class AcceptanceLookup
         _db = db;
     }
 
-    public async Task<AcceptanceDetails?> FindAsync(string? posterId, string? submittedByUserName, CancellationToken cancellationToken)
+    public async Task<AcceptanceDetails?> FindAsync(string? posterId, InstitutionalActor? actor, CancellationToken cancellationToken)
     {
-        if (!PosterIds.IsPublic(posterId) || string.IsNullOrWhiteSpace(submittedByUserName))
+        if (!PosterIds.IsPublic(posterId) || actor is null || !actor.IsValid)
         {
             return null;
         }
 
-        var owner = submittedByUserName.Trim();
         return await _db.PosterRequests
             .AsNoTracking()
-            .Where(request => request.PosterId == posterId && request.SubmittedByUserName == owner)
+            .Where(request => request.PosterId == posterId
+                && (request.SubmittedBySecurityIdentifier == actor.SecurityIdentifier
+                    || (request.SubmittedBySecurityIdentifier == null && request.SubmittedByAccountName == actor.AccountName)))
             .Select(request => new AcceptanceDetails
             {
                 PosterId = request.PosterId,

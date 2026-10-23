@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Web.Components.Pages;
@@ -21,6 +22,9 @@ public partial class TechnicianWork : ComponentBase
     [Inject]
     private AuthenticationStateProvider AuthenticationState { get; set; } = null!;
 
+    [Inject]
+    private IInstitutionalActorSource Actors { get; set; } = null!;
+
     private TechnicianView? View { get; set; }
 
     private bool Missing { get; set; }
@@ -33,7 +37,9 @@ public partial class TechnicianWork : ComponentBase
 
     private string? Error { get; set; }
 
-    private string ItPerson { get; set; } = "";
+    private string TechnicianAccount { get; set; } = "The signed-in identity could not be verified.";
+
+    private InstitutionalActor? Actor { get; set; }
 
     private string ReceivedOn { get; set; } = "";
 
@@ -68,12 +74,6 @@ public partial class TechnicianWork : ComponentBase
     private Task OnLookupChanged(string? value)
     {
         LookupId = value ?? "";
-        return Task.CompletedTask;
-    }
-
-    private Task OnItPersonChanged(string? value)
-    {
-        ItPerson = value ?? "";
         return Task.CompletedTask;
     }
 
@@ -126,7 +126,7 @@ public partial class TechnicianWork : ComponentBase
             return;
         }
 
-        await RunAsync(() => Workflow.TakeAsync(View.PosterId, ItPerson, ParseDate(ReceivedOn), Comments, CancellationToken.None));
+        await RunAsync(() => Workflow.TakeAsync(View.PosterId, Actor, ParseDate(ReceivedOn), Comments, CancellationToken.None));
     }
 
     private async Task MarkPrintedAsync()
@@ -202,13 +202,11 @@ public partial class TechnicianWork : ComponentBase
         View = await Workflow.FindAsync(PosterId, CancellationToken.None);
         Missing = View is null;
         Comments = View?.Comments ?? "";
-        ItPerson = View?.ItPerson ?? "";
-        if (string.IsNullOrWhiteSpace(ItPerson))
-        {
-            var state = await AuthenticationState.GetAuthenticationStateAsync();
-            ItPerson = state.User.Identity?.Name ?? "";
-        }
-
+        var state = await AuthenticationState.GetAuthenticationStateAsync();
+        Actor = Actors.FromPrincipal(state.User);
+        TechnicianAccount = Actor is { IsValid: true }
+            ? Actor.AccountName
+            : "The signed-in identity could not be verified.";
         Error = null;
     }
 

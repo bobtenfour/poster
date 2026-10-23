@@ -10,14 +10,10 @@ public static class PersistenceServiceCollectionExtensions
 
     public static IServiceCollection AddPosterPrintRequestPersistence(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool requireIntegratedAuthentication = false)
     {
-        var connectionString = configuration.GetConnectionString(ConnectionStringName);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringName}' is not configured.");
-        }
+        var connectionString = PosterSqlConnection.Require(configuration, requireIntegratedAuthentication);
 
         services.AddDbContext<PosterPrintRequestDbContext>(options =>
             options.UseSqlServer(connectionString));

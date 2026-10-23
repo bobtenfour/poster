@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using PosterPrintRequest.Infrastructure.Storage;
+using PosterPrintRequest.Tests.Hosting;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Tests.Requests;
@@ -61,7 +63,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.Equal(72m, saved.PosterFile.Length);
         Assert.Equal("Sheet.pdf", saved.ApprovalSheet!.FileName);
         Assert.NotNull(saved.PosterProcessing);
-        Assert.Null(saved.PosterProcessing.ITPerson);
+        Assert.Equal(InstitutionalTestIdentities.Requester.SecurityIdentifier, saved.SubmittedBySecurityIdentifier);
+        Assert.Equal(InstitutionalTestIdentities.Requester.AccountName, saved.SubmittedByAccountName);
+        Assert.Null(saved.PosterProcessing.ProcessedByAccountName);
+        Assert.Null(saved.PosterProcessing.ProcessedBySecurityIdentifier);
         Assert.Null(saved.PosterProcessing.Received);
         Assert.False(saved.PosterProcessing.Printed);
         Assert.False(saved.PosterProcessing.Laminated);
@@ -296,7 +301,8 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
             new PosterPreflight(_files),
             new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), _files),
             new ApprovalSheetCheck(_files),
-            logger).SubmitAsync(draft, CancellationToken.None);
+            logger,
+            new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
 
     private string Full(string relative) =>
         Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar));

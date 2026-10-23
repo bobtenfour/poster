@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Components.Foundation;
 using PosterPrintRequest.Web.Components.Pages;
 using PosterPrintRequest.Web.Requests;
@@ -21,6 +22,7 @@ public sealed class RequestFormTests : TestContext
         Services.AddSingleton<IApprovalSheetCheck>(new PassingApproval());
         Services.AddSingleton<IRequesterSubmission>(new RejectingSubmission());
         Services.AddScoped<SignedInAccount>();
+        Services.AddSingleton<IInstitutionalActorSource, UnavailableActorSource>();
     }
 
     [Fact]

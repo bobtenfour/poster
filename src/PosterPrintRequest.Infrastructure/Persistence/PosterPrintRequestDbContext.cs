@@ -1,11 +1,9 @@
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PosterPrintRequest.Domain;
-using PosterPrintRequest.Infrastructure.Identity;
 
 namespace PosterPrintRequest.Infrastructure.Persistence;
 
-public sealed class PosterPrintRequestDbContext : IdentityDbContext<ApplicationUser>
+public sealed class PosterPrintRequestDbContext : DbContext
 {
     public PosterPrintRequestDbContext(DbContextOptions<PosterPrintRequestDbContext> options)
         : base(options)

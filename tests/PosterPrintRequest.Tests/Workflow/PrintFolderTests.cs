@@ -117,7 +117,7 @@ public sealed class PrintFolderTests : IDisposable
         {
             context.PosterRequests.Add(Poster(departmentId, "POSTER-2026-880050", "Ada Lovelace", printed: false, posterPath, approvalPath, "Open House"));
             var received = context.PosterRequests.Local.Single().PosterProcessing;
-            received.ITPerson = "Jordan Lee";
+            received.ProcessedByAccountName = "Jordan Lee";
             received.Received = new DateOnly(2026, 10, 6);
             await context.SaveChangesAsync();
         }
@@ -137,7 +137,7 @@ public sealed class PrintFolderTests : IDisposable
         await using var saved = _database.CreateContext();
         var request = await saved.PosterRequests.Include(item => item.PosterFile).Include(item => item.ApprovalSheet).Include(item => item.PosterProcessing).SingleAsync(item => item.PosterId == "POSTER-2026-880050");
         Assert.True(request.PosterProcessing.Printed);
-        Assert.Equal("Jordan Lee", request.PosterProcessing.ITPerson);
+        Assert.Equal("Jordan Lee", request.PosterProcessing.ProcessedByAccountName);
         Assert.Equal("Open House", request.ReasonName);
         Assert.Equal("EVENTS/Open House 2026 PRINTED/Ada Lovelace - POSTER-2026-880050/Poster.pdf", request.PosterFile.StoragePath);
         Assert.Equal("EVENTS/Open House 2026 PRINTED/Ada Lovelace - POSTER-2026-880050/Approval-Sheet.pdf", request.ApprovalSheet!.StoragePath);
@@ -197,7 +197,7 @@ public sealed class PrintFolderTests : IDisposable
         await using var context = _database.CreateContext();
         var request = Poster(departmentId, "POSTER-2026-880060", "Grace Hopper", printed: false, "WITHOUT-EVENT TO BE PRINTED/2026/Grace Hopper - POSTER-2026-880060/Poster.pdf", null, null);
         request.PosterProcessing.Received = new DateOnly(2026, 10, 8);
-        request.PosterProcessing.ITPerson = "Jordan Lee";
+        request.PosterProcessing.ProcessedByAccountName = "Jordan Lee";
         context.PosterRequests.Add(request);
         await context.SaveChangesAsync();
         var workflow = new TechnicianWorkflow(context, NullLogger<TechnicianWorkflow>.Instance, Storage());
