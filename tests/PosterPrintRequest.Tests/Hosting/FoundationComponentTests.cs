@@ -3,12 +3,12 @@ using PosterPrintRequest.Web.Components.Foundation;
 
 namespace PosterPrintRequest.Tests.Hosting;
 
-public sealed class FoundationComponentTests : TestContext
+public sealed class FoundationComponentTests : BunitContext
 {
     [Fact]
     public void Text_field_exposes_label_help_and_error()
     {
-        var cut = RenderComponent<TextField>(parameters => parameters
+        var cut = Render<TextField>(parameters => parameters
             .Add(field => field.FieldId, "requester-name")
             .Add(field => field.Label, "Name")
             .Add(field => field.Required, true)
@@ -29,7 +29,7 @@ public sealed class FoundationComponentTests : TestContext
     [Fact]
     public void Select_field_keeps_a_blank_option_and_reports_an_error()
     {
-        var cut = RenderComponent<SelectField>(parameters => parameters
+        var cut = Render<SelectField>(parameters => parameters
             .Add(field => field.FieldId, "reason")
             .Add(field => field.Label, "Reason / Event")
             .Add(field => field.BlankLabel, "None")
@@ -51,7 +51,7 @@ public sealed class FoundationComponentTests : TestContext
     [Fact]
     public void Check_field_binds_its_label()
     {
-        var cut = RenderComponent<CheckField>(parameters => parameters
+        var cut = Render<CheckField>(parameters => parameters
             .Add(field => field.FieldId, "lamination")
             .Add(field => field.Label, "Lamination")
             .Add(field => field.Help, "Request lamination with the poster")
@@ -68,7 +68,7 @@ public sealed class FoundationComponentTests : TestContext
     [Fact]
     public void Disabled_primary_button_cannot_be_used()
     {
-        var cut = RenderComponent<ActionButton>(parameters => parameters
+        var cut = Render<ActionButton>(parameters => parameters
             .Add(button => button.Disabled, true)
             .Add(button => button.Variant, "primary")
             .AddChildContent("Continue"));
@@ -82,7 +82,7 @@ public sealed class FoundationComponentTests : TestContext
     [Fact]
     public void Status_note_keeps_a_text_label_with_its_tone()
     {
-        var cut = RenderComponent<StatusNote>(parameters => parameters
+        var cut = Render<StatusNote>(parameters => parameters
             .Add(note => note.Tone, "warning")
             .Add(note => note.Label, "Waiting")
             .AddChildContent("This poster is waiting to be printed."));
@@ -95,7 +95,7 @@ public sealed class FoundationComponentTests : TestContext
     [Fact]
     public void Current_home_link_exposes_the_page_state()
     {
-        var cut = RenderComponent<ShellNavLink>(parameters => parameters
+        var cut = Render<ShellNavLink>(parameters => parameters
             .Add(link => link.Href, "/")
             .Add(link => link.MatchAll, true)
             .AddChildContent("Home"));

@@ -3,12 +3,12 @@ using PosterPrintRequest.Web.Components.Foundation;
 
 namespace PosterPrintRequest.Tests.Hosting;
 
-public sealed class FileDropFieldTests : TestContext
+public sealed class FileDropFieldTests : BunitContext
 {
     [Fact]
     public void Uploaded_file_shows_its_name_status_and_remove_action()
     {
-        var cut = RenderComponent<FileDropField>(parameters => parameters
+        var cut = Render<FileDropField>(parameters => parameters
             .Add(field => field.InputId, "poster-file")
             .Add(field => field.Label, "Poster")
             .Add(field => field.Required, true)
@@ -28,7 +28,7 @@ public sealed class FileDropFieldTests : TestContext
     [Fact]
     public void Upload_progress_is_exposed()
     {
-        var cut = RenderComponent<FileDropField>(parameters => parameters
+        var cut = Render<FileDropField>(parameters => parameters
             .Add(field => field.InputId, "poster-file")
             .Add(field => field.Label, "Poster")
             .Add(field => field.Uploading, true)

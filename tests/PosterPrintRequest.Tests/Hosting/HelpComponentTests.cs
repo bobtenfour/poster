@@ -5,16 +5,16 @@ using PosterPrintRequest.Web.Components.Foundation;
 
 namespace PosterPrintRequest.Tests.Hosting;
 
-public sealed class HelpComponentTests : TestContext
+public sealed class HelpComponentTests : BunitContext
 {
     [Fact]
     public void Good_and_rejected_examples_keep_a_text_outcome()
     {
-        var good = RenderComponent<AcceptanceExample>(parameters => parameters
+        var good = Render<AcceptanceExample>(parameters => parameters
             .Add(example => example.Outcome, "good")
             .Add(example => example.Title, "One-page PDF")
             .AddChildContent("Exactly one page."));
-        var rejected = RenderComponent<AcceptanceExample>(parameters => parameters
+        var rejected = Render<AcceptanceExample>(parameters => parameters
             .Add(example => example.Outcome, "rejected")
             .Add(example => example.Title, "Extra pages")
             .AddChildContent("More than one page."));
@@ -28,7 +28,7 @@ public sealed class HelpComponentTests : TestContext
     [Fact]
     public void Contextual_help_links_to_its_topic()
     {
-        var cut = RenderComponent<ContextualHelp>(parameters => parameters
+        var cut = Render<ContextualHelp>(parameters => parameters
             .Add(help => help.Title, "Width")
             .Add(help => help.TopicHref, "/help#poster-size")
             .Add(help => help.TopicLabel, "Review width")
@@ -43,14 +43,14 @@ public sealed class HelpComponentTests : TestContext
     [Fact]
     public void Help_media_renders_only_supplied_content()
     {
-        var empty = RenderComponent<HelpMedia>();
+        var empty = Render<HelpMedia>();
         Assert.DoesNotContain("<figure", empty.Markup, StringComparison.Ordinal);
 
-        var imageWithoutAlt = RenderComponent<HelpMedia>(parameters => parameters
+        var imageWithoutAlt = Render<HelpMedia>(parameters => parameters
             .Add(media => media.ImageSrc, "/help/poster-preview.png"));
         Assert.DoesNotContain("<img", imageWithoutAlt.Markup, StringComparison.Ordinal);
 
-        var image = RenderComponent<HelpMedia>(parameters => parameters
+        var image = Render<HelpMedia>(parameters => parameters
             .Add(media => media.ImageSrc, "/help/poster-preview.png")
             .Add(media => media.Alt, "Printer preview of a 36 by 72 inch poster")
             .Add(media => media.Caption, "914 × 1829 mm"));
@@ -59,7 +59,7 @@ public sealed class HelpComponentTests : TestContext
         Assert.Equal("Printer preview of a 36 by 72 inch poster", img.GetAttribute("alt"));
         Assert.Contains("914 × 1829 mm", image.Find("figcaption").TextContent);
 
-        var video = RenderComponent<HelpMedia>(parameters => parameters
+        var video = Render<HelpMedia>(parameters => parameters
             .Add(media => media.VideoSrc, "/help/prepare-poster.mp4")
             .Add(media => media.CaptionSrc, "/help/prepare-poster.vtt")
             .Add(media => media.Transcript, "Set the poster to 36 inches wide and no more than 72 inches long."));
@@ -73,7 +73,7 @@ public sealed class HelpComponentTests : TestContext
         var navigation = Services.GetRequiredService<NavigationManager>();
         navigation.NavigateTo("/help");
 
-        var cut = RenderComponent<ShellNavLink>(parameters => parameters
+        var cut = Render<ShellNavLink>(parameters => parameters
             .Add(link => link.Href, "/help")
             .AddChildContent("Help"));
 

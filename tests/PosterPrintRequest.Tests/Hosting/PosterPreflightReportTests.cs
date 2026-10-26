@@ -4,12 +4,12 @@ using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Tests.Hosting;
 
-public sealed class PosterPreflightReportTests : TestContext
+public sealed class PosterPreflightReportTests : BunitContext
 {
     [Fact]
     public void Passed_checks_show_the_measured_poster()
     {
-        var cut = RenderComponent<PosterPreflightReport>(parameters => parameters.Add(
+        var cut = Render<PosterPreflightReport>(parameters => parameters.Add(
             report => report.Result,
             new PosterPreflightResult
             {
@@ -39,7 +39,7 @@ public sealed class PosterPreflightReportTests : TestContext
     [Fact]
     public void Failed_checks_name_the_correction()
     {
-        var cut = RenderComponent<PosterPreflightReport>(parameters => parameters.Add(
+        var cut = Render<PosterPreflightReport>(parameters => parameters.Add(
             report => report.Result,
             new PosterPreflightResult
             {

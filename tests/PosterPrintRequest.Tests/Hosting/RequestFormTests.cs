@@ -8,7 +8,7 @@ using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Tests.Hosting;
 
-public sealed class RequestFormTests : TestContext
+public sealed class RequestFormTests : BunitContext
 {
     private readonly MemoryFiles _files = new();
     private readonly ScriptedPreflight _preflight = new();
@@ -28,7 +28,7 @@ public sealed class RequestFormTests : TestContext
     [Fact]
     public void Event_selection_controls_mentor_and_approval_sheet()
     {
-        var cut = RenderComponent<Request>();
+        var cut = Render<Request>();
 
         Assert.Contains("Example Department", cut.Markup);
         Assert.Contains("href=\"/help#poster-size\"", cut.Markup);
@@ -50,7 +50,7 @@ public sealed class RequestFormTests : TestContext
     [Fact]
     public void Entered_details_are_saved_for_the_help_round_trip()
     {
-        var cut = RenderComponent<Request>();
+        var cut = Render<Request>();
 
         cut.Find("#requester-name").Change("Ada Lovelace");
 
@@ -67,7 +67,7 @@ public sealed class RequestFormTests : TestContext
         JSInterop.Setup<string?>("posterDraft.load").SetResult(
             "{\"draftId\":\"0123456789abcdef0123456789abcdef\",\"name\":\"Ada Lovelace\",\"departmentId\":\"1\",\"reasonId\":\"2\"}");
 
-        var cut = RenderComponent<Request>();
+        var cut = Render<Request>();
 
         cut.WaitForAssertion(() => Assert.Equal("Ada Lovelace", cut.Find("#requester-name").GetAttribute("value")));
     }
@@ -75,7 +75,7 @@ public sealed class RequestFormTests : TestContext
     [Fact]
     public void Submit_reports_missing_fields_without_leaving_the_form()
     {
-        var cut = RenderComponent<Request>();
+        var cut = Render<Request>();
 
         cut.Find("form").Submit();
 
@@ -106,7 +106,7 @@ public sealed class RequestFormTests : TestContext
         JSInterop.Setup<string?>("posterDraft.load").SetResult(
             "{\"draftId\":\"0123456789abcdef0123456789abcdef\",\"name\":\"Ada Lovelace\",\"mentor\":\"Grace Hopper\",\"departmentId\":\"1\",\"room\":\"214\",\"phone\":\"555-0100\",\"email\":\"ada@example.edu\",\"reasonId\":\"1\",\"poster\":{\"originalFileName\":\"Wide.pdf\",\"size\":1200,\"format\":\"PDF\"}}");
 
-        var cut = RenderComponent<Request>();
+        var cut = Render<Request>();
 
         cut.WaitForAssertion(() =>
         {
