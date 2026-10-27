@@ -306,7 +306,7 @@ public partial class Request : ComponentBase
             return;
         }
 
-        Navigation.NavigateTo("/request/accepted/" + outcome.PosterId);
+        Navigation.NavigateTo(ApplicationUris.Relative("/request/accepted/" + outcome.PosterId));
     }
 
     private async Task StoreFileAsync(InputFileChangeEventArgs args, DraftFileRole role)

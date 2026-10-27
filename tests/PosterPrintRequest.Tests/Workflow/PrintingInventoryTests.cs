@@ -511,7 +511,8 @@ public sealed class PrintingInventorySourceTests
         Assert.Contains("Expiring Soon", page, StringComparison.Ordinal);
         Assert.Contains("Attention.NeedsReorder", page, StringComparison.Ordinal);
         Assert.Contains("Attention.ExpiringSoonSummary", page, StringComparison.Ordinal);
-        Assert.Contains("href=\"/technician/inventory\"", page, StringComparison.Ordinal);
+        Assert.Contains("ApplicationUris.BrowserPath(Navigation, \"/technician/inventory\")", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"/technician/inventory\"", page, StringComparison.Ordinal);
         Assert.DoesNotContain(">Depleted<", page, StringComparison.Ordinal);
         Assert.DoesNotContain(">Low Stock<", page, StringComparison.Ordinal);
         Assert.DoesNotContain("LowStockThreshold", page, StringComparison.Ordinal);
@@ -522,8 +523,9 @@ public sealed class PrintingInventorySourceTests
         Assert.Contains("Ink Cartridges", tiles, StringComparison.Ordinal);
         Assert.Contains(">Paper<", tiles, StringComparison.Ordinal);
         Assert.Contains("Lamination Materials", tiles, StringComparison.Ordinal);
-        Assert.Contains("href=\"/technician/inventory#cartridges\"", tiles, StringComparison.Ordinal);
-        Assert.Contains("href=\"/technician/inventory#paper\"", tiles, StringComparison.Ordinal);
-        Assert.Contains("href=\"/technician/inventory#laminating\"", tiles, StringComparison.Ordinal);
+        Assert.Contains("ApplicationUris.BrowserPath(Navigation, \"/technician/inventory#cartridges\")", tiles, StringComparison.Ordinal);
+        Assert.Contains("ApplicationUris.BrowserPath(Navigation, \"/technician/inventory#paper\")", tiles, StringComparison.Ordinal);
+        Assert.Contains("ApplicationUris.BrowserPath(Navigation, \"/technician/inventory#laminating\")", tiles, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"/technician/inventory#", tiles, StringComparison.Ordinal);
     }
 }

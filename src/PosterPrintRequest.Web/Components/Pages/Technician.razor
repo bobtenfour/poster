@@ -24,7 +24,7 @@
     {
         <Callout Kicker="Poster ID" Title="@SearchView.PosterId" Tone="success">
             <p>@SearchView.RequesterName · @(SearchView.EventName ?? "No event")</p>
-            <p><a href="@($"/technician/work/{SearchView.PosterId}")">Open poster</a></p>
+            <p><a href="@ApplicationUris.BrowserPath(Navigation, $"/technician/work/{SearchView.PosterId}")">Open poster</a></p>
         </Callout>
     }
 
@@ -39,7 +39,7 @@
                     <p>Monitor toner, paper, and lamination stock.</p>
                 </div>
             </div>
-            <a class="epx-button epx-button-secondary" href="/technician/inventory">View Inventory <span class="epx-supply-chevron" aria-hidden="true">›</span></a>
+            <a class="epx-button epx-button-secondary" href="@ApplicationUris.BrowserPath(Navigation, "/technician/inventory")">View Inventory <span class="epx-supply-chevron" aria-hidden="true">›</span></a>
         </header>
         <div class="epx-supply-cards">
             <article class="epx-supply-summary epx-supply-summary-reorder">
@@ -137,7 +137,7 @@
                                 <td><span class="epx-stage epx-stage-@item.Stage.ToLowerInvariant()">@item.Stage</span></td>
                                 <td>@item.DateIn.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)</td>
                                 <td>@(item.LaminationRequested ? "Requested" : "No")</td>
-                                <td><a class="epx-button epx-button-secondary" href="@($"/technician/work/{item.PosterId}")">Open</a></td>
+                                <td><a class="epx-button epx-button-secondary" href="@ApplicationUris.BrowserPath(Navigation, $"/technician/work/{item.PosterId}")">Open</a></td>
                             </tr>
                         }
                     </tbody>
@@ -147,7 +147,7 @@
     </Panel>
 
     <Panel Kicker="@Snapshot.PeriodLabel" Title="Technician performance">
-        <form class="epx-tech-period" method="get" action="/technician">
+        <form class="epx-tech-period" method="get" action="@ApplicationUris.BrowserPath(Navigation, InstitutionalEntry.OperatorHome)">
             <label class="epx-label" for="workspace-period">Month</label>
             <input id="workspace-period" class="epx-input" name="period" type="month" value="@PeriodValue" />
             @if (!string.IsNullOrWhiteSpace(SearchId))

@@ -1,5 +1,6 @@
 @page "/help"
 @attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@inject NavigationManager Navigation
 
 <PageTitle>Prepare Your Poster</PageTitle>
 
@@ -9,11 +10,11 @@
                 Subtitle="Set the width, length, file, and Approval Sheet before you request printing." />
 
     <nav class="epx-help-toc" aria-label="Help topics">
-        <a href="/help#poster-size">Size</a>
-        <a href="/help#poster-file">File</a>
-        <a href="/help#approval-sheet">Approval Sheet</a>
-        <a href="/help#acceptable-preparation">Acceptable preparation</a>
-        <a href="/help#questions">Questions</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-size")">Size</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-file")">File</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#approval-sheet")">Approval Sheet</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#acceptable-preparation")">Acceptable preparation</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#questions")">Questions</a>
     </nav>
 
     <div class="epx-help-hints">

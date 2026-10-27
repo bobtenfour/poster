@@ -116,7 +116,7 @@ public partial class TechnicianWork : ComponentBase
             return;
         }
 
-        Navigation.NavigateTo("/technician/work/" + id);
+        Navigation.NavigateTo(ApplicationUris.Relative("/technician/work/" + id));
     }
 
     private async Task TakeAsync()

@@ -88,6 +88,7 @@ if (!app.Environment.IsDevelopment() || httpsEndpointConfigured)
 }
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseInstitutionalEntry();
 app.UseAuthorization();
 app.UseAntiforgery();
 

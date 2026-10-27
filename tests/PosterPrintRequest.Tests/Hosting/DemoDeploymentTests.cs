@@ -121,8 +121,10 @@ public sealed class DemoDeploymentTests
             var technicianHome = await technician.Content.ReadAsStringAsync();
             Assert.Contains("Posters pending printing", technicianHome, StringComparison.Ordinal);
             Assert.DoesNotContain("Personal activity", technicianHome, StringComparison.Ordinal);
-            var technicianDenied = await technicianClient.GetAsync("/");
-            Assert.Contains("/Account/AccessDenied", technicianDenied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+            var technicianEntry = await technicianClient.GetAsync("/");
+            technicianEntry.EnsureSuccessStatusCode();
+            Assert.EndsWith("/technician", technicianEntry.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+            Assert.Contains("Posters pending printing", await technicianEntry.Content.ReadAsStringAsync(), StringComparison.Ordinal);
         }
         finally
         {

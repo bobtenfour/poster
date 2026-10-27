@@ -1,5 +1,6 @@
-@page "/"
+@page "/staff"
 @attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@inject NavigationManager Navigation
 @using System.Globalization
 @using PosterPrintRequest.Web.Requests
 
@@ -11,12 +12,12 @@
                 Subtitle="Internal system for students and staff to request poster printing." />
 
     <figure class="epx-home-visual">
-        <img src="/img/entry/plotter-technician.jpg" alt="A technician printing a poster on a large-format plotter." />
+        <img src="@ApplicationUris.BrowserPath(Navigation, "/img/entry/plotter-technician.jpg")" alt="A technician printing a poster on a large-format plotter." />
     </figure>
 
     <div class="epx-form-actions">
-        <a class="epx-button epx-button-primary" href="/request">Start a request</a>
-        <a class="epx-button" href="/help">Prepare your poster</a>
+        <a class="epx-button epx-button-primary" href="@ApplicationUris.BrowserPath(Navigation, "/request")">Start a request</a>
+        <a class="epx-button" href="@ApplicationUris.BrowserPath(Navigation, "/help")">Prepare your poster</a>
     </div>
 
     <section class="epx-stat-grid" aria-label="Personal totals">

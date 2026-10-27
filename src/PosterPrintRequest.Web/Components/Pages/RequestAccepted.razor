@@ -1,5 +1,6 @@
 @page "/request/accepted/{PosterId}"
 @attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@inject NavigationManager Navigation
 @using System.Globalization
 
 <PageTitle>Request accepted</PageTitle>
@@ -45,8 +46,8 @@
         </Callout>
 
         <div class="epx-form-actions">
-            <a class="epx-button epx-button-primary" href="/request">Start another request</a>
-            <a class="epx-button" href="/help">Prepare Your Poster</a>
+            <a class="epx-button epx-button-primary" href="@ApplicationUris.BrowserPath(Navigation, "/request")">Start another request</a>
+            <a class="epx-button" href="@ApplicationUris.BrowserPath(Navigation, "/help")">Prepare Your Poster</a>
         </div>
     }
 </section>

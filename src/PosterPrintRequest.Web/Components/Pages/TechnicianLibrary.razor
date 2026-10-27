@@ -28,7 +28,7 @@
         <div class="epx-library-nav">
             @if (Listing.Segments.Count > 0)
             {
-                <a class="epx-button" href="@ParentHref(Listing.Segments)">Up</a>
+                <a class="epx-button" href="@ApplicationUris.BrowserPath(Navigation, ParentHref(Listing.Segments))">Up</a>
             }
             <nav aria-label="Library folders">
                 <ol class="epx-crumb">
@@ -39,7 +39,7 @@
                         }
                         else
                         {
-                            <a href="/technician/library">Library</a>
+                            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/library")">Library</a>
                         }
                     </li>
                     @for (var index = 0; index < Listing.Segments.Count; index++)
@@ -53,7 +53,7 @@
                             }
                             else
                             {
-                                <a href="@CrumbHref(Listing.Segments.Take(index + 1))">@segment</a>
+                                <a href="@ApplicationUris.BrowserPath(Navigation, CrumbHref(Listing.Segments.Take(index + 1)))">@segment</a>
                             }
                         </li>
                     }
@@ -75,7 +75,7 @@
                             <p class="epx-blueignix-kicker">@entry.Kind</p>
                             @if (entry.NavigateHref is not null)
                             {
-                                <a class="epx-folder-name" href="@entry.NavigateHref">@entry.Name</a>
+                                <a class="epx-folder-name" href="@ApplicationUris.BrowserPath(Navigation, entry.NavigateHref)">@entry.Name</a>
                             }
                             else
                             {
@@ -86,11 +86,11 @@
                                 <p class="epx-folder-actions">
                                     @if (entry.WorkHref is not null)
                                     {
-                                        <a href="@entry.WorkHref">Open poster</a>
+                                        <a href="@ApplicationUris.BrowserPath(Navigation, entry.WorkHref)">Open poster</a>
                                     }
                                     @if (entry.ViewHref is not null)
                                     {
-                                        <a href="@entry.ViewHref" target="_blank" rel="noopener">View</a>
+                                        <a href="@ApplicationUris.BrowserPath(Navigation, entry.ViewHref)" target="_blank" rel="noopener">View</a>
                                     }
                                 </p>
                             }
@@ -108,6 +108,9 @@
 
     [Inject]
     private ITechnicianLibrary Library { get; set; } = null!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = null!;
 
     private LibraryListing? Listing { get; set; }
 

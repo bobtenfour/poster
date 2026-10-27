@@ -1,7 +1,8 @@
 @using System.Globalization
+@inject NavigationManager Navigation
 
 <div class="epx-supply-categories">
-    <a id="@($"{Prefix}-cartridges")" class="epx-supply-tile" href="/technician/inventory#cartridges">
+    <a id="@($"{Prefix}-cartridges")" class="epx-supply-tile" href="@ApplicationUris.BrowserPath(Navigation, "/technician/inventory#cartridges")">
         <span class="epx-supply-tile-icon" aria-hidden="true">
             <svg viewBox="0 0 68 48" focusable="false">
                 <rect x="2" y="12" width="14" height="30" rx="2.4" fill="#1496c9"/>
@@ -25,7 +26,7 @@
         </span>
         <span class="epx-supply-tile-chevron" aria-hidden="true">›</span>
     </a>
-    <a id="@($"{Prefix}-paper")" class="epx-supply-tile" href="/technician/inventory#paper">
+    <a id="@($"{Prefix}-paper")" class="epx-supply-tile" href="@ApplicationUris.BrowserPath(Navigation, "/technician/inventory#paper")">
         <span class="epx-supply-tile-icon" aria-hidden="true">
             <svg viewBox="0 0 64 40" focusable="false">
                 <ellipse cx="14" cy="20" rx="12" ry="17" fill="#c5d2e2"/>
@@ -42,7 +43,7 @@
         </span>
         <span class="epx-supply-tile-chevron" aria-hidden="true">›</span>
     </a>
-    <a id="@($"{Prefix}-laminating")" class="epx-supply-tile" href="/technician/inventory#laminating">
+    <a id="@($"{Prefix}-laminating")" class="epx-supply-tile" href="@ApplicationUris.BrowserPath(Navigation, "/technician/inventory#laminating")">
         <span class="epx-supply-tile-icon" aria-hidden="true">
             <svg viewBox="0 0 64 46" focusable="false">
                 <path d="M34 28c8 1 18 6 24 14H36c-2-6-6-11-12-13 3 0 7 0 10-1z" fill="#c5dff2"/>

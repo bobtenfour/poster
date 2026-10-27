@@ -1,7 +1,7 @@
 @implements IDisposable
 @inject NavigationManager Navigation
 
-<a href="@Href" class="@CssClass" aria-current="@AriaCurrent">@ChildContent</a>
+<a href="@ApplicationUris.BrowserPath(Navigation, Href)" class="@CssClass" aria-current="@AriaCurrent">@ChildContent</a>
 
 @code {
     [Parameter, EditorRequired]

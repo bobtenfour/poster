@@ -211,6 +211,21 @@ public sealed class InstitutionalGroupRequirement : IAuthorizationRequirement
 
 public sealed class InstitutionalParticipantRequirement : IAuthorizationRequirement;
 
+internal static class InstitutionalMembership
+{
+    public static bool IsMember(IInstitutionalGroupVerifier groups, ClaimsPrincipal principal, string groupName)
+    {
+        try
+        {
+            return groups.IsMember(principal, groupName);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+}
+
 public sealed class InstitutionalGroupHandler : AuthorizationHandler<InstitutionalGroupRequirement>
 {
     private readonly IInstitutionalGroupVerifier _groups;
@@ -221,7 +236,7 @@ public sealed class InstitutionalGroupHandler : AuthorizationHandler<Institution
         AuthorizationHandlerContext context,
         InstitutionalGroupRequirement requirement)
     {
-        if (_groups.IsMember(context.User, requirement.GroupName))
+        if (InstitutionalMembership.IsMember(_groups, context.User, requirement.GroupName))
         {
             context.Succeed(requirement);
         }
@@ -240,8 +255,8 @@ public sealed class InstitutionalParticipantHandler : AuthorizationHandler<Insti
         AuthorizationHandlerContext context,
         InstitutionalParticipantRequirement requirement)
     {
-        if (_groups.IsMember(context.User, InstitutionalGroups.Requesters)
-            || _groups.IsMember(context.User, InstitutionalGroups.Technicians))
+        if (InstitutionalMembership.IsMember(_groups, context.User, InstitutionalGroups.Requesters)
+            || InstitutionalMembership.IsMember(_groups, context.User, InstitutionalGroups.Technicians))
         {
             context.Succeed(requirement);
         }

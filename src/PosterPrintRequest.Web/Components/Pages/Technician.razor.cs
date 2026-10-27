@@ -12,6 +12,9 @@ public partial class Technician : ComponentBase
     public string? PeriodQuery { get; set; }
 
     [Inject]
+    private NavigationManager Navigation { get; set; } = null!;
+
+    [Inject]
     private ITechnicianDashboard Dashboard { get; set; } = null!;
 
     [Inject]

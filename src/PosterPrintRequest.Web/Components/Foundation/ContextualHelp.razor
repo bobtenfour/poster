@@ -1,10 +1,11 @@
+@inject NavigationManager Navigation
 <aside class="epx-contextual-help">
     <p class="epx-blueignix-kicker">@Kicker</p>
     <p class="epx-contextual-help-title">@Title</p>
     <div>@ChildContent</div>
     @if (!string.IsNullOrWhiteSpace(TopicHref))
     {
-        <a href="@TopicHref">@ResolvedTopicLabel</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, TopicHref)">@ResolvedTopicLabel</a>
     }
 </aside>
 

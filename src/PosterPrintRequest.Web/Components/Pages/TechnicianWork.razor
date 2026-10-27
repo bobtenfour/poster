@@ -83,13 +83,13 @@
                 </div>
                 <div>
                     <dt>Poster</dt>
-                    <dd><a href="@($"/technician/files/{View.PosterId}/poster?inline=true")" target="_blank" rel="noopener">@View.PosterFileName</a></dd>
+                    <dd><a href="@ApplicationUris.BrowserPath(Navigation, $"/technician/files/{View.PosterId}/poster?inline=true")" target="_blank" rel="noopener">@View.PosterFileName</a></dd>
                 </div>
                 @if (!string.IsNullOrWhiteSpace(View.ApprovalFileName))
                 {
                     <div>
                         <dt>Approval Sheet</dt>
-                        <dd><a href="@($"/technician/files/{View.PosterId}/approval?inline=true")" target="_blank" rel="noopener">@View.ApprovalFileName</a></dd>
+                        <dd><a href="@ApplicationUris.BrowserPath(Navigation, $"/technician/files/{View.PosterId}/approval?inline=true")" target="_blank" rel="noopener">@View.ApprovalFileName</a></dd>
                     </div>
                 }
             </dl>

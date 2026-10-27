@@ -58,6 +58,6 @@ public sealed class InstitutionalAuthorizationResultHandler : IAuthorizationMidd
             return;
         }
 
-        context.Response.Redirect("/Account/AccessDenied");
+        context.Response.Redirect(context.Request.PathBase.Add("/Account/AccessDenied").ToString());
     }
 }

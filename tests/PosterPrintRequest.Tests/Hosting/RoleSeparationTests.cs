@@ -32,6 +32,7 @@ public sealed class RoleSeparationTests
         using var client = await PosterSignIn.SignInAsync(factory, "usera");
         var home = await client.GetAsync("/");
         home.EnsureSuccessStatusCode();
+        Assert.EndsWith("/staff", home.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var html = await home.Content.ReadAsStringAsync();
         Assert.Contains("Posters Printed", html, StringComparison.Ordinal);
         Assert.Contains("Events Participated", html, StringComparison.Ordinal);
@@ -120,7 +121,15 @@ public sealed class RoleSeparationTests
         Assert.DoesNotContain("Warning period", inventoryHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Expiration warning", inventoryHtml, StringComparison.Ordinal);
 
-        foreach (var path in new[] { "/", "/help", "/request" })
+        var entry = await client.GetAsync("/");
+        entry.EnsureSuccessStatusCode();
+        Assert.EndsWith("/technician", entry.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        var entryHtml = await entry.Content.ReadAsStringAsync();
+        Assert.Contains("Posters pending printing", entryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Staff<", entryHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Personal activity", entryHtml, StringComparison.Ordinal);
+
+        foreach (var path in new[] { "/staff", "/help", "/request" })
         {
             var denied = await client.GetAsync(path);
             Assert.Contains("/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
@@ -147,17 +156,27 @@ public sealed class RoleSeparationTests
         Assert.Contains("/Account/AccessDenied", technicianDenied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
 
         using var both = await PosterSignIn.SignInAsync(factory, "both");
-        var requester = await both.GetAsync("/");
-        requester.EnsureSuccessStatusCode();
-        var requesterHtml = await requester.Content.ReadAsStringAsync();
-        Assert.Contains("Personal activity", requesterHtml, StringComparison.Ordinal);
-        Assert.Contains("href=\"/technician\"", requesterHtml, StringComparison.Ordinal);
+        var entryBoth = await both.GetAsync("/");
+        entryBoth.EnsureSuccessStatusCode();
+        Assert.EndsWith("/technician", entryBoth.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        var entryBothHtml = await entryBoth.Content.ReadAsStringAsync();
+        Assert.Contains("Posters pending printing", entryBothHtml, StringComparison.Ordinal);
+        Assert.Contains(">Staff<", entryBothHtml, StringComparison.Ordinal);
+        Assert.Contains("href=\"/staff\"", entryBothHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Personal activity", entryBothHtml, StringComparison.Ordinal);
+
+        var staff = await both.GetAsync("/staff");
+        staff.EnsureSuccessStatusCode();
+        var staffHtml = await staff.Content.ReadAsStringAsync();
+        Assert.Contains("Personal activity", staffHtml, StringComparison.Ordinal);
+        Assert.Contains("href=\"/technician\"", staffHtml, StringComparison.Ordinal);
 
         var technician = await both.GetAsync("/technician");
         technician.EnsureSuccessStatusCode();
         var technicianHtml = await technician.Content.ReadAsStringAsync();
         Assert.Contains("Posters pending printing", technicianHtml, StringComparison.Ordinal);
-        Assert.Contains("Requester home", technicianHtml, StringComparison.Ordinal);
+        Assert.Contains(">Staff<", technicianHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Requester home", technicianHtml, StringComparison.Ordinal);
     }
 
     [Fact]

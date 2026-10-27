@@ -2,12 +2,13 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IAuthorizationService Authorization
+@inject NavigationManager Navigation
 
 <a class="epx-skip-link" href="#epx-main-content">Skip to main content</a>
 <div class="epx-shell">
     <header class="epx-shell-header">
         <nav class="epx-nav-primary" aria-label="Primary">
-            <a class="epx-brand" href="/" aria-label="BlueIgnix Poster Print Request System">
+            <a class="epx-brand" href="@ApplicationUris.BrowserPath(Navigation, InstitutionalEntry.StaffHome)" aria-label="BlueIgnix Poster Print Request System">
                 <span class="epx-blueignix-brand-copy">
                     <span class="epx-blueignix-brand-owner">BlueIgnix</span>
                     <span class="epx-blueignix-brand-product">Poster Print Request</span>
@@ -18,7 +19,7 @@
                 <label class="epx-nav-toggle" for="epx-nav-menu">Menu</label>
                 <ul class="epx-nav-list">
                     <li>
-                        <ShellNavLink Href="/" MatchAll="true">Home</ShellNavLink>
+                        <ShellNavLink Href="@InstitutionalEntry.StaffHome" MatchAll="true">Home</ShellNavLink>
                     </li>
                     <li>
                         <ShellNavLink Href="/help">Help</ShellNavLink>
