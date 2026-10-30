@@ -83,6 +83,26 @@ public sealed class ApplicationBasePathTests
         staff.EnsureSuccessStatusCode();
         Assert.Contains("Personal activity", await staff.Content.ReadAsStringAsync(), StringComparison.Ordinal);
 
+        var help = await client.GetAsync("/PosterPrintRequest/help");
+        help.EnsureSuccessStatusCode();
+        var helpHtml = await help.Content.ReadAsStringAsync();
+        Assert.Contains("src=\"/PosterPrintRequest/img/help/BlueIgnix_Poster_Dimensions_Final.png\"", helpHtml, StringComparison.Ordinal);
+        Assert.Contains("src=\"/PosterPrintRequest/img/help/BlueIgnix_Poster_Dimensions.png\"", helpHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("src=\"/img/", helpHtml, StringComparison.Ordinal);
+
+        foreach (var image in new[]
+        {
+            "/PosterPrintRequest/img/entry/plotter-technician.jpg",
+            "/PosterPrintRequest/img/help/BlueIgnix_Poster_Dimensions_Final.png",
+            "/PosterPrintRequest/img/help/BlueIgnix_Poster_Dimensions.png"
+        })
+        {
+            var asset = await client.GetAsync(image);
+            Assert.True(asset.IsSuccessStatusCode, image + " returned " + (int)asset.StatusCode);
+            Assert.StartsWith("image/", asset.Content.Headers.ContentType?.MediaType, StringComparison.Ordinal);
+            Assert.NotEmpty(await asset.Content.ReadAsByteArrayAsync());
+        }
+
         using var technicianOnly = await PosterSignIn.SignInAsync(factory, "usero");
         var denied = await technicianOnly.GetAsync("/PosterPrintRequest/staff");
         Assert.Contains("/PosterPrintRequest/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);

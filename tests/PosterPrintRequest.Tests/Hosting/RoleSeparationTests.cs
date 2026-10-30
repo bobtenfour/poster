@@ -39,6 +39,7 @@ public sealed class RoleSeparationTests
         Assert.Contains("Personal activity", html, StringComparison.Ordinal);
         Assert.Contains("Start a request", html, StringComparison.Ordinal);
         Assert.Contains(">Help<", html, StringComparison.Ordinal);
+        Assert.Contains(">Service<", html, StringComparison.Ordinal);
         Assert.Contains(">Request<", html, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/technician\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
@@ -76,6 +77,11 @@ public sealed class RoleSeparationTests
         Assert.Contains("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/configuration\"", html, StringComparison.Ordinal);
         Assert.Contains("Printing Supplies", html, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"Dashboard\"", html, StringComparison.Ordinal);
+        Assert.Contains("<h1>Dashboard</h1>", html, StringComparison.Ordinal);
+        Assert.Contains("<title>Dashboard</title>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Operations<", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("aria-label=\"Operations\"", html, StringComparison.Ordinal);
         Assert.Contains("Monitor toner, paper, and lamination stock.", html, StringComparison.Ordinal);
         Assert.Contains(">Needs Reorder<", html, StringComparison.Ordinal);
         Assert.Contains("Items at or below reorder threshold.", html, StringComparison.Ordinal);

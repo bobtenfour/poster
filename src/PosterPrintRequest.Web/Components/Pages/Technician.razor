@@ -3,10 +3,10 @@
 @attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
 @using System.Globalization
 
-<PageTitle>Operations</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<section class="epx-blueignix-home" aria-label="Operations">
-    <PageHeader Kicker="Operations" Title="Dashboard" Subtitle="@Snapshot.PeriodLabel" />
+<section class="epx-blueignix-home" aria-label="Dashboard">
+    <PageHeader Title="Dashboard" Subtitle="@Snapshot.PeriodLabel" />
 
     @if (SearchState == "invalid")
     {
