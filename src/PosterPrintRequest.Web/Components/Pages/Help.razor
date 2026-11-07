@@ -2,98 +2,167 @@
 @attribute [Authorize(Policy = PosterAccess.UserPolicy)]
 @inject NavigationManager Navigation
 
-<PageTitle>Prepare Your Poster</PageTitle>
+<PageTitle>Staff Help</PageTitle>
 
-<section class="epx-blueignix-home" aria-label="Prepare your poster">
-    <PageHeader Kicker="BlueIgnix"
-                Title="Prepare Your Poster"
-                Subtitle="Set the width, length, file, and Approval Sheet before you request printing." />
+<section class="epx-blueignix-home" aria-label="Staff Help">
+    <PageHeader Kicker="UIC Dentistry School"
+                Title="Staff Help"
+                Subtitle="How students and staff prepare a poster and submit a request in this application." />
+
+    <p class="epx-help-audience">Students and staff. Operator procedures are not on this page.</p>
 
     <nav class="epx-help-toc" aria-label="Help topics">
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#getting-started")">Getting started</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#request")">Request</a>
         <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-size")">Size</a>
         <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-file")">File</a>
         <a href="@ApplicationUris.BrowserPath(Navigation, "/help#approval-sheet")">Approval Sheet</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#confirmation")">Confirmation</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#troubleshooting")">Troubleshooting</a>
         <a href="@ApplicationUris.BrowserPath(Navigation, "/help#acceptable-preparation")">Acceptable preparation</a>
-        <a href="@ApplicationUris.BrowserPath(Navigation, "/help#questions")">Questions</a>
     </nav>
 
-    <div class="epx-help-hints">
-        <ContextualHelp Title="Width" TopicHref="/help#poster-size" TopicLabel="Review width">
-            36 inches is the recommended width and the maximum width.
-        </ContextualHelp>
-        <ContextualHelp Title="Length" TopicHref="/help#poster-size" TopicLabel="Review length">
-            72 inches is the recommended length. There is no strict maximum length.
-        </ContextualHelp>
-        <ContextualHelp Title="File" TopicHref="/help#poster-file" TopicLabel="Review the file">
-            Use a PDF with exactly one page, or a PowerPoint file with exactly one slide.
-        </ContextualHelp>
-        <ContextualHelp Title="Approval Sheet" TopicHref="/help#approval-sheet" TopicLabel="Review the Approval Sheet">
-            Some events need a separate Approval Sheet PDF. Others do not.
-        </ContextualHelp>
-    </div>
+    <Panel Id="getting-started" Kicker="Start" Title="Getting started">
+        <ol class="epx-step-list">
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">1</span>
+                <span class="epx-step-copy">
+                    <strong>Open Home</strong>
+                    <span>The staff Home page is the landing page for students and staff.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">2</span>
+                <span class="epx-step-copy">
+                    <strong>Open Request</strong>
+                    <span>Use Request in the staff navigation when you are ready to submit.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">3</span>
+                <span class="epx-step-copy">
+                    <strong>Use this Help page</strong>
+                    <span>Help in the staff navigation stays on this page. It does not open the operator workspace.</span>
+                </span>
+            </li>
+        </ol>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#request")">Next: Request</a>
+        </nav>
+    </Panel>
 
-    <Panel Id="poster-size" Kicker="Size" Title="Width, length, and orientation">
-        <div class="epx-help-media-row">
-            <HelpMedia ImageSrc="@ApplicationUris.BrowserPath(Navigation, "/img/help/BlueIgnix_Poster_Dimensions_Final.png")"
-                       Alt="A poster dimension diagram showing a maximum width of 36 inches and a recommended length of 72 inches, with inches and millimeters marked. The diagram states there is no strict maximum length." />
-            <HelpMedia ImageSrc="@ApplicationUris.BrowserPath(Navigation, "/img/help/BlueIgnix_Poster_Dimensions.png")"
-                       Alt="A poster coming from a wide-format printer with horizontal and vertical dimension annotations showing inches and millimeters." />
-        </div>
+    <Panel Id="request" Kicker="Request" Title="Creating a request">
+        <p>The request form asks for these details. Required fields must be filled before the request can be accepted.</p>
         <div class="epx-fact-grid">
-            <p class="epx-fact epx-fact-recommended">
-                <span class="epx-blueignix-kicker">Recommended width</span>
-                <strong>36 inches</strong>
-                <span>This is the usual width. A poster does not have to be exactly 36 inches wide.</span>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Name, email, phone, room</span>
+                <strong>Required</strong>
+                <span>Each of these fields is required.</span>
             </p>
-            <p class="epx-fact epx-fact-strict">
-                <span class="epx-blueignix-kicker">Maximum width</span>
-                <strong>36 inches</strong>
-                <span>Width is measured across the poster. Wider than 36 inches is not accepted.</span>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Department</span>
+                <strong>Choose one</strong>
+                <span>Select a department from the list. The list starts with “Choose a department.”</span>
             </p>
-            <p class="epx-fact epx-fact-recommended">
-                <span class="epx-blueignix-kicker">Recommended length</span>
-                <strong>72 inches</strong>
-                <span>There is no strict maximum length. We recommend keeping the poster at or below 72 inches for best results.</span>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Mentor</span>
+                <strong>Only when the event requires it</strong>
+                <span>If the selected event requires a mentor, the field says it is required. Otherwise it is not required.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Reason / Event</span>
+                <strong>Optional</strong>
+                <span>Leave “None” when the request is not for an event. Choose an event from the list when it is.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Lamination</span>
+                <strong>Checkbox</strong>
+                <span>Check it only when you want the poster laminated. The operator follows that choice later.</span>
             </p>
         </div>
         <ol class="epx-step-list">
             <li>
                 <span class="epx-step-marker" aria-hidden="true">1</span>
                 <span class="epx-step-copy">
-                    <strong>Set it vertically</strong>
-                    <span>Width runs across. Length runs down.</span>
+                    <strong>Enter the requester details</strong>
+                    <span>Name, email, phone, room, and department come first.</span>
                 </span>
             </li>
             <li>
                 <span class="epx-step-marker" aria-hidden="true">2</span>
                 <span class="epx-step-copy">
-                    <strong>Choose the width</strong>
-                    <span>36 inches is recommended. Stay at or under 36 inches.</span>
+                    <strong>Choose the event, if any</strong>
+                    <span>The mentor field and the Approval Sheet follow the event you select.</span>
                 </span>
             </li>
             <li>
                 <span class="epx-step-marker" aria-hidden="true">3</span>
                 <span class="epx-step-copy">
-                    <strong>Check the length</strong>
-                    <span>There is no strict maximum length. For best results, keep it at or below 72 inches.</span>
+                    <strong>Add the files, then submit</strong>
+                    <span>The poster is checked when you add it. Submit request runs only after the applicable details and files pass.</span>
                 </span>
             </li>
         </ol>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#getting-started")">Previous: Getting started</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-size")">Next: Size</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="poster-size" Kicker="Size" Title="Width, length, and orientation">
+        <figure class="epx-help-figure">
+            <svg class="epx-help-diagram" viewBox="0 0 360 220" role="img" aria-labelledby="size-diagram-title size-diagram-desc">
+                <title id="size-diagram-title">Poster size check</title>
+                <desc id="size-diagram-desc">A rectangle whose shorter side is labeled width, maximum 36 inches, and whose longer side is labeled length, maximum 72 inches.</desc>
+                <rect x="78" y="28" width="120" height="164" fill="none" stroke="currentColor" stroke-width="2" />
+                <line x1="78" y1="206" x2="198" y2="206" stroke="currentColor" stroke-width="1.5" />
+                <text x="138" y="218" text-anchor="middle" fill="currentColor" font-size="12">Width, maximum 36 in</text>
+                <line x1="214" y1="28" x2="214" y2="192" stroke="currentColor" stroke-width="1.5" />
+                <text x="228" y="114" fill="currentColor" font-size="12">Length, maximum 72 in</text>
+            </svg>
+            <figcaption>Diagram of the size check used when a file is added. It is not a photograph of the screen. The application treats the shorter side as width and the longer side as length, whether the file is portrait or landscape.</figcaption>
+        </figure>
+        <div class="epx-fact-grid">
+            <p class="epx-fact epx-fact-strict">
+                <span class="epx-blueignix-kicker">Maximum width</span>
+                <strong>36 inches</strong>
+                <span>The request page calls 36 inches the recommended width. It is also the maximum. Narrower is accepted. Wider is not.</span>
+            </p>
+            <p class="epx-fact epx-fact-strict">
+                <span class="epx-blueignix-kicker">Maximum length</span>
+                <strong>72 inches</strong>
+                <span>Length is the longer side. Longer than 72 inches is not accepted.</span>
+            </p>
+        </div>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#request")">Previous: Request</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-file")">Next: File</a>
+        </nav>
     </Panel>
 
     <Panel Id="poster-file" Kicker="File" Title="PDF or PowerPoint">
         <div class="epx-fact-grid">
             <p class="epx-fact">
                 <span class="epx-blueignix-kicker">PDF</span>
-                <strong>One page</strong>
-                <span>A PDF must contain exactly one page.</span>
+                <strong>Exactly one page</strong>
+                <span>A PDF with more than one page is not accepted.</span>
             </p>
             <p class="epx-fact">
                 <span class="epx-blueignix-kicker">PPTX</span>
-                <strong>One slide</strong>
-                <span>A PowerPoint file must contain exactly one slide.</span>
+                <strong>Exactly one slide</strong>
+                <span>A PowerPoint file with more than one slide is not accepted.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Upload</span>
+                <strong>One file, up to 25 MB</strong>
+                <span>Drop the file or choose it. Choosing another file replaces it. Remove clears it. The check runs when the file is added.</span>
             </p>
         </div>
+        <p>Only PDF and PPTX are accepted for the poster. The request page shows a preflight report for the file you added.</p>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-size")">Previous: Size</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#approval-sheet")">Next: Approval Sheet</a>
+        </nav>
     </Panel>
 
     <Panel Id="approval-sheet" Kicker="Event" Title="Approval Sheet">
@@ -106,57 +175,88 @@
             <p class="epx-fact">
                 <span class="epx-blueignix-kicker">When it applies</span>
                 <strong>Some events</strong>
-                <span>Prepare one only when the selected event requires an Approval Sheet.</span>
+                <span>The Approval Sheet field appears only when the selected event requires one. It must be a PDF, up to 25 MB.</span>
             </p>
             <p class="epx-fact">
                 <span class="epx-blueignix-kicker">When it does not</span>
-                <strong>Leave it out</strong>
-                <span>If the event does not require an Approval Sheet, do not add one.</span>
+                <strong>The field stays hidden</strong>
+                <span>If the event does not require an Approval Sheet, do not add one. A request with no event does not ask for one.</span>
             </p>
         </div>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#poster-file")">Previous: File</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#confirmation")">Next: Confirmation</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="confirmation" Kicker="Accepted" Title="Poster ID and the TDX ticket">
+        <p>The Poster ID appears on the confirmation page after the request is accepted. It looks like POSTER-2026-000001: the word POSTER, the year, and a six-digit number. It is not shown before acceptance.</p>
+        <p>Date in on that page is the time the request was accepted. Lamination is shown as requested or not requested. The event name is shown, or “No event” when none was chosen.</p>
+        <Callout Kicker="TDX" Title="Create the ticket yourself" Tone="info">
+            This application does not create a TDX ticket. The confirmation page asks you to create the ticket and to enter the Poster ID. It also states that the poster will be printed within the next 48 hours.
+        </Callout>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#approval-sheet")">Previous: Approval Sheet</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#troubleshooting")">Next: Troubleshooting</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="troubleshooting" Kicker="Fix" Title="When a submission does not pass">
+        <div class="epx-faq-list">
+            <article class="epx-faq-item">
+                <h3>The file is not a PDF or PPTX</h3>
+                <p>The check says the file is not a PDF or PPTX poster. Export a one-page PDF or a one-slide PPTX and upload it again.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>More than one page or slide</h3>
+                <p>A PDF must contain exactly one page. A PPTX must contain exactly one slide. Remove the extra pages or slides and upload the file again.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Width or length is over the maximum</h3>
+                <p>The shorter side cannot exceed 36 inches. The longer side cannot exceed 72 inches. Resize the file and upload it again.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>The file is too large or empty</h3>
+                <p>Each file must be larger than empty and no larger than 25 MB.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Mentor or Approval Sheet</h3>
+                <p>Enter the mentor when the event requires one. Add the separate Approval Sheet PDF when the event requires one. If the event does not require them, leave them out.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Department or event is not in the list</h3>
+                <p>Choose a department from the list. For the event, choose one from the list or leave it blank. A value that is not in the list is not accepted.</p>
+            </article>
+        </div>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#confirmation")">Previous: Confirmation</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#acceptable-preparation")">Next: Acceptable preparation</a>
+        </nav>
     </Panel>
 
     <Panel Id="acceptable-preparation" Kicker="Check" Title="Acceptable preparation">
         <div class="epx-acceptance-grid">
             <AcceptanceExample Outcome="good" Title="One-page PDF within size">
-                A PDF with exactly one page and width at or under 36 inches. 72 inches is the recommended length.
+                A PDF with exactly one page, shorter side at or under 36 inches, and longer side at or under 72 inches.
             </AcceptanceExample>
             <AcceptanceExample Outcome="good" Title="One-slide PowerPoint within size">
-                A PPTX with exactly one slide and width at or under 36 inches. 72 inches is the recommended length.
+                A PPTX with exactly one slide and the same size limits.
             </AcceptanceExample>
             <AcceptanceExample Outcome="good" Title="Narrower than 36 inches">
-                A poster may be narrower than the recommended 36-inch width. Width still cannot exceed 36 inches.
+                A poster may be narrower than 36 inches. Width still cannot exceed 36 inches, and length still cannot exceed 72 inches.
             </AcceptanceExample>
             <AcceptanceExample Outcome="rejected" Title="More than one page or slide">
                 A PDF with more than one page, or a PowerPoint file with more than one slide, is not accepted.
             </AcceptanceExample>
             <AcceptanceExample Outcome="rejected" Title="Another file type">
-                Only PDF and PPTX are accepted.
+                Only PDF and PPTX are accepted for the poster.
             </AcceptanceExample>
-            <AcceptanceExample Outcome="rejected" Title="Over the maximum width">
-                Width over 36 inches is not accepted. Length has no strict maximum; 72 inches is the recommended length.
+            <AcceptanceExample Outcome="rejected" Title="Over the maximum size">
+                Width over 36 inches is not accepted. Longer than 72 inches is not accepted.
             </AcceptanceExample>
         </div>
-    </Panel>
-
-    <Panel Id="questions" Kicker="Questions" Title="Common questions">
-        <div class="epx-faq-list">
-            <article class="epx-faq-item">
-                <h3>Does the poster have to be exactly 36 inches wide?</h3>
-                <p>No. 36 inches is the usual recommended width and also the maximum. Narrower is accepted. Wider is not.</p>
-            </article>
-            <article class="epx-faq-item">
-                <h3>Which file should I prepare?</h3>
-                <p>A PDF with exactly one page, or a PPTX with exactly one slide.</p>
-            </article>
-            <article class="epx-faq-item">
-                <h3>When do I need an Approval Sheet?</h3>
-                <p>Only when the event requires one. It is a separate PDF from the poster. If the event does not require it, leave it out.</p>
-            </article>
-            <article class="epx-faq-item">
-                <h3>When is the poster printed?</h3>
-                <p>After the request is accepted, the poster is printed within 48 hours. This application does not print it.</p>
-            </article>
-        </div>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/help#troubleshooting")">Previous: Troubleshooting</a>
+        </nav>
     </Panel>
 </section>

@@ -8,13 +8,13 @@
 <section class="epx-blueignix-home" aria-label="Request accepted">
     @if (Details is null)
     {
-        <PageHeader Kicker="BlueIgnix"
+        <PageHeader Kicker="UIC Dentistry School"
                     Title="Request not found"
                     Subtitle="Check the Poster ID and open the confirmation again." />
     }
     else
     {
-        <PageHeader Kicker="BlueIgnix"
+        <PageHeader Kicker="UIC Dentistry School"
                     Title="Request accepted"
                     Subtitle="This poster request is accepted. Create the TDX ticket manually with the Poster ID below." />
 
@@ -47,7 +47,7 @@
 
         <div class="epx-form-actions">
             <a class="epx-button epx-button-primary" href="@ApplicationUris.BrowserPath(Navigation, "/request")">Start another request</a>
-            <a class="epx-button" href="@ApplicationUris.BrowserPath(Navigation, "/help")">Prepare Your Poster</a>
+            <a class="epx-button" href="@ApplicationUris.BrowserPath(Navigation, "/help")">Staff Help</a>
         </div>
     }
 </section>

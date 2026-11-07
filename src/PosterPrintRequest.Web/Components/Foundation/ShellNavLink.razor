@@ -20,6 +20,9 @@
     public string? ExceptPrefix3 { get; set; }
 
     [Parameter]
+    public string? ExceptPrefix4 { get; set; }
+
+    [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     private string CssClass => IsCurrent ? "epx-nav-link active" : "epx-nav-link";
@@ -32,7 +35,7 @@
         {
             var current = CurrentPath();
             var target = Normalize(Href);
-            if (IsExcluded(current, ExceptPrefix) || IsExcluded(current, ExceptPrefix2) || IsExcluded(current, ExceptPrefix3))
+            if (IsExcluded(current, ExceptPrefix) || IsExcluded(current, ExceptPrefix2) || IsExcluded(current, ExceptPrefix3) || IsExcluded(current, ExceptPrefix4))
             {
                 return false;
             }

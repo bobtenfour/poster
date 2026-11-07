@@ -17,7 +17,8 @@ public sealed class FrontendFoundationTests
         Assert.Contains("href=\"#epx-main-content\"", html, StringComparison.Ordinal);
         Assert.Contains("id=\"epx-main-content\"", html, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"Primary\"", html, StringComparison.Ordinal);
-        Assert.Contains("BlueIgnix", html, StringComparison.Ordinal);
+        Assert.Contains("UIC Dentistry School", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("BlueIgnix Poster Print Request System", html, StringComparison.Ordinal);
         Assert.Contains("aria-current=\"page\"", html, StringComparison.Ordinal);
         Assert.Contains(">Home<", html, StringComparison.Ordinal);
         Assert.Contains("Students and staff", html, StringComparison.Ordinal);

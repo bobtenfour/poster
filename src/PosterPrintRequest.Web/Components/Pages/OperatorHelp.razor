@@ -1,0 +1,220 @@
+@page "/technician/help"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@inject NavigationManager Navigation
+
+<PageTitle>Operator Help</PageTitle>
+
+<section class="epx-blueignix-home" aria-label="Operator Help">
+    <PageHeader Kicker="UIC Dentistry School"
+                Title="Operator Help"
+                Subtitle="How the technician workspace finds an accepted request and moves it through the stages that are in this application." />
+
+    <p class="epx-help-audience">Operators. Staff request instructions are not on this page.</p>
+
+    <nav class="epx-help-toc" aria-label="Operator help topics">
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#start")">Dashboard</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#find")">Finding a request</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#review")">Review</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#stages")">Stages</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#storage")">Storage</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#supplies")">Cartridges</a>
+        <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#troubleshooting")">Troubleshooting</a>
+    </nav>
+
+    <Panel Id="start" Kicker="Dashboard" Title="Dashboard">
+        <p>The dashboard is the operator home. It shows counts for pending printing, printed work in the selected period, posters awaiting pickup, and pickup already recorded. The Needs action table lists posters that still have a stage to complete.</p>
+        <div class="epx-fact-grid">
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Queue columns</span>
+                <strong>What the table shows</strong>
+                <span>Poster ID, requester, event or “No event,” current stage, date in, whether lamination was requested, and Open.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Stage names</span>
+                <strong>Receive, Print, Laminate, Notify, Pickup</strong>
+                <span>Laminate appears only when lamination was requested and printing is already recorded.</span>
+            </p>
+        </div>
+        <p>Library, Inventory, and Configuration are separate pages in the operator navigation. This help page does not add actions to those pages.</p>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#find")">Next: Finding a request</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="find" Kicker="Find" Title="Finding a request">
+        <ol class="epx-step-list">
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">1</span>
+                <span class="epx-step-copy">
+                    <strong>Use the Poster ID</strong>
+                    <span>Enter a public Poster ID such as POSTER-2026-000001 in the dashboard search, then choose Find.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">2</span>
+                <span class="epx-step-copy">
+                    <strong>Open the poster</strong>
+                    <span>A match offers Open poster. The Needs action table also has Open on each row. Both open the work page for that Poster ID.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">3</span>
+                <span class="epx-step-copy">
+                    <strong>Read the warning</strong>
+                    <span>An empty or invalid Poster ID asks you to search again. A Poster ID that matches no request says that no request uses it.</span>
+                </span>
+            </li>
+        </ol>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#start")">Previous: Dashboard</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#review")">Next: Review</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="review" Kicker="Review" Title="Requester, files, and Approval Sheet">
+        <p>The work page shows the requester name, department, room, phone, email, mentor or “None,” event or “No event,” date in, and the folder name. The poster file opens from the poster link. When an Approval Sheet was stored, its link is shown. When none was stored, that row is absent.</p>
+        <p>There is no separate reject control on this page. A request is in the workspace because submission checks already passed. The work page completes the current stage, then continues in order.</p>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#find")">Previous: Finding a request</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#stages")">Next: Stages</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="stages" Kicker="Stages" Title="Received, printed, laminated, notified, pickup">
+        <figure class="epx-help-figure">
+            <svg class="epx-help-diagram" viewBox="0 0 640 88" role="img" aria-labelledby="stage-diagram-title stage-diagram-desc">
+                <title id="stage-diagram-title">Operator stages</title>
+                <desc id="stage-diagram-desc">Five stages in order: Receive, Print, Laminate when requested, Notify, and Pickup.</desc>
+                <g fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="8" y="24" width="104" height="36" />
+                    <rect x="136" y="24" width="104" height="36" />
+                    <rect x="264" y="24" width="104" height="36" />
+                    <rect x="392" y="24" width="104" height="36" />
+                    <rect x="520" y="24" width="104" height="36" />
+                    <path d="M112 42 H136 M240 42 H264 M368 42 H392 M496 42 H520" />
+                </g>
+                <g fill="currentColor" font-size="13" text-anchor="middle">
+                    <text x="60" y="46">Receive</text>
+                    <text x="188" y="46">Print</text>
+                    <text x="316" y="46">Laminate</text>
+                    <text x="444" y="46">Notify</text>
+                    <text x="572" y="46">Pickup</text>
+                </g>
+            </svg>
+            <figcaption>Diagram of the stage order on the work page. Laminate is skipped when lamination was not requested. Each box is the button the page shows for the current stage, not a new action.</figcaption>
+        </figure>
+        <ol class="epx-step-list">
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">1</span>
+                <span class="epx-step-copy">
+                    <strong>Receive</strong>
+                    <span>Enter the date received, then Take this request. The signed-in technician is recorded. A request that already has a received date cannot be received again. The date is required.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">2</span>
+                <span class="epx-step-copy">
+                    <strong>Print</strong>
+                    <span>Mark printed is available only after the request has been received. It records printing and moves the poster folder from the to-be-printed location to the printed location. Printing cannot be marked twice.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">3</span>
+                <span class="epx-step-copy">
+                    <strong>Laminate, only when requested</strong>
+                    <span>Mark laminated appears only when the requester asked for lamination, and only after printing is recorded. If lamination was not requested, the page does not offer that stage.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">4</span>
+                <span class="epx-step-copy">
+                    <strong>Notify</strong>
+                    <span>Mark notified is available after printing, and after lamination when lamination was requested. The page records that the requester was notified. It does not send the notice by itself.</span>
+                </span>
+            </li>
+            <li>
+                <span class="epx-step-marker" aria-hidden="true">5</span>
+                <span class="epx-step-copy">
+                    <strong>Pickup</strong>
+                    <span>Record pickup asks for the date out and who picked the poster up. Both are required. After pickup is recorded, the page says pickup is complete.</span>
+                </span>
+            </li>
+        </ol>
+        <p>Comments can be entered on each stage. They are optional.</p>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#review")">Previous: Review</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#storage")">Next: Storage</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="storage" Kicker="Folders" Title="Where accepted files are stored">
+        <div class="epx-fact-grid">
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">No event</span>
+                <strong>WITHOUT-EVENT TO BE PRINTED</strong>
+                <span>Then the year, then a folder named with the requester and the Poster ID. The poster file is Poster.pdf or Poster.pptx.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">Event</span>
+                <strong>EVENTS, then the event and year</strong>
+                <span>The event folder ends with TO BE PRINTED. Inside it, the requester and Poster ID folder holds the poster. An Approval Sheet is stored as Approval-Sheet.pdf only when the event required one.</span>
+            </p>
+            <p class="epx-fact">
+                <span class="epx-blueignix-kicker">After printing</span>
+                <strong>The folder moves</strong>
+                <span>Mark printed changes TO BE PRINTED to PRINTED for that poster’s folder. The file names stay Poster.pdf, Poster.pptx, and Approval-Sheet.pdf.</span>
+            </p>
+        </div>
+        <p>The work page shows the folder name for the open request. This page does not show a disk path.</p>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#stages")">Previous: Stages</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#supplies")">Next: Cartridges</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="supplies" Kicker="Printer" Title="Cartridge readings">
+        <p>The dashboard card Printer cartridges shows the ink remaining in each installed cartridge. The six names are Gray, Photo black, Matte black, Yellow, Magenta, and Cyan. The percentage is the reading for that cartridge. Photo black and Matte black are drawn differently so they can be told apart.</p>
+        <p>When the reading does not contain those six cartridges, the card shows Printer unavailable and does not show levels. The card does not show the printer address or the page that was read.</p>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#storage")">Previous: Storage</a>
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#troubleshooting")">Next: Troubleshooting</a>
+        </nav>
+    </Panel>
+
+    <Panel Id="troubleshooting" Kicker="Fix" Title="When a stage does not continue">
+        <div class="epx-faq-list">
+            <article class="epx-faq-item">
+                <h3>No request uses that Poster ID</h3>
+                <p>The value must be a public Poster ID, POSTER, a year, and six digits. Check the confirmation the requester received and search again.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>This request has already been received</h3>
+                <p>Receive can be recorded once. Continue with Print.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Mark the poster received before continuing</h3>
+                <p>Print stays closed until a date received is saved.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>The poster could not be moved to the printed folder</h3>
+                <p>Mark printed did not finish the folder move, so printing was not recorded. Leave the files where they are and try Mark printed again after the folder can be moved.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Lamination was not requested</h3>
+                <p>The laminate stage is not used for that poster. Continue with Notify after printing.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Mark lamination before continuing</h3>
+                <p>When lamination was requested, Notify stays closed until Mark laminated has been recorded.</p>
+            </article>
+            <article class="epx-faq-item">
+                <h3>Printer unavailable</h3>
+                <p>The cartridge card shows this when six cartridge readings are not available. It does not show partial levels.</p>
+            </article>
+        </div>
+        <nav class="epx-help-pager" aria-label="Topic navigation">
+            <a href="@ApplicationUris.BrowserPath(Navigation, "/technician/help#supplies")">Previous: Cartridges</a>
+        </nav>
+    </Panel>
+</section>

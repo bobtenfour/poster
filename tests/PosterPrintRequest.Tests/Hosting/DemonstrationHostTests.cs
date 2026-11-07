@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PosterPrintRequest.Infrastructure.Persistence;
 using PosterPrintRequest.Web;
 
 namespace PosterPrintRequest.Tests.Hosting;
@@ -62,7 +63,12 @@ public sealed class DemonstrationHostTests
 
     private sealed class DemonstrationFactory : WebApplicationFactory<Program>
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
             builder.UseEnvironment("Demo");
+            builder.UseSetting(
+                $"ConnectionStrings:{PersistenceServiceCollectionExtensions.ConnectionStringName}",
+                LocalDevelopmentConfiguration.ConnectionString());
+        }
     }
 }

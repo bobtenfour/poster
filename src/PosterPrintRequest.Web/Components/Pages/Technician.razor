@@ -41,6 +41,53 @@
             </div>
             <a class="epx-button epx-button-secondary" href="@ApplicationUris.BrowserPath(Navigation, "/technician/inventory")">View Inventory <span class="epx-supply-chevron" aria-hidden="true">›</span></a>
         </header>
+        <div class="epx-ink" id="printer-ink-process" aria-labelledby="printer-ink-process-title">
+            <div class="epx-ink-heading">
+                <h3 id="printer-ink-process-title">Printer cartridges</h3>
+                <p>Current ink remaining in each installed cartridge.</p>
+            </div>
+            @if (InkProbe.Cartridges.Count == 6)
+            {
+                <ul class="epx-ink-list">
+                    @for (var index = 0; index < InkProbe.Cartridges.Count; index++)
+                    {
+                        var cartridge = InkProbe.Cartridges[index];
+                        var percent = cartridge.Percent.ToString(CultureInfo.InvariantCulture);
+                        var fillHeight = (58d * cartridge.Percent / 100d).ToString("0.##", CultureInfo.InvariantCulture);
+                        var fillY = (100d - 58d * cartridge.Percent / 100d).ToString("0.##", CultureInfo.InvariantCulture);
+                        <li class="epx-ink-cartridge" data-ink="@cartridge.Name" data-level="@percent">
+                            <svg class="epx-ink-svg" viewBox="0 0 72 128" aria-hidden="true">
+                                <defs>
+                                    <clipPath id="epx-ink-well-@index">
+                                        <rect x="20" y="42" width="32" height="58" rx="2" />
+                                    </clipPath>
+                                </defs>
+                                <path class="epx-ink-case" d="M32 6h8a2 2 0 0 1 2 2v6h-12V8a2 2 0 0 1 2-2z" />
+                                <path class="epx-ink-case" d="M24 14h24a3 3 0 0 1 3 3v9H21v-9a3 3 0 0 1 3-3z" />
+                                <path class="epx-ink-case" d="M21 26h30l7 10H14z" />
+                                <path class="epx-ink-case" d="M14 36h44a4 4 0 0 1 4 4v60a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6V40a4 4 0 0 1 4-4z" />
+                                <g clip-path="url(#epx-ink-well-@index)">
+                                    <rect class="epx-ink-level" x="20" y="@fillY" width="32" height="@fillHeight" />
+                                    @if (cartridge.Name == "Photo black" && cartridge.Percent > 0)
+                                    {
+                                        <rect class="epx-ink-sheen" x="23" y="@fillY" width="5" height="@fillHeight" />
+                                    }
+                                </g>
+                                <rect class="epx-ink-window" x="20" y="42" width="32" height="58" rx="2" />
+                                <rect class="epx-ink-contact" x="24" y="110" width="8" height="8" rx="1.2" />
+                                <rect class="epx-ink-contact" x="40" y="110" width="8" height="8" rx="1.2" />
+                            </svg>
+                            <span class="epx-ink-percent">@percent%</span>
+                            <span class="epx-ink-name">@cartridge.Name</span>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="epx-ink-unavailable" id="printer-ink-unavailable">Printer unavailable</p>
+            }
+        </div>
         <div class="epx-supply-cards">
             <article class="epx-supply-summary epx-supply-summary-reorder">
                 <header class="epx-supply-summary-header">

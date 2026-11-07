@@ -37,6 +37,8 @@ builder.Services.AddScoped<ITechnicianLibrary, TechnicianLibrary>();
 builder.Services.AddScoped<PrintFolderMigration>();
 builder.Services.AddScoped<IPrintingInventory, PrintingInventory>();
 builder.Services.AddScoped<IOperatorConfiguration, OperatorConfiguration>();
+builder.Services.AddSingleton(services =>
+    new PrinterSupplies(services.GetRequiredService<IConfiguration>(), PrinterSupplies.CreateClient()));
 
 if (!builder.Environment.IsDevelopment())
 {

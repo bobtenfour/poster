@@ -20,6 +20,7 @@ public sealed class WorkflowDatabaseFixture : IDisposable
     {
         var configuration = new ConfigurationBuilder()
             .AddJsonFile(Path.Combine(RepositoryPaths.WebProjectDirectory(), "appsettings.json"), optional: false)
+            .AddJsonFile(Path.Combine(RepositoryPaths.WebProjectDirectory(), "appsettings.Development.json"), optional: false)
             .Build();
 
         var configured = configuration.GetConnectionString(PersistenceServiceCollectionExtensions.ConnectionStringName);

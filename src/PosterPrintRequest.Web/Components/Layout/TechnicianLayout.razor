@@ -8,9 +8,9 @@
 <div class="epx-shell">
     <header class="epx-shell-header">
         <nav class="epx-nav-primary" aria-label="Technician">
-            <a class="epx-brand" href="@ApplicationUris.BrowserPath(Navigation, InstitutionalEntry.OperatorHome)" aria-label="BlueIgnix Technician Workspace">
+            <a class="epx-brand" href="@ApplicationUris.BrowserPath(Navigation, InstitutionalEntry.OperatorHome)" aria-label="UIC Dentistry School Technician Workspace">
                 <span class="epx-blueignix-brand-copy">
-                    <span class="epx-blueignix-brand-owner">BlueIgnix</span>
+                    <span class="epx-blueignix-brand-owner">UIC Dentistry School</span>
                     <span class="epx-blueignix-brand-product">Technician workspace</span>
                 </span>
             </a>
@@ -19,7 +19,7 @@
                 <label class="epx-nav-toggle" for="epx-tech-nav-menu">Menu</label>
                 <ul class="epx-nav-list">
                     <li>
-                        <ShellNavLink Href="/technician" ExceptPrefix="/technician/library" ExceptPrefix2="/technician/inventory" ExceptPrefix3="/technician/configuration">Dashboard</ShellNavLink>
+                        <ShellNavLink Href="/technician" ExceptPrefix="/technician/library" ExceptPrefix2="/technician/inventory" ExceptPrefix3="/technician/configuration" ExceptPrefix4="/technician/help">Dashboard</ShellNavLink>
                     </li>
                     <li>
                         <ShellNavLink Href="/technician/library">Library</ShellNavLink>
@@ -29,6 +29,9 @@
                     </li>
                     <li>
                         <ShellNavLink Href="/technician/configuration">Configuration</ShellNavLink>
+                    </li>
+                    <li>
+                        <ShellNavLink Href="/technician/help">Help</ShellNavLink>
                     </li>
                     @if (AlsoRequester)
                     {
@@ -55,7 +58,7 @@
             @Body
         </main>
         <footer class="epx-footer">
-            <p>BlueIgnix Technician Workspace</p>
+            <p>UIC Dentistry School Technician Workspace</p>
         </footer>
     </div>
 </div>

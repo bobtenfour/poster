@@ -153,6 +153,9 @@ public sealed class DemoDeploymentTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Demo");
+            builder.UseSetting(
+                $"ConnectionStrings:{PersistenceServiceCollectionExtensions.ConnectionStringName}",
+                LocalDevelopmentConfiguration.ConnectionString());
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>

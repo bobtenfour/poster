@@ -56,4 +56,23 @@ public sealed class PersistenceRegistrationTests
         Assert.Contains("Database=POSTER", PosterSqlConnection.Require(integrated, requireIntegratedAuthentication: true), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Password=secret", PosterSqlConnection.Require(sqlPassword, requireIntegratedAuthentication: false), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Local_sql_stays_in_development_configuration()
+    {
+        var web = RepositoryPaths.WebProjectDirectory();
+        var production = File.ReadAllText(Path.Combine(web, "appsettings.json"));
+        var development = File.ReadAllText(Path.Combine(web, "appsettings.Development.json"));
+
+        Assert.DoesNotContain("ConnectionStrings", production, StringComparison.Ordinal);
+        Assert.DoesNotContain("Server=localhost", production, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Password", production, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("\"PosterPrintRequest\"", development, StringComparison.Ordinal);
+        Assert.Contains("Server=localhost", development, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Database=PosterPrintRequest", development, StringComparison.Ordinal);
+        Assert.Contains("Integrated Security=True", development, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Password", development, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("User Id", development, StringComparison.OrdinalIgnoreCase);
+    }
 }

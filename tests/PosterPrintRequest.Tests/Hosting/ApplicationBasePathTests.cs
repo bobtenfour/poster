@@ -86,8 +86,10 @@ public sealed class ApplicationBasePathTests
         var help = await client.GetAsync("/PosterPrintRequest/help");
         help.EnsureSuccessStatusCode();
         var helpHtml = await help.Content.ReadAsStringAsync();
-        Assert.Contains("src=\"/PosterPrintRequest/img/help/BlueIgnix_Poster_Dimensions_Final.png\"", helpHtml, StringComparison.Ordinal);
-        Assert.Contains("src=\"/PosterPrintRequest/img/help/BlueIgnix_Poster_Dimensions.png\"", helpHtml, StringComparison.Ordinal);
+        Assert.Contains("UIC Dentistry School", helpHtml, StringComparison.Ordinal);
+        Assert.Contains("Staff Help", helpHtml, StringComparison.Ordinal);
+        Assert.Contains("href=\"/PosterPrintRequest/help#poster-size\"", helpHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("/technician/help", helpHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("src=\"/img/", helpHtml, StringComparison.Ordinal);
 
         foreach (var image in new[]

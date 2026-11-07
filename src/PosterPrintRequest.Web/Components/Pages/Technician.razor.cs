@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Configuration;
 using PosterPrintRequest.Web.Requests;
 
 namespace PosterPrintRequest.Web.Components.Pages;
@@ -23,7 +24,12 @@ public partial class Technician : ComponentBase
     [Inject]
     private ITechnicianWorkflow Workflow { get; set; } = null!;
 
+    [Inject]
+    private IServiceProvider ApplicationServices { get; set; } = null!;
+
     private TechnicianDashboardSnapshot Snapshot { get; set; } = Empty();
+
+    private PrinterInkProbe.Reading InkProbe { get; set; } = PrinterInkProbe.Reading.Empty;
 
     private ConsumableAttention Attention { get; set; } = EmptyAttention();
 
@@ -47,6 +53,9 @@ public partial class Technician : ComponentBase
 
         Snapshot = await Dashboard.LoadAsync(year, month, CancellationToken.None);
         Attention = await Inventory.CriticalAlertsAsync(CancellationToken.None);
+        InkProbe = await PrinterInkProbe.ReadAsync(
+            ApplicationServices.GetService(typeof(IConfiguration)) as IConfiguration,
+            CancellationToken.None);
         if (string.IsNullOrWhiteSpace(PosterIdQuery))
         {
             return;
