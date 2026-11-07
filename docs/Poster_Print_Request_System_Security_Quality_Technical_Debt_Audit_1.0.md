@@ -3,7 +3,7 @@
 **Date:** 14 October 2026  
 **Baseline commit:** `a779913823b8cfc8637865a804bc06ec62572526` (`Improve Printing Supplies dashboard`)  
 **Activity:** Audit only. No application code, tests, contracts, dependencies, configuration, schema, roadmap status, or deployment artifacts were changed by this audit.  
-**Governing order and status:** `docs/Poster_Print_Request_System_Roadmap_v4_Inventory_DirectPrinting.docx` remains the sole authority for implementation order and status. This report does not promote a phase, authorize a schema change, or amend a contract.
+**Governing order and status:** `docs/Poster_Print_Request_System_Roadmap_v4_Inventory.docx` remains the sole authority for implementation order and status. This report does not promote a phase, authorize a schema change, or amend a contract.
 
 The governing contracts in `docs/` are Word documents. This audit is Markdown so the evidence and file references stay reviewable as text. It does not replace those contracts.
 
@@ -25,7 +25,7 @@ Stock changes are last-write-wins. Poster acceptance and the printed transition 
 
 - Solution `PosterPrintRequest.sln`: Domain, Infrastructure, Web, and Tests.
 - Identity, authorization, uploads, preflight, storage, poster acceptance, printed-state transitions, inventory mutations, configuration, migrations, Docker demo deployment, and Caddy site snippet.
-- Governing text: roadmap v4 (inventory / direct printing), Shared Storage Contract v1, and Printing Consumables Inventory Presentation Contract v1. The older bilingual file is Version 3.0 and is not authority for order or status.
+- Governing text: roadmap v4 (inventory), Shared Storage Contract v1, and Printing Consumables Inventory Presentation Contract v1. The older bilingual file is Version 3.0 and is not authority for order or status.
 
 ### Out of scope
 
@@ -325,7 +325,6 @@ These are observations, not a certification.
 - Printed transition moves the directory first, then saves `Printed` and the new paths, and moves the directory back if the save fails or the destination is not settled (`TechnicianWorkflow.cs` lines 172–214). `PrintFolderTests` covers the save-failure restore. The shared-storage contract’s resting pairs are implemented on that path.
 - The library listing allows only the print-folder shape and skips reparse points (`TechnicianLibrary.cs`). Tests keep drafts and paths outside the root out of the listing.
 - Departments and reasons that are referenced by a request cannot be deleted. Submit copies `DepartmentName` and `ReasonName` onto the request. Rename does not rewrite that snapshot.
-- Direct-print submission was not found. Phase 11 remains experimental and disabled by default. This audit did not treat absence of a symbol named `PrintJob` as a complete proof; no print-queue client appeared in the web or domain projects that were read.
 - The printing-supplies dashboard reads `ConsumableStock` and `ExpirationAlert`. The presentation contract forbids the dashboard from inventing threshold rules. The current projection uses the existing low-stock and expiration results.
 - The web container entrypoint checks the database name and storage root, then starts the process as `app` (`docker/web-entrypoint.sh` lines 18–39). The published port is loopback. The migrate container runs as root for one shot; that is normal for the SDK image and still holds the SQL password in its environment.
 - Application code does not call `Database.Migrate`. The migrate service is the migration owner. One migration runs a bounded SQL update to backfill department and reason names (`20261008032642_ProtectConfigurationHistory.cs` lines 32–43). No other `FromSql` or `ExecuteSql` call was found.
@@ -492,7 +491,7 @@ Do these as separate, authorized changes. Nothing here promotes a roadmap phase 
 These were left in place:
 
 - This report: `docs/Poster_Print_Request_System_Security_Quality_Technical_Debt_Audit_1.0.md`
-- Extracted contract text, outside the repository: `C:\Users\btfre\AppData\Local\Temp\poster-audit-docs\` (`Poster_Print_Request_System_Roadmap_v4_Inventory_DirectPrinting.docx.txt`, `Shared_Storage_Contract_v1.docx.txt`, `Printing_Consumables_Inventory_Presentation_Contract_v1.docx.txt`)
+- Extracted contract text, outside the repository: `C:\Users\btfre\AppData\Local\Temp\poster-audit-docs\` (`Poster_Print_Request_System_Roadmap_v4_Inventory.docx.txt`, `Shared_Storage_Contract_v1.docx.txt`, `Printing_Consumables_Inventory_Presentation_Contract_v1.docx.txt`)
 - Release build outputs under the projects’ `bin` and `obj` directories, from the analyzer build and the test run
 - NuGet HTTP cache used by `dotnet list package`
 - The three local test databases named in section 3 were created and then deleted by the existing fixtures
