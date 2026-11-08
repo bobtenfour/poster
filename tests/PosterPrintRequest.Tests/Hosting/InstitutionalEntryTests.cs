@@ -103,47 +103,36 @@ public sealed class InstitutionalEntryHttpTests
     }
 
     [Fact]
-    public async Task Group_lookup_failure_denies_access()
+    public async Task Identity_without_a_role_is_denied()
     {
-        using var factory = new PosterWebApplicationFactory().WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<IInstitutionalGroupVerifier>();
-                services.AddSingleton<IInstitutionalGroupVerifier, ThrowingGroupVerifier>();
-            });
-        });
-        using var client = await PosterSignIn.SignInAsync(factory, "both");
+        using var factory = new PosterWebApplicationFactory();
+        using var client = await PosterSignIn.SignInAsync(factory, "neither");
 
         var response = await client.GetAsync("/");
 
         Assert.Contains("/Account/AccessDenied", response.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("not in an authorized group", html, StringComparison.Ordinal);
+        Assert.Contains("has not been assigned the Requester or Technician role", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Authenticated_identity_without_a_windows_token_is_denied()
+    public async Task Identity_with_only_group_or_misplaced_role_claims_is_denied()
     {
-        using var factory = new PosterWebApplicationFactory().WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<IInstitutionalGroupVerifier>();
-                services.AddSingleton<IInstitutionalGroupVerifier, WindowsGroupVerifier>();
-                services.RemoveAll<IInstitutionalActorSource>();
-                services.AddSingleton<IInstitutionalActorSource, WindowsActorSource>();
-            });
-        });
-        using var client = await PosterSignIn.SignInAsync(factory, "both");
+        using var factory = new PosterWebApplicationFactory();
+        using var client = await PosterSignIn.SignInAsync(factory, "neither");
+        client.DefaultRequestHeaders.Add(
+            InstitutionalTestHandler.ExtraClaimsHeader,
+            "groups=" + InstitutionalGroups.Technicians + ";groups=" + InstitutionalGroups.Requesters
+            + ";" + ClaimTypes.Role + "=" + PosterRoles.Technician
+            + ";" + ClaimTypes.Role + "=" + PosterRoles.Requester);
 
         var response = await client.GetAsync("/staff");
 
         Assert.Contains("/Account/AccessDenied", response.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("not in an authorized group", html, StringComparison.Ordinal);
+        Assert.Contains("has not been assigned the Requester or Technician role", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
     }
@@ -153,8 +142,8 @@ public sealed class InstitutionalEntryHttpTests
     {
         using var factory = new PosterWebApplicationFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        client.DefaultRequestHeaders.Add(InstitutionalTestHandler.AccountHeader, @"DEMO\missing");
-        client.DefaultRequestHeaders.Add(InstitutionalTestHandler.SidHeader, "not-a-sid");
+        client.DefaultRequestHeaders.Add(InstitutionalTestHandler.OidHeader, "not-an-object-identifier");
+        client.DefaultRequestHeaders.Add(InstitutionalTestHandler.UsernameHeader, "missing@test.example");
 
         var response = await client.GetAsync("/");
         var html = await response.Content.ReadAsStringAsync();
@@ -163,11 +152,5 @@ public sealed class InstitutionalEntryHttpTests
         Assert.DoesNotContain("Personal activity", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Posters pending printing", html, StringComparison.Ordinal);
         Assert.DoesNotContain("type=\"password\"", html, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private sealed class ThrowingGroupVerifier : IInstitutionalGroupVerifier
-    {
-        public bool IsMember(ClaimsPrincipal principal, string groupName) =>
-            throw new InvalidOperationException("Group directory unavailable.");
     }
 }

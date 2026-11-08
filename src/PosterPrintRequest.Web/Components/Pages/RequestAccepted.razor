@@ -2,11 +2,18 @@
 @attribute [Authorize(Policy = PosterAccess.UserPolicy)]
 @inject NavigationManager Navigation
 @using System.Globalization
+@using PosterPrintRequest.Web.Requests
 
 <PageTitle>Request accepted</PageTitle>
 
 <section class="epx-blueignix-home" aria-label="Request accepted">
-    @if (Details is null)
+    @if (HistoricalRequestNotLinked)
+    {
+        <PageHeader Kicker="UIC Dentistry School"
+                    Title="Request not available"
+                    Subtitle="@AcceptanceLookup.HistoricalNotLinkedMessage" />
+    }
+    else if (Details is null)
     {
         <PageHeader Kicker="UIC Dentistry School"
                     Title="Request not found"

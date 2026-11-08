@@ -94,7 +94,7 @@ public sealed class TechnicianDashboardTests
             var printing = await workflowContext.PosterRequests.Include(request => request.PosterFile).SingleAsync(request => request.PosterId == "POSTER-2026-000810");
             printing.PosterFile.StoragePath = "WITHOUT-EVENT TO BE PRINTED/2026/Queue Person - POSTER-2026-000810/Poster.pdf";
             await workflowContext.SaveChangesAsync();
-            var storage = new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = root }), new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = root })));
+            var storage = new AcceptedStorage(TestStorage.Access(root), new DraftFileStore(TestStorage.Access(root)));
             var workflow = new TechnicianWorkflow(workflowContext, NullLogger<TechnicianWorkflow>.Instance, storage);
             Assert.True((await workflow.MarkPrintedAsync("POSTER-2026-000810", "On the plotter", CancellationToken.None)).Completed);
             Assert.False(Directory.Exists(folder));

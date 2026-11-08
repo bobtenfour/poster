@@ -63,20 +63,26 @@ public sealed class AcceptanceRulesTests : IDisposable
     {
         var secret = Path.Combine(_parent, "secret.pdf");
         File.WriteAllText(secret, "secret");
-        var storage = new AcceptedStorage(
-            Options.Create(new SharedStorageOptions { RootPath = _root }),
-            new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = _root })));
+        var access = TestStorage.Access(_root);
+        var storage = new AcceptedStorage(access, new DraftFileStore(access));
 
-        var resolved = storage.Resolve("WITHOUT-EVENT/2026/Ada Lovelace - POSTER-2026-000001/Poster.pdf");
-        Assert.NotNull(resolved);
-        Assert.StartsWith(_root, resolved, StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith(
-            Path.Combine("WITHOUT-EVENT", "2026", "Ada Lovelace - POSTER-2026-000001", "Poster.pdf"),
-            resolved,
-            StringComparison.OrdinalIgnoreCase);
-        Assert.Null(storage.Resolve("../secret.pdf"));
-        Assert.Null(storage.Resolve("/secret.pdf"));
-        Assert.Null(storage.Resolve(@"C:\secret.pdf"));
+        const string directory = "WITHOUT-EVENT/2026/Ada Lovelace - POSTER-2026-000001";
+        access.CreateDirectory(directory);
+        using (var written = access.OpenWrite(directory + "/Poster.pdf"))
+        {
+            written.WriteByte(1);
+        }
+
+        Assert.True(access.FileExists(directory + "/Poster.pdf"));
+        Assert.True(File.Exists(Path.Combine(
+            _root, "WITHOUT-EVENT", "2026", "Ada Lovelace - POSTER-2026-000001", "Poster.pdf")));
+        foreach (var rejected in new[] { "../secret.pdf", "/secret.pdf", @"C:\secret.pdf" })
+        {
+            Assert.False(access.FileExists(rejected));
+            Assert.Throws<StorageFailureException>(() => access.OpenRead(rejected));
+            Assert.Throws<StorageFailureException>(() => access.DeleteFile(rejected));
+        }
+
         storage.DeletePlacement("../secret.pdf");
         Assert.Equal("secret", File.ReadAllText(secret));
     }
@@ -84,8 +90,8 @@ public sealed class AcceptanceRulesTests : IDisposable
     [Fact]
     public async Task Accepted_placement_uses_the_event_year_or_without_event_year()
     {
-        var files = new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = _root }));
-        var storage = new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), files);
+        var files = new DraftFileStore(TestStorage.Access(_root));
+        var storage = new AcceptedStorage(TestStorage.Access(_root), files);
         var poster = SamplePosters.Pdf(24, 36);
         var sheet = SamplePosters.Pdf(8.5m, 11m);
         var draftId = DraftIds.Create();
@@ -106,9 +112,9 @@ public sealed class AcceptanceRulesTests : IDisposable
         Assert.Null(error);
         Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/Poster.pdf", placed!.PosterRelative);
         Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/Approval-Sheet.pdf", placed.ApprovalRelative);
-        Assert.Equal(poster, await File.ReadAllBytesAsync(storage.Resolve(placed.PosterRelative)!));
-        Assert.Equal(sheet, await File.ReadAllBytesAsync(storage.Resolve(placed.ApprovalRelative)!));
-        Assert.Empty(Directory.EnumerateFiles(storage.Resolve(placed.DirectoryRelative)!, "*.txt"));
+        Assert.Equal(poster, await File.ReadAllBytesAsync(Path.Combine(_root, placed.PosterRelative)));
+        Assert.Equal(sheet, await File.ReadAllBytesAsync(Path.Combine(_root, placed.ApprovalRelative!)));
+        Assert.Empty(Directory.EnumerateFiles(Path.Combine(_root, placed.DirectoryRelative), "*.txt"));
 
         var openDraft = DraftIds.Create();
         var slides = SamplePosters.Pptx(20, 30);
@@ -126,7 +132,7 @@ public sealed class AcceptanceRulesTests : IDisposable
             out _));
         Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2026/Ada Lovelace - POSTER-2026-000005/Poster.pptx", withoutEvent!.PosterRelative);
         Assert.Null(withoutEvent.ApprovalRelative);
-        var withoutDirectory = storage.Resolve(withoutEvent.DirectoryRelative)!;
+        var withoutDirectory = Path.Combine(_root, withoutEvent.DirectoryRelative);
         Assert.Equal(slides, await File.ReadAllBytesAsync(Path.Combine(withoutDirectory, StorageNames.PosterPptx)));
         Assert.False(File.Exists(Path.Combine(withoutDirectory, StorageNames.ApprovalSheet)));
         Assert.Empty(Directory.EnumerateFiles(withoutDirectory, "*.txt"));

@@ -123,8 +123,8 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             return TechnicianOutcome.Failure("Enter the date received.");
         }
 
-        request.PosterProcessing.ProcessedByAccountName = actor.AccountName;
-        request.PosterProcessing.ProcessedBySecurityIdentifier = actor.SecurityIdentifier;
+        request.PosterProcessing.ProcessedByObjectId = actor.ObjectId;
+        request.PosterProcessing.ProcessedByAccountName = actor.PreferredUsername;
         request.PosterProcessing.Received = received;
         ApplyComments(request.PosterProcessing, comments);
         return await SaveStageAsync(request, "Received", cancellationToken);

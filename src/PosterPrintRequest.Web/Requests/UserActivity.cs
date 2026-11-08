@@ -10,10 +10,10 @@ public static class UserActivityQuery
         InstitutionalActor actor,
         CancellationToken cancellationToken)
     {
+        await HistoricalLinking.LinkAsync(db, actor, cancellationToken);
         var posters = await db.PosterRequests
             .AsNoTracking()
-            .Where(request => request.SubmittedBySecurityIdentifier == actor.SecurityIdentifier
-                || (request.SubmittedBySecurityIdentifier == null && request.SubmittedByAccountName == actor.AccountName))
+            .Where(request => request.SubmittedByObjectId == actor.ObjectId)
             .OrderByDescending(request => request.DateIn)
             .Select(request => new UserPosterActivity(
                 request.PosterId,

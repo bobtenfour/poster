@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using PosterPrintRequest.Infrastructure.Storage;
 
 namespace PosterPrintRequest.Web.Requests;
@@ -14,50 +13,13 @@ public sealed class AcceptedPlacement
 
 public sealed class AcceptedStorage
 {
-    private readonly SharedStorageOptions _storage;
+    private readonly ISharedStorageAccess _access;
     private readonly DraftFileStore _drafts;
 
-    public AcceptedStorage(IOptions<SharedStorageOptions> storage, DraftFileStore drafts)
+    public AcceptedStorage(ISharedStorageAccess access, DraftFileStore drafts)
     {
-        _storage = storage.Value;
+        _access = access;
         _drafts = drafts;
-    }
-
-    public string? Resolve(string? relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath) || string.IsNullOrWhiteSpace(_storage.RootPath))
-        {
-            return null;
-        }
-
-        var normalized = relativePath.Replace('\\', '/').Trim();
-        if (normalized.StartsWith('/') || normalized.Contains(':'))
-        {
-            return null;
-        }
-
-        var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0
-            || segments.Any(segment => segment is "." or ".." || segment.Contains("..", StringComparison.Ordinal)))
-        {
-            return null;
-        }
-
-        var root = Path.GetFullPath(_storage.RootPath);
-        var combined = root;
-        foreach (var segment in segments)
-        {
-            combined = Path.Combine(combined, segment);
-        }
-
-        var full = Path.GetFullPath(combined);
-        var prefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return full;
     }
 
     public bool TryPlace(
@@ -104,9 +66,8 @@ public sealed class AcceptedStorage
             relativeDirectory = $"{StorageNames.Events}/{eventFolder}{PrintFolderPaths.ToBePrintedSuffix}/{posterFolder}";
         }
 
-        var directoryFull = Resolve(relativeDirectory);
         var posterSource = _drafts.PosterPath(draftId);
-        if (directoryFull is null || posterSource is null)
+        if (posterSource is null)
         {
             error = "The files could not be stored. Choose them again.";
             return false;
@@ -129,16 +90,16 @@ public sealed class AcceptedStorage
 
         try
         {
-            if (Directory.Exists(directoryFull))
+            if (_access.DirectoryExists(relativeDirectory))
             {
-                Directory.Delete(directoryFull, recursive: true);
+                _access.DeleteDirectory(relativeDirectory);
             }
 
-            Directory.CreateDirectory(directoryFull);
-            File.Copy(posterSource, Path.Combine(directoryFull, posterName), overwrite: false);
+            _access.CreateDirectory(relativeDirectory);
+            _access.CopyFile(posterSource, posterRelative);
             if (approvalSource is not null)
             {
-                File.Copy(approvalSource, Path.Combine(directoryFull, StorageNames.ApprovalSheet), overwrite: false);
+                _access.CopyFile(approvalSource, approvalRelative!);
             }
         }
         catch (IOException)
@@ -159,52 +120,53 @@ public sealed class AcceptedStorage
 
     public bool TryMoveDirectory(string? sourceRelative, string? destinationRelative)
     {
-        var source = Resolve(sourceRelative);
-        var destination = Resolve(destinationRelative);
+        var source = Normalize(sourceRelative);
+        var destination = Normalize(destinationRelative);
         if (source is null || destination is null || string.Equals(source, destination, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!Directory.Exists(source) || IsReparsePoint(source) || Directory.Exists(destination) || File.Exists(destination))
-        {
-            return false;
-        }
-
-        var parent = Path.GetDirectoryName(destination);
-        if (string.IsNullOrEmpty(parent))
         {
             return false;
         }
 
         try
         {
-            Directory.CreateDirectory(parent);
-            Directory.Move(source, destination);
+            if (!_access.DirectoryExists(source)
+                || _access.IsReparsePoint(source)
+                || _access.DirectoryExists(destination)
+                || _access.FileExists(destination))
+            {
+                return false;
+            }
+
+            var separator = destination.LastIndexOf('/');
+            if (separator <= 0)
+            {
+                return false;
+            }
+
+            _access.CreateDirectory(destination[..separator]);
+            _access.MoveDirectory(source, destination);
+
+            return !_access.DirectoryExists(source)
+                && _access.DirectoryExists(destination)
+                && !_access.IsReparsePoint(destination);
         }
         catch (IOException)
         {
             return false;
         }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-
-        return !Directory.Exists(source) && Directory.Exists(destination) && !IsReparsePoint(destination);
     }
 
     public bool DirectorySettled(string sourceDirectory, string destinationDirectory, string posterFile, string? approvalFile)
     {
-        var source = Resolve(sourceDirectory);
-        var destination = Resolve(destinationDirectory);
-        var poster = Resolve(posterFile);
+        var source = Normalize(sourceDirectory);
+        var destination = Normalize(destinationDirectory);
+        var poster = Normalize(posterFile);
         if (source is null || destination is null || poster is null)
         {
             return false;
         }
 
-        if (Directory.Exists(source) || !Directory.Exists(destination) || !File.Exists(poster))
+        if (_access.DirectoryExists(source) || !_access.DirectoryExists(destination) || !_access.FileExists(poster))
         {
             return false;
         }
@@ -214,42 +176,40 @@ public sealed class AcceptedStorage
             return true;
         }
 
-        var approval = Resolve(approvalFile);
+        var approval = Normalize(approvalFile);
         return approval is not null
-            && File.Exists(approval)
-            && !File.Exists(Path.Combine(source, Path.GetFileName(approval)));
+            && _access.FileExists(approval)
+            && !_access.FileExists(source + "/" + approval[(approval.LastIndexOf('/') + 1)..]);
     }
 
     public void DeletePlacement(string? directoryRelative)
     {
-        var full = Resolve(directoryRelative);
-        if (full is null || !Directory.Exists(full))
+        var directory = Normalize(directoryRelative);
+        if (directory is null)
         {
             return;
         }
 
         try
         {
-            Directory.Delete(full, recursive: true);
+            if (_access.DirectoryExists(directory))
+            {
+                _access.DeleteDirectory(directory);
+            }
         }
         catch (IOException)
         {
         }
     }
 
-    private static bool IsReparsePoint(string path)
+    private static string? Normalize(string? relativePath)
     {
-        try
+        if (string.IsNullOrWhiteSpace(relativePath))
         {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+            return null;
         }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
+
+        var normalized = relativePath.Replace('\\', '/').Trim();
+        return normalized.Length == 0 ? null : normalized;
     }
 }

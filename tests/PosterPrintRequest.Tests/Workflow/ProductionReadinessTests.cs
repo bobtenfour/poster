@@ -76,8 +76,8 @@ public sealed class ProductionReadinessTests : IDisposable
     public async Task Health_requires_the_database_and_storage_root_without_revealing_the_path()
     {
         await using var context = _database.CreateContext();
-        Assert.True(await ProductionHealth.IsReadyAsync(context, _root, CancellationToken.None));
-        Assert.False(await ProductionHealth.IsReadyAsync(context, Path.Combine(_root, "missing"), CancellationToken.None));
+        Assert.True(await ProductionHealth.IsReadyAsync(context, TestStorage.Access(_root), CancellationToken.None));
+        Assert.False(await ProductionHealth.IsReadyAsync(context, TestStorage.Access(Path.Combine(_root, "missing")), CancellationToken.None));
     }
 
     [Fact]
@@ -277,9 +277,9 @@ public sealed class ProductionReadinessTests : IDisposable
         SubmittedByAccountName = userName == "usera"
             ? InstitutionalTestIdentities.RequesterAccount
             : InstitutionalTestIdentities.TechnicianAccount,
-        SubmittedBySecurityIdentifier = userName == "usera"
-            ? InstitutionalTestIdentities.RequesterSid
-            : InstitutionalTestIdentities.TechnicianSid,
+        SubmittedByObjectId = userName == "usera"
+            ? InstitutionalTestIdentities.RequesterOid
+            : InstitutionalTestIdentities.TechnicianOid,
         DepartmentId = department.DepartmentId,
         DepartmentName = department.Name,
         Room = "4",

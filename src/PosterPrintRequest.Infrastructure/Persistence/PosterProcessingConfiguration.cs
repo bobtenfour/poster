@@ -16,6 +16,8 @@ internal sealed class PosterProcessingConfiguration : IEntityTypeConfiguration<P
         builder.Property(processing => processing.ProcessedBySecurityIdentifier)
             .HasMaxLength(PosterRequestConfiguration.SecurityIdentifierMaxLength);
 
+        builder.Property(processing => processing.ProcessedByObjectId);
+
         builder.Property(processing => processing.Received)
             .HasColumnType("date");
 

@@ -156,8 +156,8 @@ public sealed class TechnicianLibraryTests : IDisposable
 
     private static TechnicianLibrary Create(string root)
     {
-        var options = Options.Create(new SharedStorageOptions { RootPath = root });
-        return new TechnicianLibrary(options, new AcceptedStorage(options, new DraftFileStore(options)));
+        var options = TestStorage.Access(root);
+        return new TechnicianLibrary(options);
     }
 
     private static void CreateJunction(string link, string target)

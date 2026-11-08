@@ -1,0 +1,10 @@
+@inject NavigationManager Navigation
+@inject IHostEnvironment Environment
+
+@if (PosterAccess.UsesEntra(Environment))
+{
+    <form class="epx-signout" method="post" action="@ApplicationUris.BrowserPath(Navigation, AccountEndpoints.SignOutPath)">
+        <AntiforgeryToken />
+        <button class="epx-button" type="submit">Sign out</button>
+    </form>
+}

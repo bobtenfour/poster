@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.Extensions.Options;
 using PosterPrintRequest.Infrastructure.Storage;
 
 namespace PosterPrintRequest.Web.Requests;
@@ -37,25 +36,17 @@ public interface ITechnicianLibrary
 
 public sealed class TechnicianLibrary : ITechnicianLibrary
 {
-    private readonly SharedStorageOptions _storage;
-    private readonly AcceptedStorage _accepted;
+    private readonly ISharedStorageAccess _access;
 
-    public TechnicianLibrary(IOptions<SharedStorageOptions> storage, AcceptedStorage accepted)
+    public TechnicianLibrary(ISharedStorageAccess access)
     {
-        _storage = storage.Value;
-        _accepted = accepted;
+        _access = access;
     }
 
     public LibraryListing? List(string? relativePath)
     {
-        var root = NormalizedRoot();
-        if (root is null)
-        {
-            return null;
-        }
-
         var requested = string.IsNullOrWhiteSpace(relativePath) ? "" : relativePath.Trim().Trim('/');
-        if (!Directory.Exists(root))
+        if (!_access.DirectoryExists(""))
         {
             return requested.Length == 0
                 ? new LibraryListing { Available = false, Segments = [], Entries = [] }
@@ -63,7 +54,6 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
         }
 
         IReadOnlyList<string> segments;
-        string full;
         if (requested.Length == 0)
         {
             return RootListing();
@@ -76,48 +66,36 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
         }
 
         var physical = PhysicalSegments(segments);
-        var resolved = _accepted.Resolve(string.Join('/', physical));
-        if (resolved is null || !Directory.Exists(resolved) || !IsInside(root, resolved) || !Reconstructs(root, resolved, physical))
+        var full = string.Join('/', physical);
+        if (!_access.DirectoryExists(full) || !Reconstructs(physical))
         {
             return segments.Count == 1
                 ? new LibraryListing { Available = true, Segments = segments, Entries = [] }
                 : null;
         }
 
-        full = resolved;
-
         var entries = new List<LibraryEntry>();
-        IEnumerable<string> children;
+        IReadOnlyList<StorageEntry> children;
         try
         {
-            children = Directory.EnumerateFileSystemEntries(full);
+            children = _access.ListEntries(full);
         }
         catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
         {
             return null;
         }
 
         foreach (var child in children)
         {
-            if (IsReparsePoint(child))
-            {
-                continue;
-            }
-
-            var name = Path.GetFileName(child);
-            var directory = Directory.Exists(child);
+            var name = child.Name;
+            var directory = child.IsDirectory;
             if (string.IsNullOrEmpty(name) || !IsAllowedChild(segments, name, directory))
             {
                 continue;
             }
 
             var childPhysical = physical.Append(name).ToArray();
-            var childFull = _accepted.Resolve(string.Join('/', childPhysical));
-            if (childFull is null || !IsInside(root, childFull) || !Reconstructs(root, childFull, childPhysical))
+            if (!Reconstructs(childPhysical))
             {
                 continue;
             }
@@ -196,36 +174,19 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
         return physical;
     }
 
-    private string? NormalizedRoot()
+    private bool Reconstructs(IReadOnlyList<string> segments)
     {
-        if (string.IsNullOrWhiteSpace(_storage.RootPath))
-        {
-            return null;
-        }
-
-        return Path.GetFullPath(_storage.RootPath).TrimEnd(Path.DirectorySeparatorChar);
-    }
-
-    private static bool IsInside(string root, string full)
-    {
-        var prefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        return full.Equals(root, StringComparison.OrdinalIgnoreCase)
-            || full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool Reconstructs(string root, string full, IReadOnlyList<string> segments)
-    {
-        var current = root;
+        var current = "";
         foreach (var segment in segments)
         {
-            current = Path.Combine(current, segment);
-            if (IsReparsePoint(current))
+            current = current.Length == 0 ? segment : current + "/" + segment;
+            if (_access.IsReparsePoint(current))
             {
                 return false;
             }
         }
 
-        return string.Equals(Path.GetFullPath(current), Path.GetFullPath(full), StringComparison.OrdinalIgnoreCase);
+        return true;
     }
 
     private static bool IsAllowedLocation(IReadOnlyList<string> segments)
@@ -423,20 +384,4 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
         name.Length == 4
         && int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out var year)
         && year is >= 1900 and <= 9999;
-
-    private static bool IsReparsePoint(string path)
-    {
-        try
-        {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
 }

@@ -12,7 +12,7 @@ public sealed class DraftFileStoreTests : IDisposable
     public DraftFileStoreTests()
     {
         Directory.CreateDirectory(_root);
-        _store = new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = _root }));
+        _store = new DraftFileStore(TestStorage.Access(_root));
     }
 
     [Fact]

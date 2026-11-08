@@ -1,15 +1,14 @@
-using Microsoft.Extensions.Options;
 using PosterPrintRequest.Infrastructure.Storage;
 
 namespace PosterPrintRequest.Web.Requests;
 
 public sealed class DraftFileStore : IDraftFileStore
 {
-    private readonly SharedStorageOptions _storage;
+    private readonly ISharedStorageAccess _access;
 
-    public DraftFileStore(IOptions<SharedStorageOptions> storage)
+    public DraftFileStore(ISharedStorageAccess access)
     {
-        _storage = storage.Value;
+        _access = access;
     }
 
     public async Task<DraftSaveResult> SaveAsync(
@@ -34,16 +33,10 @@ public sealed class DraftFileStore : IDraftFileStore
             return new DraftSaveResult(false, "The file could not be stored. Choose it again.", null);
         }
 
-        DeleteRoleFiles(directory, role);
-        var destinationPath = Path.Combine(directory, StoredName(role, selection.Format!));
-        await using (var destination = new FileStream(
-            destinationPath,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            81920,
-            useAsync: true))
+        try
         {
+            DeleteRoleFiles(directory, role);
+            await using var destination = _access.OpenWrite(directory + "/" + StoredName(role, selection.Format!));
             var buffer = new byte[81920];
             long written = 0;
             int read;
@@ -56,6 +49,10 @@ public sealed class DraftFileStore : IDraftFileStore
                     progress?.Report((int)Math.Min(100, written * 100 / size));
                 }
             }
+        }
+        catch (StorageFailureException)
+        {
+            return new DraftSaveResult(false, "The file could not be stored. Choose it again.", null);
         }
 
         progress?.Report(100);
@@ -78,10 +75,11 @@ public sealed class DraftFileStore : IDraftFileStore
         }
 
         return role == DraftFileRole.Poster
-            ? File.Exists(Path.Combine(directory, "poster.pdf")) || File.Exists(Path.Combine(directory, "poster.pptx"))
-            : File.Exists(Path.Combine(directory, "approval-sheet.pdf"));
+            ? _access.FileExists(directory + "/poster.pdf") || _access.FileExists(directory + "/poster.pptx")
+            : _access.FileExists(directory + "/approval-sheet.pdf");
     }
 
+    /// <summary>The draft poster's path relative to the shared-storage root, or null.</summary>
     public string? PosterPath(string draftId)
     {
         if (!TryDraftDirectory(draftId, create: false, out var directory))
@@ -89,16 +87,17 @@ public sealed class DraftFileStore : IDraftFileStore
             return null;
         }
 
-        var pdf = Path.Combine(directory, "poster.pdf");
-        if (File.Exists(pdf))
+        var pdf = directory + "/poster.pdf";
+        if (_access.FileExists(pdf))
         {
             return pdf;
         }
 
-        var pptx = Path.Combine(directory, "poster.pptx");
-        return File.Exists(pptx) ? pptx : null;
+        var pptx = directory + "/poster.pptx";
+        return _access.FileExists(pptx) ? pptx : null;
     }
 
+    /// <summary>The draft Approval Sheet's path relative to the shared-storage root, or null.</summary>
     public string? ApprovalSheetPath(string draftId)
     {
         if (!TryDraftDirectory(draftId, create: false, out var directory))
@@ -106,44 +105,42 @@ public sealed class DraftFileStore : IDraftFileStore
             return null;
         }
 
-        var path = Path.Combine(directory, "approval-sheet.pdf");
-        return File.Exists(path) ? path : null;
+        var path = directory + "/approval-sheet.pdf";
+        return _access.FileExists(path) ? path : null;
     }
 
     public void DeleteDraft(string draftId)
     {
-        if (TryDraftDirectory(draftId, create: false, out var directory))
+        if (TryDraftDirectory(draftId, create: false, out var directory) && _access.DirectoryExists(directory))
         {
-            DeleteDirectory(directory);
+            _access.DeleteDirectory(directory);
         }
     }
 
-    private bool TryDraftDirectory(string draftId, bool create, out string directory) =>
-        TryChildDirectory("drafts", draftId, create, out directory);
-
-    private bool TryChildDirectory(string area, string key, bool create, out string directory)
+    private bool TryDraftDirectory(string draftId, bool create, out string directory)
     {
         directory = "";
-        if (!DraftIds.IsValid(key) || string.IsNullOrWhiteSpace(_storage.RootPath))
+        if (!DraftIds.IsValid(draftId))
         {
             return false;
         }
 
-        var root = Path.GetFullPath(_storage.RootPath);
-        directory = Path.GetFullPath(Path.Combine(root, area, key));
-        var rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!directory.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+        directory = "drafts/" + draftId;
+        if (!create)
         {
-            directory = "";
+            return true;
+        }
+
+        try
+        {
+            _access.CreateDirectory(directory);
+        }
+        catch (StorageFailureException)
+        {
             return false;
         }
 
-        if (create)
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        return !create || Directory.Exists(directory);
+        return _access.DirectoryExists(directory);
     }
 
     private static string StoredName(DraftFileRole role, string format) =>
@@ -151,31 +148,23 @@ public sealed class DraftFileStore : IDraftFileStore
             ? format == "PPTX" ? "poster.pptx" : "poster.pdf"
             : "approval-sheet.pdf";
 
-    private static void DeleteRoleFiles(string directory, DraftFileRole role)
+    private void DeleteRoleFiles(string directory, DraftFileRole role)
     {
         if (role == DraftFileRole.Poster)
         {
-            DeleteIfPresent(Path.Combine(directory, "poster.pdf"));
-            DeleteIfPresent(Path.Combine(directory, "poster.pptx"));
+            DeleteIfPresent(directory + "/poster.pdf");
+            DeleteIfPresent(directory + "/poster.pptx");
             return;
         }
 
-        DeleteIfPresent(Path.Combine(directory, "approval-sheet.pdf"));
+        DeleteIfPresent(directory + "/approval-sheet.pdf");
     }
 
-    private static void DeleteIfPresent(string path)
+    private void DeleteIfPresent(string path)
     {
-        if (File.Exists(path))
+        if (_access.FileExists(path))
         {
-            File.Delete(path);
-        }
-    }
-
-    private static void DeleteDirectory(string directory)
-    {
-        if (Directory.Exists(directory))
-        {
-            Directory.Delete(directory, recursive: true);
+            _access.DeleteFile(path);
         }
     }
 }

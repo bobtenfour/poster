@@ -15,7 +15,7 @@ namespace PosterPrintRequest.Tests.Workflow;
 [Collection("Workflow database")]
 public sealed class TechnicianWorkflowTests : IDisposable
 {
-    private static readonly InstitutionalActor Jordan = new("S-1-5-21-9999999999-8888888888-7777777777-42", "Jordan Lee");
+    private static readonly InstitutionalActor Jordan = new(new Guid("22222222-2222-2222-2222-000000000042"), "S-1-5-21-9999999999-8888888888-7777777777-42", "jordan.lee@test.example");
 
     private readonly WorkflowDatabaseFixture _database;
     private readonly string _root = Path.Combine(Path.GetTempPath(), "poster-workflow-" + Guid.NewGuid().ToString("N"));
@@ -25,7 +25,7 @@ public sealed class TechnicianWorkflowTests : IDisposable
     {
         _database = database;
         Directory.CreateDirectory(_root);
-        _files = new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = _root }));
+        _files = new DraftFileStore(TestStorage.Access(_root));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class TechnicianWorkflowTests : IDisposable
 
         await using var context = _database.CreateContext();
         var logger = new ListLogger<TechnicianWorkflow>();
-        var storage = new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), _files);
+        var storage = new AcceptedStorage(TestStorage.Access(_root), _files);
         var workflow = new TechnicianWorkflow(context, logger, storage);
 
         Assert.Equal("Mark the poster received before continuing.", (await workflow.MarkPrintedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
@@ -56,9 +56,9 @@ public sealed class TechnicianWorkflowTests : IDisposable
         Assert.Contains("WITHOUT-EVENT TO BE PRINTED/", beforePrint, StringComparison.Ordinal);
         Assert.True((await workflow.MarkPrintedAsync(laminated.PosterId, "On the plotter", CancellationToken.None)).Completed);
         var printedPath = beforePrint.Replace("WITHOUT-EVENT TO BE PRINTED/", "WITHOUT-EVENT PRINTED/", StringComparison.Ordinal);
-        Assert.False(File.Exists(storage.Resolve(beforePrint)!));
-        Assert.True(File.Exists(storage.Resolve(printedPath)!));
-        Assert.False(Directory.Exists(storage.Resolve(PrintFolderPaths.DirectoryOf(beforePrint))!));
+        Assert.False(File.Exists(Path.Combine(_root, beforePrint)));
+        Assert.True(File.Exists(Path.Combine(_root, printedPath)));
+        Assert.False(Directory.Exists(Path.Combine(_root, PrintFolderPaths.DirectoryOf(beforePrint)!)));
         Assert.Equal("Mark lamination before continuing.", (await workflow.MarkNotifiedAsync(laminated.PosterId, null, CancellationToken.None)).Message);
         Assert.True((await workflow.MarkLaminatedAsync(laminated.PosterId, "Laminated", CancellationToken.None)).Completed);
         Assert.True((await workflow.MarkNotifiedAsync(laminated.PosterId, "Called", CancellationToken.None)).Completed);
@@ -74,8 +74,9 @@ public sealed class TechnicianWorkflowTests : IDisposable
         Assert.Equal(laminated.Email, saved.Email);
         Assert.Equal(laminated.DateIn, saved.DateIn);
         Assert.Equal(laminated.PosterId, saved.PosterId);
-        Assert.Equal(Jordan.AccountName, saved.PosterProcessing.ProcessedByAccountName);
-        Assert.Equal(Jordan.SecurityIdentifier, saved.PosterProcessing.ProcessedBySecurityIdentifier);
+        Assert.Equal(Jordan.ObjectId, saved.PosterProcessing.ProcessedByObjectId);
+        Assert.Equal(Jordan.PreferredUsername, saved.PosterProcessing.ProcessedByAccountName);
+        Assert.Null(saved.PosterProcessing.ProcessedBySecurityIdentifier);
         Assert.Equal(received, saved.PosterProcessing.Received);
         Assert.True(saved.PosterProcessing.Printed);
         Assert.True(saved.PosterProcessing.Laminated);
@@ -207,9 +208,9 @@ public sealed class TechnicianWorkflowTests : IDisposable
         new RequesterSubmissionService(
             context,
             _files,
-            new PosterPreflight(_files),
-            new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), _files),
-            new ApprovalSheetCheck(_files),
+            new PosterPreflight(_files, TestStorage.Access(_root)),
+            new AcceptedStorage(TestStorage.Access(_root), _files),
+            new ApprovalSheetCheck(_files, TestStorage.Access(_root)),
             NullLogger<RequesterSubmissionService>.Instance,
             new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
 

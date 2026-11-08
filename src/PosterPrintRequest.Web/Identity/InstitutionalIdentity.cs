@@ -1,29 +1,54 @@
+using System.Globalization;
 using System.Security.Claims;
-using System.Security.Principal;
-using Microsoft.AspNetCore.Authorization;
 
 namespace PosterPrintRequest.Web;
 
-public static class InstitutionalGroups
+/// <summary>The two Entra App Roles (Authentication Contract section 4.1).</summary>
+public static class PosterRoles
 {
-    public const string Requesters = "DEN-DentistryUsers";
+    public const string Requester = "Requester";
 
-    public const string Technicians = "GroupPCAdmins";
+    public const string Technician = "Technician";
 }
 
-public sealed record InstitutionalActor(string SecurityIdentifier, string AccountName)
+/// <summary>
+/// Claim types exactly as Entra issues them (section 4.4), plus the one claim the application
+/// itself adds at sign-in (section 5.9).
+/// </summary>
+public static class PosterClaims
 {
-    public bool IsValid => IsSecurityIdentifier(SecurityIdentifier) && IsAccountName(AccountName);
+    public const string ObjectId = "oid";
 
-    public static InstitutionalActor? Create(string? securityIdentifier, string? accountName)
+    public const string OnPremisesSecurityIdentifier = "onprem_sid";
+
+    public const string PreferredUsername = "preferred_username";
+
+    public const string Roles = "roles";
+
+    public const string Name = "name";
+
+    public const string SessionExpiresAt = "poster_session_expires_at";
+}
+
+/// <summary>
+/// The person behind an operation. <see cref="ObjectId"/> is the canonical identity (section 3.1).
+/// <see cref="OnPremisesSecurityIdentifier"/> is used only to link historical requests (section 3.4).
+/// <see cref="PreferredUsername"/> is a display snapshot and never identifies or authorizes (section 3.8).
+/// </summary>
+public sealed record InstitutionalActor(Guid ObjectId, string? OnPremisesSecurityIdentifier, string? PreferredUsername)
+{
+    public bool IsValid => ObjectId != Guid.Empty;
+
+    public static InstitutionalActor? Create(string? objectId, string? onPremisesSecurityIdentifier, string? preferredUsername)
     {
-        var account = accountName?.Trim();
-        if (!IsSecurityIdentifier(securityIdentifier) || !IsAccountName(account))
+        if (!Guid.TryParse(objectId, CultureInfo.InvariantCulture, out var oid) || oid == Guid.Empty)
         {
             return null;
         }
 
-        return new InstitutionalActor(securityIdentifier!, account!);
+        var sid = IsSecurityIdentifier(onPremisesSecurityIdentifier) ? onPremisesSecurityIdentifier : null;
+        var name = preferredUsername?.Trim();
+        return new InstitutionalActor(oid, sid, IsAccountName(name) ? name : null);
     }
 
     public static bool IsSecurityIdentifier(string? value)
@@ -81,186 +106,24 @@ public sealed record InstitutionalActor(string SecurityIdentifier, string Accoun
     }
 }
 
-public static class InstitutionalGroupNames
-{
-    public static bool Matches(string? translatedAccount, string groupName)
-    {
-        if (string.IsNullOrWhiteSpace(translatedAccount) || string.IsNullOrWhiteSpace(groupName))
-        {
-            return false;
-        }
-
-        if (translatedAccount.Equals(groupName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var separator = translatedAccount.LastIndexOf('\\');
-        if (separator < 0 || separator >= translatedAccount.Length - 1)
-        {
-            return false;
-        }
-
-        return translatedAccount[(separator + 1)..].Equals(groupName, StringComparison.OrdinalIgnoreCase);
-    }
-}
-
+/// <summary>The single place where a principal becomes an actor (section 9).</summary>
 public interface IInstitutionalActorSource
 {
     InstitutionalActor? FromPrincipal(ClaimsPrincipal principal);
 }
 
-public interface IInstitutionalGroupVerifier
-{
-    bool IsMember(ClaimsPrincipal principal, string groupName);
-}
-
-public sealed class WindowsActorSource : IInstitutionalActorSource
+public sealed class ClaimsActorSource : IInstitutionalActorSource
 {
     public InstitutionalActor? FromPrincipal(ClaimsPrincipal principal)
     {
-        if (!OperatingSystem.IsWindows())
+        if (principal.Identity?.IsAuthenticated != true)
         {
             return null;
         }
 
-        return FromWindowsPrincipal(principal);
-    }
-
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    private static InstitutionalActor? FromWindowsPrincipal(ClaimsPrincipal principal)
-    {
-        if (principal.Identity is not WindowsIdentity windows || !windows.IsAuthenticated)
-        {
-            return null;
-        }
-
-        return InstitutionalActor.Create(windows.User?.Value, windows.Name);
-    }
-}
-
-public sealed class WindowsGroupVerifier : IInstitutionalGroupVerifier
-{
-    public bool IsMember(ClaimsPrincipal principal, string groupName)
-    {
-        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(groupName))
-        {
-            return false;
-        }
-
-        return IsWindowsMember(principal, groupName);
-    }
-
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    private static bool IsWindowsMember(ClaimsPrincipal principal, string groupName)
-    {
-        if (principal.Identity is not WindowsIdentity windows || !windows.IsAuthenticated)
-        {
-            return false;
-        }
-
-        try
-        {
-            if (new WindowsPrincipal(windows).IsInRole(groupName))
-            {
-                return true;
-            }
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-
-        if (windows.Groups is null)
-        {
-            return false;
-        }
-
-        foreach (var group in windows.Groups)
-        {
-            string translated;
-            try
-            {
-                translated = group.Translate(typeof(NTAccount)).Value;
-            }
-            catch (IdentityNotMappedException)
-            {
-                continue;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
-            if (InstitutionalGroupNames.Matches(translated, groupName))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-}
-
-public sealed class InstitutionalGroupRequirement : IAuthorizationRequirement
-{
-    public InstitutionalGroupRequirement(string groupName) => GroupName = groupName;
-
-    public string GroupName { get; }
-}
-
-public sealed class InstitutionalParticipantRequirement : IAuthorizationRequirement;
-
-internal static class InstitutionalMembership
-{
-    public static bool IsMember(IInstitutionalGroupVerifier groups, ClaimsPrincipal principal, string groupName)
-    {
-        try
-        {
-            return groups.IsMember(principal, groupName);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
-}
-
-public sealed class InstitutionalGroupHandler : AuthorizationHandler<InstitutionalGroupRequirement>
-{
-    private readonly IInstitutionalGroupVerifier _groups;
-
-    public InstitutionalGroupHandler(IInstitutionalGroupVerifier groups) => _groups = groups;
-
-    protected override Task HandleRequirementAsync(
-        AuthorizationHandlerContext context,
-        InstitutionalGroupRequirement requirement)
-    {
-        if (InstitutionalMembership.IsMember(_groups, context.User, requirement.GroupName))
-        {
-            context.Succeed(requirement);
-        }
-
-        return Task.CompletedTask;
-    }
-}
-
-public sealed class InstitutionalParticipantHandler : AuthorizationHandler<InstitutionalParticipantRequirement>
-{
-    private readonly IInstitutionalGroupVerifier _groups;
-
-    public InstitutionalParticipantHandler(IInstitutionalGroupVerifier groups) => _groups = groups;
-
-    protected override Task HandleRequirementAsync(
-        AuthorizationHandlerContext context,
-        InstitutionalParticipantRequirement requirement)
-    {
-        if (InstitutionalMembership.IsMember(_groups, context.User, InstitutionalGroups.Requesters)
-            || InstitutionalMembership.IsMember(_groups, context.User, InstitutionalGroups.Technicians))
-        {
-            context.Succeed(requirement);
-        }
-
-        return Task.CompletedTask;
+        return InstitutionalActor.Create(
+            principal.FindFirst(PosterClaims.ObjectId)?.Value,
+            principal.FindFirst(PosterClaims.OnPremisesSecurityIdentifier)?.Value,
+            principal.FindFirst(PosterClaims.PreferredUsername)?.Value);
     }
 }

@@ -1,3 +1,4 @@
+using PosterPrintRequest.Infrastructure.Storage;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Exceptions;
@@ -12,10 +13,12 @@ public interface IApprovalSheetCheck
 public sealed class ApprovalSheetCheck : IApprovalSheetCheck
 {
     private readonly DraftFileStore _files;
+    private readonly ISharedStorageAccess _access;
 
-    public ApprovalSheetCheck(DraftFileStore files)
+    public ApprovalSheetCheck(DraftFileStore files, ISharedStorageAccess access)
     {
         _files = files;
+        _access = access;
     }
 
     public async Task<string?> ValidateStoredAsync(string draftId, CancellationToken cancellationToken)
@@ -28,13 +31,7 @@ public sealed class ApprovalSheetCheck : IApprovalSheetCheck
 
         try
         {
-            await using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                81920,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var stream = _access.OpenRead(path);
             return ApprovalSheetRules.Validate(stream);
         }
         catch (IOException)

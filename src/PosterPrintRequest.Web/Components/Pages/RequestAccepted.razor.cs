@@ -21,6 +21,8 @@ public partial class RequestAccepted : ComponentBase
 
     private AcceptanceDetails? Details { get; set; }
 
+    private bool HistoricalRequestNotLinked { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
         InstitutionalActor? actor = null;
@@ -30,6 +32,8 @@ public partial class RequestAccepted : ComponentBase
             actor = Actors.FromPrincipal(state.User);
         }
 
-        Details = await Lookup.FindAsync(PosterId, actor, CancellationToken.None);
+        var result = await Lookup.FindAsync(PosterId, actor, CancellationToken.None);
+        Details = result.Details;
+        HistoricalRequestNotLinked = result.HistoricalRequestNotLinked;
     }
 }

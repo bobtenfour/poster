@@ -218,7 +218,7 @@ public sealed class PrintFolderTests : IDisposable
 
     private AcceptedStorage Storage()
     {
-        var options = Options.Create(new SharedStorageOptions { RootPath = _root });
+        var options = TestStorage.Access(_root);
         return new AcceptedStorage(options, new DraftFileStore(options));
     }
 

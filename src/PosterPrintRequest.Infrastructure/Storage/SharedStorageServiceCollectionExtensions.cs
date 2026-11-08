@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace PosterPrintRequest.Infrastructure.Storage;
 
@@ -7,7 +9,8 @@ public static class SharedStorageServiceCollectionExtensions
 {
     public static IServiceCollection AddSharedStorage(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool isProduction = false)
     {
         services.AddOptions<SharedStorageOptions>()
             .Bind(configuration.GetSection(SharedStorageOptions.SectionName))
@@ -15,6 +18,12 @@ public static class SharedStorageServiceCollectionExtensions
                 options => !string.IsNullOrWhiteSpace(options.RootPath),
                 "Shared storage root path is not configured.")
             .ValidateOnStart();
+
+        services.AddSingleton<ISharedStorageAccess>(provider =>
+            new SharedStorageAccess(
+                provider.GetRequiredService<IOptions<SharedStorageOptions>>().Value,
+                provider.GetRequiredService<ILogger<SharedStorageAccess>>(),
+                isProduction));
 
         return services;
     }

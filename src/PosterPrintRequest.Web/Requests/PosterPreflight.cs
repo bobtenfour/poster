@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Xml;
 using System.Xml.Linq;
+using PosterPrintRequest.Infrastructure.Storage;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Exceptions;
@@ -21,10 +22,12 @@ public sealed class PosterPreflight : IPosterPreflight
     private const int MaximumEntryBytes = 2 * 1024 * 1024;
 
     private readonly DraftFileStore _files;
+    private readonly ISharedStorageAccess _access;
 
-    public PosterPreflight(DraftFileStore files)
+    public PosterPreflight(DraftFileStore files, ISharedStorageAccess access)
     {
         _files = files;
+        _access = access;
     }
 
     public PosterPreflightResult Inspect(Stream content)
@@ -73,7 +76,7 @@ public sealed class PosterPreflight : IPosterPreflight
 
         try
         {
-            var length = new FileInfo(path).Length;
+            var length = _access.FileLength(path);
             if (length == 0)
             {
                 return Failure("This file is not a PDF or PPTX poster.");
@@ -84,13 +87,7 @@ public sealed class PosterPreflight : IPosterPreflight
                 return Failure($"Choose a file up to {UploadLimits.MaxLabel}.");
             }
 
-            await using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                81920,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var stream = _access.OpenRead(path);
             var bytes = new byte[length];
             var offset = 0;
             while (offset < bytes.Length)

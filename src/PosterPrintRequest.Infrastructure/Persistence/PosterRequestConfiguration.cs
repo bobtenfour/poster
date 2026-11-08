@@ -44,6 +44,8 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
         builder.Property(request => request.SubmittedBySecurityIdentifier)
             .HasMaxLength(SecurityIdentifierMaxLength);
 
+        builder.Property(request => request.SubmittedByObjectId);
+
         builder.Property(request => request.LaminationRequested)
             .IsRequired();
 

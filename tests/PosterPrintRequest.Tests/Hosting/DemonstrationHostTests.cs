@@ -32,7 +32,7 @@ public sealed class DemonstrationHostTests
             var schemes = scope.ServiceProvider.GetRequiredService<IOptions<AuthenticationOptions>>().Value;
             Assert.Equal(NegotiateDefaults.AuthenticationScheme, schemes.DefaultScheme);
             Assert.IsType<WindowsGroupVerifier>(scope.ServiceProvider.GetRequiredService<IInstitutionalGroupVerifier>());
-            Assert.IsType<WindowsActorSource>(scope.ServiceProvider.GetRequiredService<IInstitutionalActorSource>());
+            Assert.IsType<ClaimsActorSource>(scope.ServiceProvider.GetRequiredService<IInstitutionalActorSource>());
         }
 
         using var local = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

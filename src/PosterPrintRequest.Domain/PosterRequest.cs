@@ -26,6 +26,8 @@ public sealed class PosterRequest
 
     public string? SubmittedBySecurityIdentifier { get; set; }
 
+    public Guid? SubmittedByObjectId { get; set; }
+
     public int? ReasonId { get; set; }
 
     public string? ReasonName { get; set; }

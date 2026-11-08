@@ -15,25 +15,49 @@ namespace PosterPrintRequest.Tests.Hosting;
 
 internal static class InstitutionalTestIdentities
 {
-    internal const string RequesterAccount = @"DEMO\usera";
+    internal static readonly Guid RequesterOid = new("11111111-1111-1111-1111-000000000001");
+
+    internal static readonly Guid TechnicianOid = new("11111111-1111-1111-1111-000000000002");
+
+    internal static readonly Guid BothOid = new("11111111-1111-1111-1111-000000000003");
+
+    internal static readonly Guid NeitherOid = new("11111111-1111-1111-1111-000000000004");
+
+    internal const string RequesterAccount = "usera@test.example";
 
     internal const string RequesterSid = "S-1-5-21-1111111111-2222222222-3333333333-1001";
 
-    internal const string TechnicianAccount = @"DEMO\usero";
+    internal const string TechnicianAccount = "usero@test.example";
 
     internal const string TechnicianSid = "S-1-5-21-1111111111-2222222222-3333333333-1002";
 
-    internal const string BothAccount = @"DEMO\both";
+    internal const string BothAccount = "both@test.example";
 
     internal const string BothSid = "S-1-5-21-1111111111-2222222222-3333333333-1003";
 
-    internal const string NeitherAccount = @"DEMO\neither";
+    internal const string NeitherAccount = "neither@test.example";
 
     internal const string NeitherSid = "S-1-5-21-1111111111-2222222222-3333333333-1004";
 
-    internal static InstitutionalActor Requester { get; } = new(RequesterSid, RequesterAccount);
+    internal static InstitutionalActor Requester { get; } = new(RequesterOid, RequesterSid, RequesterAccount);
 
-    internal static InstitutionalActor Technician { get; } = new(TechnicianSid, TechnicianAccount);
+    internal static InstitutionalActor Technician { get; } = new(TechnicianOid, TechnicianSid, TechnicianAccount);
+}
+
+/// <summary>
+/// Placeholder Entra identifiers for hosts under test. They name nothing real and no test contacts Entra.
+/// </summary>
+internal static class TestEntra
+{
+    internal const string TenantId = "00000000-0000-0000-0000-00000000aaaa";
+
+    internal const string ClientId = "00000000-0000-0000-0000-00000000bbbb";
+
+    internal static void Configure(IWebHostBuilder builder)
+    {
+        builder.UseSetting(EntraSettings.TenantIdKey, TenantId);
+        builder.UseSetting(EntraSettings.ClientIdKey, ClientId);
+    }
 }
 
 internal static class InstitutionalTestClaims
@@ -50,6 +74,7 @@ internal static class InstitutionalTestHost
 {
     public static void UseTestAuthentication(IWebHostBuilder builder)
     {
+        TestEntra.Configure(builder);
         builder.ConfigureTestServices(services =>
         {
             services.PostConfigure<AuthenticationOptions>(options =>
@@ -63,10 +88,12 @@ internal static class InstitutionalTestHost
             services.AddScoped<IAuthenticationHandlerProvider, SkipNegotiateHandlerProvider>();
             services.AddAuthentication()
                 .AddScheme<AuthenticationSchemeOptions, InstitutionalTestHandler>(InstitutionalTestHandler.Scheme, _ => { });
-            services.RemoveAll<IInstitutionalGroupVerifier>();
-            services.AddSingleton<IInstitutionalGroupVerifier, TestGroupVerifier>();
-            services.RemoveAll<IInstitutionalActorSource>();
-            services.AddSingleton<IInstitutionalActorSource, TestActorSource>();
+            if (services.Any(service => service.ServiceType == typeof(IInstitutionalGroupVerifier)))
+            {
+                // Only environments that keep the Windows group registration (for example Demo) have a verifier to replace.
+                services.RemoveAll<IInstitutionalGroupVerifier>();
+                services.AddSingleton<IInstitutionalGroupVerifier, TestGroupVerifier>();
+            }
         });
     }
 }
@@ -104,15 +131,23 @@ internal sealed class SkipNegotiateHandlerProvider : IAuthenticationHandlerProvi
     }
 }
 
+/// <summary>
+/// Builds a principal from request headers, in the claim format of Authentication Contract sections 3 and 4.4:
+/// oid, preferred_username, onprem_sid, and one roles claim per role, on an identity whose role claim type is roles.
+/// </summary>
 internal sealed class InstitutionalTestHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     internal new const string Scheme = "PosterInstitutionalTest";
 
-    internal const string AccountHeader = "X-Poster-Test-Account";
+    internal const string OidHeader = "X-Poster-Test-Oid";
+
+    internal const string UsernameHeader = "X-Poster-Test-Username";
 
     internal const string SidHeader = "X-Poster-Test-Sid";
 
-    internal const string GroupsHeader = "X-Poster-Test-Groups";
+    internal const string RolesHeader = "X-Poster-Test-Roles";
+
+    internal const string ExtraClaimsHeader = "X-Poster-Test-Extra";
 
     public InstitutionalTestHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -124,30 +159,51 @@ internal sealed class InstitutionalTestHandler : AuthenticationHandler<Authentic
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue(AccountHeader, out var accountValues))
+        if (!Request.Headers.TryGetValue(OidHeader, out var oidValues))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var account = accountValues.ToString();
-        var sid = Request.Headers[SidHeader].ToString();
-        var actor = InstitutionalActor.Create(sid, account);
+        var actor = InstitutionalActor.Create(
+            oidValues.ToString(),
+            Request.Headers[SidHeader].ToString(),
+            Request.Headers[UsernameHeader].ToString());
         if (actor is null)
         {
-            return Task.FromResult(AuthenticateResult.Fail("The test identity is not a verifiable institutional identity."));
+            return Task.FromResult(AuthenticateResult.Fail("The test identity has no object identifier."));
         }
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, actor.AccountName),
-            new(ClaimTypes.PrimarySid, actor.SecurityIdentifier)
+            new(PosterClaims.ObjectId, actor.ObjectId.ToString()),
+            new(PosterClaims.Name, actor.PreferredUsername ?? "Test user")
         };
-        foreach (var group in Request.Headers[GroupsHeader].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        if (actor.PreferredUsername is not null)
         {
-            claims.Add(new Claim(InstitutionalTestClaims.Group, group));
+            claims.Add(new Claim(PosterClaims.PreferredUsername, actor.PreferredUsername));
         }
 
-        var identity = new ClaimsIdentity(claims, Scheme, ClaimTypes.Name, ClaimTypes.Role);
+        if (actor.OnPremisesSecurityIdentifier is not null)
+        {
+            claims.Add(new Claim(PosterClaims.OnPremisesSecurityIdentifier, actor.OnPremisesSecurityIdentifier));
+        }
+
+        foreach (var role in Request.Headers[RolesHeader].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            claims.Add(new Claim(PosterClaims.Roles, role));
+            // Environments that keep the Windows group registration (Demo) read group membership instead of roles.
+            claims.Add(new Claim(
+                InstitutionalTestClaims.Group,
+                role == PosterRoles.Requester ? InstitutionalGroups.Requesters : InstitutionalGroups.Technicians));
+        }
+
+        foreach (var extra in Request.Headers[ExtraClaimsHeader].ToString().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var separator = extra.LastIndexOf('=');
+            claims.Add(new Claim(extra[..separator], extra[(separator + 1)..]));
+        }
+
+        var identity = new ClaimsIdentity(claims, Scheme, PosterClaims.Name, PosterClaims.Roles);
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme)));
     }
 
@@ -165,21 +221,5 @@ internal sealed class TestGroupVerifier : IInstitutionalGroupVerifier
         return principal.Identity?.IsAuthenticated == true
             && principal.Identity.AuthenticationType == InstitutionalTestHandler.Scheme
             && principal.HasClaim(InstitutionalTestClaims.Group, groupName);
-    }
-}
-
-internal sealed class TestActorSource : IInstitutionalActorSource
-{
-    public InstitutionalActor? FromPrincipal(ClaimsPrincipal principal)
-    {
-        if (principal.Identity?.IsAuthenticated != true
-            || principal.Identity.AuthenticationType != InstitutionalTestHandler.Scheme)
-        {
-            return null;
-        }
-
-        return InstitutionalActor.Create(
-            principal.FindFirst(ClaimTypes.PrimarySid)?.Value,
-            principal.Identity.Name);
     }
 }

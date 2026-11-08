@@ -20,7 +20,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
     {
         _database = database;
         Directory.CreateDirectory(_root);
-        _files = new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = _root }));
+        _files = new DraftFileStore(TestStorage.Access(_root));
     }
 
     [Fact]
@@ -63,8 +63,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.Equal(72m, saved.PosterFile.Length);
         Assert.Equal("Sheet.pdf", saved.ApprovalSheet!.FileName);
         Assert.NotNull(saved.PosterProcessing);
-        Assert.Equal(InstitutionalTestIdentities.Requester.SecurityIdentifier, saved.SubmittedBySecurityIdentifier);
-        Assert.Equal(InstitutionalTestIdentities.Requester.AccountName, saved.SubmittedByAccountName);
+        Assert.Equal(InstitutionalTestIdentities.RequesterOid, saved.SubmittedByObjectId);
+        Assert.Equal(InstitutionalTestIdentities.Requester.PreferredUsername, saved.SubmittedByAccountName);
+        Assert.Null(saved.SubmittedBySecurityIdentifier);
+        Assert.Null(saved.PosterProcessing.ProcessedByObjectId);
         Assert.Null(saved.PosterProcessing.ProcessedByAccountName);
         Assert.Null(saved.PosterProcessing.ProcessedBySecurityIdentifier);
         Assert.Null(saved.PosterProcessing.Received);
@@ -194,7 +196,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
             "The PDF has 2 pages. A poster must contain exactly one page. Correct the file and upload it again.",
             outcome.FieldErrors["poster"]);
         Assert.True(_files.Exists(draft.DraftId, DraftFileRole.Poster));
-        Assert.Equal(poster, await File.ReadAllBytesAsync(_files.PosterPath(draft.DraftId)!));
+        Assert.Equal(poster, await File.ReadAllBytesAsync(Path.Combine(_root, _files.PosterPath(draft.DraftId)!)));
         Assert.Equal(0, await context.PosterRequests.CountAsync(request => request.Name == "Two Pages"));
     }
 
@@ -298,9 +300,9 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         new RequesterSubmissionService(
             context,
             _files,
-            new PosterPreflight(_files),
-            new AcceptedStorage(Options.Create(new SharedStorageOptions { RootPath = _root }), _files),
-            new ApprovalSheetCheck(_files),
+            new PosterPreflight(_files, TestStorage.Access(_root)),
+            new AcceptedStorage(TestStorage.Access(_root), _files),
+            new ApprovalSheetCheck(_files, TestStorage.Access(_root)),
             logger,
             new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
 

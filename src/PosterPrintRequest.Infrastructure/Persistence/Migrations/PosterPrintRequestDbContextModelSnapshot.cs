@@ -150,6 +150,9 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<Guid?>("ProcessedByObjectId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("ProcessedBySecurityIdentifier")
                         .HasMaxLength(184)
                         .HasColumnType("nvarchar(184)");
@@ -224,6 +227,9 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Property<string>("SubmittedByAccountName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("SubmittedByObjectId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("SubmittedBySecurityIdentifier")
                         .HasMaxLength(184)

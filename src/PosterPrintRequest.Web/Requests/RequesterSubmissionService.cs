@@ -136,8 +136,8 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
             var request = new PosterRequest
             {
                 PosterId = posterId,
-                SubmittedByAccountName = actor.AccountName,
-                SubmittedBySecurityIdentifier = actor.SecurityIdentifier,
+                SubmittedByObjectId = actor.ObjectId,
+                SubmittedByAccountName = actor.PreferredUsername,
                 Name = draft.Name.Trim(),
                 Mentor = string.IsNullOrWhiteSpace(draft.Mentor) ? null : draft.Mentor.Trim(),
                 DepartmentId = departmentId,

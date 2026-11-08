@@ -147,14 +147,14 @@ public sealed class RoleSeparationTests
     }
 
     [Fact]
-    public async Task Neither_group_is_denied_and_one_group_does_not_grant_the_other()
+    public async Task Neither_role_is_denied_and_one_role_does_not_grant_the_other()
     {
         using var factory = new PosterWebApplicationFactory();
         using var neither = await PosterSignIn.SignInAsync(factory, "neither");
         var denied = await neither.GetAsync("/");
         Assert.Contains("/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var deniedHtml = await denied.Content.ReadAsStringAsync();
-        Assert.Contains("not in an authorized group", deniedHtml, StringComparison.Ordinal);
+        Assert.Contains("has not been assigned the Requester or Technician role", deniedHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Personal activity", deniedHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Posters pending printing", deniedHtml, StringComparison.Ordinal);
 
@@ -199,7 +199,7 @@ public sealed class RoleSeparationTests
 
         Assert.False(verifier.IsMember(principal, InstitutionalGroups.Technicians));
         Assert.False(verifier.IsMember(principal, InstitutionalGroups.Requesters));
-        Assert.False(new WindowsActorSource().FromPrincipal(principal)?.IsValid == true);
+        Assert.Null(new ClaimsActorSource().FromPrincipal(principal));
     }
 
     private static int CountOccurrences(string text, string value)
@@ -247,7 +247,7 @@ public sealed class UserActivityTests
         await using var verification = _database.CreateContext();
         var owned = await verification.PosterRequests
             .AsNoTracking()
-            .Where(request => request.SubmittedBySecurityIdentifier == InstitutionalTestIdentities.RequesterSid)
+            .Where(request => request.SubmittedByObjectId == InstitutionalTestIdentities.RequesterOid)
             .Select(request => new { request.ReasonName, request.PosterProcessing.Printed })
             .ToListAsync();
         var expectedPrinted = owned.Count(poster => poster.Printed);
@@ -273,9 +273,9 @@ public sealed class UserActivityTests
         SubmittedByAccountName = userName == "usera"
             ? InstitutionalTestIdentities.RequesterAccount
             : InstitutionalTestIdentities.TechnicianAccount,
-        SubmittedBySecurityIdentifier = userName == "usera"
-            ? InstitutionalTestIdentities.RequesterSid
-            : InstitutionalTestIdentities.TechnicianSid,
+        SubmittedByObjectId = userName == "usera"
+            ? InstitutionalTestIdentities.RequesterOid
+            : InstitutionalTestIdentities.TechnicianOid,
         DepartmentId = departmentId,
         DepartmentName = departmentName,
         ReasonId = reasonId,

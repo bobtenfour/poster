@@ -12,6 +12,8 @@ public sealed class PosterProcessing
 
     public string? ProcessedBySecurityIdentifier { get; set; }
 
+    public Guid? ProcessedByObjectId { get; set; }
+
     public DateOnly? Received { get; set; }
 
     public bool Printed { get; set; }

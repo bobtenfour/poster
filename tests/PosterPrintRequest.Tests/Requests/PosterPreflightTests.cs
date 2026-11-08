@@ -15,8 +15,8 @@ public sealed class PosterPreflightTests : IDisposable
     public PosterPreflightTests()
     {
         Directory.CreateDirectory(_root);
-        _files = new DraftFileStore(Options.Create(new SharedStorageOptions { RootPath = _root }));
-        _preflight = new PosterPreflight(_files);
+        _files = new DraftFileStore(TestStorage.Access(_root));
+        _preflight = new PosterPreflight(_files, TestStorage.Access(_root));
     }
 
     [Theory]
@@ -263,8 +263,9 @@ public sealed class PosterPreflightTests : IDisposable
             Assert.True(saved.Saved);
         }
 
-        var path = _files.PosterPath(draftId);
-        Assert.NotNull(path);
+        var relative = _files.PosterPath(draftId);
+        Assert.NotNull(relative);
+        var path = Path.Combine(_root, relative);
         var before = SHA256.HashData(await File.ReadAllBytesAsync(path));
         var result = await _preflight.InspectStoredPosterAsync(draftId, CancellationToken.None);
         var after = SHA256.HashData(await File.ReadAllBytesAsync(path));

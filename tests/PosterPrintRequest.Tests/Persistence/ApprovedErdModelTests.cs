@@ -82,6 +82,7 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterRequest.ReasonName),
                 nameof(PosterRequest.Room),
                 nameof(PosterRequest.SubmittedByAccountName),
+                nameof(PosterRequest.SubmittedByObjectId),
                 nameof(PosterRequest.SubmittedBySecurityIdentifier)
             },
             PropertyNames(typeof(PosterRequest)));
@@ -125,6 +126,7 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterProcessing.PosterRequestId),
                 nameof(PosterProcessing.Printed),
                 nameof(PosterProcessing.ProcessedByAccountName),
+                nameof(PosterProcessing.ProcessedByObjectId),
                 nameof(PosterProcessing.ProcessedBySecurityIdentifier),
                 nameof(PosterProcessing.Received)
             },
@@ -209,6 +211,10 @@ public sealed class ApprovedErdModelTests
         Assert.Equal("date", processing.FindProperty(nameof(PosterProcessing.DateOut))!.GetColumnType());
         Assert.True(processing.FindProperty(nameof(PosterProcessing.ProcessedByAccountName))!.IsNullable);
         Assert.True(processing.FindProperty(nameof(PosterProcessing.ProcessedBySecurityIdentifier))!.IsNullable);
+        Assert.True(processing.FindProperty(nameof(PosterProcessing.ProcessedByObjectId))!.IsNullable);
+        Assert.Equal(typeof(Guid?), processing.FindProperty(nameof(PosterProcessing.ProcessedByObjectId))!.ClrType);
+        Assert.True(request.FindProperty(nameof(PosterRequest.SubmittedByObjectId))!.IsNullable);
+        Assert.Equal(typeof(Guid?), request.FindProperty(nameof(PosterRequest.SubmittedByObjectId))!.ClrType);
         Assert.Equal(256, processing.FindProperty(nameof(PosterProcessing.ProcessedByAccountName))!.GetMaxLength());
         Assert.Equal(184, processing.FindProperty(nameof(PosterProcessing.ProcessedBySecurityIdentifier))!.GetMaxLength());
         Assert.True(processing.FindProperty(nameof(PosterProcessing.Received))!.IsNullable);

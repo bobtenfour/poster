@@ -42,6 +42,7 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         AssertColumn(columns, "PosterRequests", "Email", "nvarchar", nullable: false, characterMaximumLength: -1);
         AssertColumn(columns, "PosterRequests", "SubmittedByAccountName", "nvarchar", nullable: true, characterMaximumLength: 256);
         AssertColumn(columns, "PosterRequests", "SubmittedBySecurityIdentifier", "nvarchar", nullable: true, characterMaximumLength: 184);
+        AssertColumn(columns, "PosterRequests", "SubmittedByObjectId", "uniqueidentifier", nullable: true);
         AssertColumn(columns, "PosterRequests", "ReasonId", "int", nullable: true);
         AssertColumn(columns, "PosterRequests", "LaminationRequested", "bit", nullable: false);
         AssertColumn(columns, "PosterRequests", "ApprovalSheetUploaded", "bit", nullable: false);
@@ -65,6 +66,7 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         AssertColumn(columns, "PosterProcessings", "PosterRequestId", "int", nullable: false);
         AssertColumn(columns, "PosterProcessings", "ProcessedByAccountName", "nvarchar", nullable: true, characterMaximumLength: 256);
         AssertColumn(columns, "PosterProcessings", "ProcessedBySecurityIdentifier", "nvarchar", nullable: true, characterMaximumLength: 184);
+        AssertColumn(columns, "PosterProcessings", "ProcessedByObjectId", "uniqueidentifier", nullable: true);
         AssertColumn(columns, "PosterProcessings", "Received", "date", nullable: true);
         AssertColumn(columns, "PosterProcessings", "Printed", "bit", nullable: false);
         AssertColumn(columns, "PosterProcessings", "Laminated", "bit", nullable: false);
@@ -84,7 +86,7 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         };
         AssertColumn(columns, "PosterRequests", "DepartmentName", "nvarchar", nullable: false, characterMaximumLength: 128);
         AssertColumn(columns, "PosterRequests", "ReasonName", "nvarchar", nullable: true, characterMaximumLength: 128);
-        Assert.Equal(47, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
+        Assert.Equal(49, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
         Assert.DoesNotContain(columns.Keys, key => key.StartsWith("AspNet", StringComparison.Ordinal));
         Assert.DoesNotContain(columns.Keys, key => key.EndsWith(".PasswordHash", StringComparison.Ordinal));
         Assert.Equal("NO_ACTION", foreignKeys["PosterRequests.DepartmentId"]);

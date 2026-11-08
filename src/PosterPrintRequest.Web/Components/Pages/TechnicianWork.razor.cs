@@ -205,7 +205,7 @@ public partial class TechnicianWork : ComponentBase
         var state = await AuthenticationState.GetAuthenticationStateAsync();
         Actor = Actors.FromPrincipal(state.User);
         TechnicianAccount = Actor is { IsValid: true }
-            ? Actor.AccountName
+            ? Actor.PreferredUsername ?? "Signed-in technician"
             : "The signed-in identity could not be verified.";
         Error = null;
     }

@@ -19,9 +19,9 @@ builder.Host.UseDefaultServiceProvider((context, options) =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddPosterAuthentication();
+builder.Services.AddPosterAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddPosterPrintRequestPersistence(builder.Configuration, builder.Environment.IsProduction());
-builder.Services.AddSharedStorage(builder.Configuration);
+builder.Services.AddSharedStorage(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddScoped<DraftFileStore>();
 builder.Services.AddScoped<IDraftFileStore>(services => services.GetRequiredService<DraftFileStore>());
 builder.Services.AddScoped<IRequesterOptionSource, RequesterOptionCatalog>();
@@ -40,7 +40,9 @@ builder.Services.AddScoped<IOperatorConfiguration, OperatorConfiguration>();
 builder.Services.AddSingleton(services =>
     new PrinterSupplies(services.GetRequiredService<IConfiguration>(), PrinterSupplies.CreateClient()));
 
-if (!builder.Environment.IsDevelopment())
+// Authentication Contract section 8: Production has no forwarded-header processing; every other environment is unchanged.
+var forwardedHeaders = !builder.Environment.IsDevelopment() && !builder.Environment.IsProduction();
+if (forwardedHeaders)
 {
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -52,7 +54,7 @@ if (!builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
+if (forwardedHeaders)
 {
     app.UseForwardedHeaders();
 }
@@ -95,12 +97,25 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapProductionEndpoints();
+if (PosterAccess.UsesEntra(app.Environment))
+{
+    app.MapAccountEndpoints();
+}
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 var entry = Assembly.GetEntryAssembly()?.GetName().Name;
 if (!string.Equals(entry, "ef", StringComparison.OrdinalIgnoreCase))
 {
+    if (PosterAccess.UsesEntra(app.Environment))
+    {
+        // Build the Entra sign-in options first so an authentication configuration refusal stops startup.
+        app.Services.RequireEntraConfiguration();
+    }
+
+    // Resolve the storage service so a storage configuration refusal stops startup.
+    _ = app.Services.GetRequiredService<ISharedStorageAccess>();
     await using var scope = app.Services.CreateAsyncScope();
     var migration = scope.ServiceProvider.GetRequiredService<PrintFolderMigration>();
     await migration.MigrateAsync(CancellationToken.None);
