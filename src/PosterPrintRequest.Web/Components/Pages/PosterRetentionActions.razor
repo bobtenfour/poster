@@ -1,0 +1,59 @@
+@if (CanDelete)
+{
+    <button type="button" class="epx-icon-button" aria-label="@($"Delete {PosterName}")" @onclick="Open">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 3.8h6M5.2 6.8h13.6M8.2 6.8l.6 12.2h6.4l.6-12.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+    </button>
+}
+@if (CanRestore)
+{
+    <button type="button" class="epx-icon-button" aria-label="@($"Restore {PosterName}")" @onclick="Restore">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8.2 8.2H4.6V4.6M5 8.2a7.2 7.2 0 1 1 1.2 8.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+    </button>
+}
+@if (_confirming)
+{
+    <div class="epx-modal-backdrop">
+        <div class="epx-modal" role="dialog" aria-modal="true" aria-labelledby="@_titleId">
+            <h2 id="@_titleId">Delete this poster?</h2>
+            <p>@PosterName</p>
+            <div class="epx-form-actions">
+                <button type="button" class="epx-button" @onclick="Cancel">Cancel</button>
+                <button type="button" class="epx-button epx-button-primary" @onclick="Confirm">Delete poster</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly string _titleId = "poster-delete-" + Guid.NewGuid().ToString("N");
+    private bool _confirming;
+
+    [Parameter]
+    public string PosterName { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool CanDelete { get; set; }
+
+    [Parameter]
+    public bool CanRestore { get; set; }
+
+    [Parameter]
+    public EventCallback ConfirmDelete { get; set; }
+
+    [Parameter]
+    public EventCallback Restore { get; set; }
+
+    private void Open() => _confirming = true;
+
+    private void Cancel() => _confirming = false;
+
+    private async Task Confirm()
+    {
+        _confirming = false;
+        await ConfirmDelete.InvokeAsync();
+    }
+}

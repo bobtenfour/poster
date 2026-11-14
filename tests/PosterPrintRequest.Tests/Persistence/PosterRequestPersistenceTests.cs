@@ -47,6 +47,9 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         AssertColumn(columns, "PosterRequests", "LaminationRequested", "bit", nullable: false);
         AssertColumn(columns, "PosterRequests", "ApprovalSheetUploaded", "bit", nullable: false);
         AssertColumn(columns, "PosterRequests", "DateIn", "datetime2", nullable: false);
+        AssertColumn(columns, "PosterRequests", "TemporaryDeletionAt", "datetime2", nullable: true);
+        AssertColumn(columns, "PosterRequests", "PermanentlyDeletedAt", "datetime2", nullable: true);
+        AssertColumn(columns, "PosterRequests", "OriginalDirectory", "nvarchar", nullable: true, characterMaximumLength: 512);
 
         AssertColumn(columns, "PosterFiles", "PosterFileId", "int", nullable: false, identity: true);
         AssertColumn(columns, "PosterFiles", "PosterRequestId", "int", nullable: false);
@@ -86,7 +89,15 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         };
         AssertColumn(columns, "PosterRequests", "DepartmentName", "nvarchar", nullable: false, characterMaximumLength: 128);
         AssertColumn(columns, "PosterRequests", "ReasonName", "nvarchar", nullable: true, characterMaximumLength: 128);
-        Assert.Equal(49, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
+        Assert.Equal(52, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
+        AssertColumn(columns, "PosterRetentionAudits", "PosterRetentionAuditId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "PosterRetentionAudits", "PosterRequestId", "int", nullable: false);
+        AssertColumn(columns, "PosterRetentionAudits", "PosterId", "nvarchar", nullable: false, characterMaximumLength: 64);
+        AssertColumn(columns, "PosterRetentionAudits", "Action", "nvarchar", nullable: false, characterMaximumLength: 32);
+        AssertColumn(columns, "PosterRetentionAudits", "OccurredAt", "datetime2", nullable: false);
+        AssertColumn(columns, "PosterRetentionAudits", "ActorObjectId", "uniqueidentifier", nullable: true);
+        AssertColumn(columns, "PosterRetentionAudits", "OriginalDirectory", "nvarchar", nullable: false, characterMaximumLength: 512);
+        Assert.Equal("CASCADE", foreignKeys["PosterRetentionAudits.PosterRequestId"]);
         Assert.DoesNotContain(columns.Keys, key => key.StartsWith("AspNet", StringComparison.Ordinal));
         Assert.DoesNotContain(columns.Keys, key => key.EndsWith(".PasswordHash", StringComparison.Ordinal));
         Assert.Equal("NO_ACTION", foreignKeys["PosterRequests.DepartmentId"]);

@@ -27,11 +27,17 @@ public sealed class LibraryEntry
     public string? ViewHref { get; init; }
 
     public string? Tone { get; init; }
+
+    public string? PosterId { get; init; }
+
+    public bool CanDelete { get; init; }
+
+    public bool CanRestore { get; init; }
 }
 
 public interface ITechnicianLibrary
 {
-    LibraryListing? List(string? relativePath);
+    LibraryListing? List(string? relativePath, IReadOnlyList<RetainedPosterListing>? retained = null);
 }
 
 public sealed class TechnicianLibrary : ITechnicianLibrary
@@ -43,7 +49,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
         _access = access;
     }
 
-    public LibraryListing? List(string? relativePath)
+    public LibraryListing? List(string? relativePath, IReadOnlyList<RetainedPosterListing>? retained = null)
     {
         var requested = string.IsNullOrWhiteSpace(relativePath) ? "" : relativePath.Trim().Trim('/');
         if (!_access.DirectoryExists(""))
@@ -100,6 +106,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 continue;
             }
 
+            var posterId = directory ? StorageNames.PosterIdFromFolder(name) : null;
             entries.Add(new LibraryEntry
             {
                 Name = name,
@@ -107,11 +114,37 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 Kind = Kind(segments, name, directory),
                 Tone = directory ? PrintFolderPaths.Tone(name) : null,
                 NavigateHref = directory ? LibraryHref(segments.Append(name)) : null,
-                WorkHref = directory && StorageNames.PosterIdFromFolder(name) is { } posterId
-                    ? "/technician/work/" + posterId
-                    : null,
-                ViewHref = ViewHref(segments, name, directory)
+                WorkHref = posterId is not null ? "/technician/work/" + posterId : null,
+                ViewHref = ViewHref(segments, name, directory),
+                PosterId = posterId,
+                CanDelete = posterId is not null
             });
+        }
+
+        if (retained is not null)
+        {
+            foreach (var poster in retained)
+            {
+                if (!string.Equals(poster.ParentDirectory, full, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (entries.Any(entry => entry.Directory && string.Equals(entry.Name, poster.FolderName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                entries.Add(new LibraryEntry
+                {
+                    Name = poster.FolderName,
+                    Directory = true,
+                    Kind = "Poster",
+                    WorkHref = "/technician/work/" + poster.PosterId,
+                    PosterId = poster.PosterId,
+                    CanRestore = true
+                });
+            }
         }
 
         return new LibraryListing
@@ -378,7 +411,8 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
     private static bool IsReserved(string name) =>
         name.Equals("drafts", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("requests", StringComparison.OrdinalIgnoreCase);
+        || name.Equals("requests", StringComparison.OrdinalIgnoreCase)
+        || name.Equals(PosterRetentionPaths.FolderName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsYear(string name) =>
         name.Length == 4

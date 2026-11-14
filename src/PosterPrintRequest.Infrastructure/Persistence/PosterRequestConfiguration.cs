@@ -56,6 +56,15 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
             .HasColumnType("datetime2")
             .IsRequired();
 
+        builder.Property(request => request.TemporaryDeletionAt)
+            .HasColumnType("datetime2");
+
+        builder.Property(request => request.PermanentlyDeletedAt)
+            .HasColumnType("datetime2");
+
+        builder.Property(request => request.OriginalDirectory)
+            .HasMaxLength(PosterRetentionAuditConfiguration.DirectoryMaxLength);
+
         builder.Property(request => request.DepartmentName)
             .HasMaxLength(DepartmentConfiguration.NameMaxLength)
             .IsRequired();

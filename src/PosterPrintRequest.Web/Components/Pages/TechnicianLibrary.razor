@@ -2,9 +2,11 @@
 @page "/technician/library/{*RelativePath}"
 @layout TechnicianLayout
 @attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@rendermode InteractiveServer
 @using PosterPrintRequest.Web.Requests
 
 <PageTitle>Poster library</PageTitle>
+<SessionGuard />
 
 <section class="epx-blueignix-home" aria-label="Poster library">
     <PageHeader Kicker="Library"
@@ -61,6 +63,11 @@
             </nav>
         </div>
 
+        @if (!string.IsNullOrWhiteSpace(Notice))
+        {
+            <p class="epx-field-error" role="alert">@Notice</p>
+        }
+
         @if (Listing.Entries.Count == 0)
         {
             <p>This folder is empty.</p>
@@ -81,7 +88,7 @@
                             {
                                 <p class="epx-folder-name">@entry.Name</p>
                             }
-                            @if (entry.WorkHref is not null || entry.ViewHref is not null)
+                            @if (entry.WorkHref is not null || entry.ViewHref is not null || entry.CanDelete || entry.CanRestore)
                             {
                                 <p class="epx-folder-actions">
                                     @if (entry.WorkHref is not null)
@@ -91,6 +98,14 @@
                                     @if (entry.ViewHref is not null)
                                     {
                                         <a href="@ApplicationUris.BrowserPath(Navigation, entry.ViewHref)" target="_blank" rel="noopener">View</a>
+                                    }
+                                    @if (entry.CanDelete || entry.CanRestore)
+                                    {
+                                        <PosterRetentionActions PosterName="@entry.Name"
+                                                                CanDelete="@entry.CanDelete"
+                                                                CanRestore="@entry.CanRestore"
+                                                                ConfirmDelete="() => DeletePosterAsync(entry)"
+                                                                Restore="() => RestorePosterAsync(entry)" />
                                     }
                                 </p>
                             }
@@ -110,11 +125,61 @@
     private ITechnicianLibrary Library { get; set; } = null!;
 
     [Inject]
+    private IPosterRetention Retention { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationState { get; set; } = null!;
+
+    [Inject]
     private NavigationManager Navigation { get; set; } = null!;
 
     private LibraryListing? Listing { get; set; }
 
-    protected override void OnParametersSet() => Listing = Library.List(RelativePath);
+    private string? Notice { get; set; }
+
+    protected override async Task OnParametersSetAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        IReadOnlyList<RetainedPosterListing> retained;
+        try
+        {
+            retained = await Retention.ListRetainedAsync(CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            retained = [];
+            Notice = PosterRetentionMessages.ListFailed;
+        }
+
+        Listing = Library.List(RelativePath, retained);
+    }
+
+    private async Task DeletePosterAsync(LibraryEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.PosterId))
+        {
+            return;
+        }
+
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        var outcome = await Retention.ConfirmDeletionAsync(entry.PosterId, user, CancellationToken.None);
+        Notice = outcome.Completed ? null : outcome.Message;
+        await ReloadAsync();
+    }
+
+    private async Task RestorePosterAsync(LibraryEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.PosterId))
+        {
+            return;
+        }
+
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        var outcome = await Retention.RestoreAsync(entry.PosterId, user, CancellationToken.None);
+        Notice = outcome.Completed ? null : outcome.Message;
+        await ReloadAsync();
+    }
 
     private static string CrumbHref(IEnumerable<string> segments) =>
         PosterPrintRequest.Web.Requests.TechnicianLibrary.LibraryHref(segments);

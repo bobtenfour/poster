@@ -1744,8 +1744,58 @@ a.epx-folder-name:focus-visible {
 .epx-folder-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.65rem 1rem;
   margin: 0.25rem 0 0;
+}
+
+.epx-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--epx-blueignix-border);
+  border-radius: var(--epx-blueignix-radius);
+  background: var(--epx-blueignix-panel);
+  color: var(--epx-blueignix-text);
+  cursor: pointer;
+}
+
+.epx-icon-button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.epx-icon-button:hover,
+.epx-icon-button:focus-visible {
+  color: var(--epx-blueignix-blue);
+  border-color: var(--epx-blueignix-blue);
+}
+
+.epx-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(11, 31, 58, 0.45);
+}
+
+.epx-modal {
+  width: min(28rem, 100%);
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--epx-blueignix-radius);
+  background: var(--epx-blueignix-panel);
+  color: var(--epx-blueignix-text);
+  box-shadow: var(--epx-elevation-shadow-md);
+}
+
+.epx-modal h2,
+.epx-modal p {
+  margin-top: 0;
 }
 
 @media (max-width: 575.98px) {

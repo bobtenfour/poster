@@ -400,7 +400,7 @@ public sealed class EntraSessionTests
             .ToArray();
 
         Assert.Equal(
-            ["Request.razor", "TechnicianConfiguration.razor", "TechnicianInventory.razor", "TechnicianWork.razor"],
+            ["Request.razor", "TechnicianConfiguration.razor", "TechnicianInventory.razor", "TechnicianLibrary.razor", "TechnicianWork.razor"],
             interactive);
         foreach (var page in interactive)
         {

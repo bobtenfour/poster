@@ -204,6 +204,13 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("OriginalDirectory")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<DateTime?>("PermanentlyDeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -235,6 +242,9 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .HasMaxLength(184)
                         .HasColumnType("nvarchar(184)");
 
+                    b.Property<DateTime?>("TemporaryDeletionAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("PosterRequestId");
 
                     b.HasIndex("DepartmentId");
@@ -245,6 +255,45 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.HasIndex("ReasonId");
 
                     b.ToTable("PosterRequests");
+                });
+
+            modelBuilder.Entity("PosterPrintRequest.Domain.PosterRetentionAudit", b =>
+                {
+                    b.Property<int>("PosterRetentionAuditId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PosterRetentionAuditId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<Guid?>("ActorObjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OriginalDirectory")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("PosterId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("PosterRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PosterRetentionAuditId");
+
+                    b.HasIndex("PosterRequestId");
+
+                    b.ToTable("PosterRetentionAudits");
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.PrinterModel", b =>
@@ -459,6 +508,15 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("Reason");
+                });
+
+            modelBuilder.Entity("PosterPrintRequest.Domain.PosterRetentionAudit", b =>
+                {
+                    b.HasOne("PosterPrintRequest.Domain.PosterRequest", null)
+                        .WithMany()
+                        .HasForeignKey("PosterRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.PrinterModelConsumable", b =>

@@ -385,6 +385,8 @@ public sealed class StorageAccessContractTests : IDisposable
 
         public void DeleteDirectory(string relativePath) { Check("DeleteDirectory"); _inner.DeleteDirectory(relativePath); }
 
+        public void HideDirectory(string relativePath) { Check("HideDirectory"); _inner.HideDirectory(relativePath); }
+
         public long FileLength(string relativePath) => _inner.FileLength(relativePath);
 
         public bool IsReparsePoint(string relativePath) => _inner.IsReparsePoint(relativePath);

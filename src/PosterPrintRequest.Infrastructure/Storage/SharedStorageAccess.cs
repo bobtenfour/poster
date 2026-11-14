@@ -140,6 +140,18 @@ public sealed class SharedStorageAccess : ISharedStorageAccess, IDisposable
     public void DeleteDirectory(string relativePath) =>
         Run(relativePath, allowRoot: false, "DeleteDirectory", full => { Directory.Delete(full, recursive: true); return 0; });
 
+    public void HideDirectory(string relativePath) =>
+        Run(relativePath, allowRoot: false, "HideDirectory", full =>
+        {
+            if (!Directory.Exists(full) || IsReparse(full))
+            {
+                throw new StorageFailureException("HideDirectory");
+            }
+
+            File.SetAttributes(full, File.GetAttributes(full) | FileAttributes.Hidden);
+            return 0;
+        });
+
     public long FileLength(string relativePath) =>
         Run(relativePath, allowRoot: false, "FileLength", full => new FileInfo(full).Length);
 

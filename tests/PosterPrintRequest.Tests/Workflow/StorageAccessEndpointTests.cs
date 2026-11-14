@@ -201,6 +201,8 @@ public sealed class StorageAccessEndpointTests : IDisposable
 
         public void DeleteDirectory(string relativePath) => throw new NotSupportedException();
 
+        public void HideDirectory(string relativePath) => throw new NotSupportedException();
+
         public long FileLength(string relativePath) => _bytes.Length;
 
         public bool IsReparsePoint(string relativePath) => false;

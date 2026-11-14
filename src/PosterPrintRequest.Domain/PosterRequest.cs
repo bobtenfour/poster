@@ -40,6 +40,15 @@ public sealed class PosterRequest
 
     public DateTime DateIn { get; set; }
 
+    /// <summary>UTC time the poster directory was moved to temporary retention. Null when it is not retained.</summary>
+    public DateTime? TemporaryDeletionAt { get; set; }
+
+    /// <summary>UTC time the retained directory was permanently removed. Null until retention expires.</summary>
+    public DateTime? PermanentlyDeletedAt { get; set; }
+
+    /// <summary>Poster directory relative to the shared-storage root before temporary deletion.</summary>
+    public string? OriginalDirectory { get; set; }
+
     public PosterFile PosterFile { get; set; } = null!;
 
     public ApprovalSheet? ApprovalSheet { get; set; }

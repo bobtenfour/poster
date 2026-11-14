@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using PosterPrintRequest.Infrastructure.Persistence;
 using PosterPrintRequest.Infrastructure.Storage;
 using PosterPrintRequest.Web;
@@ -34,6 +35,10 @@ builder.Services.AddScoped<AcceptanceLookup>();
 builder.Services.AddScoped<ITechnicianWorkflow, TechnicianWorkflow>();
 builder.Services.AddScoped<ITechnicianDashboard, TechnicianDashboard>();
 builder.Services.AddScoped<ITechnicianLibrary, TechnicianLibrary>();
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<PosterRetentionSchedule>();
+builder.Services.AddScoped<IPosterRetention, PosterRetention>();
+builder.Services.AddHostedService<PosterRetentionExpiration>();
 builder.Services.AddScoped<PrintFolderMigration>();
 builder.Services.AddScoped<IPrintingInventory, PrintingInventory>();
 builder.Services.AddScoped<IOperatorConfiguration, OperatorConfiguration>();

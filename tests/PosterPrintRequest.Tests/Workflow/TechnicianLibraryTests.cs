@@ -115,6 +115,7 @@ public sealed class TechnicianLibraryTests : IDisposable
         Assert.Contains(eventFiles.Entries, entry => entry.Name == StorageNames.ApprovalSheet && entry.ViewHref == "/technician/files/POSTER-2026-000011/approval?inline=true");
         Assert.Contains("%20", TechnicianLibrary.LibraryHref(["Example event 2026"]), StringComparison.Ordinal);
 
+        Assert.Null(library.List(PosterRetentionPaths.FolderName));
         Assert.Null(library.List("drafts"));
         Assert.Null(library.List("requests"));
         Assert.Null(library.List(".."));

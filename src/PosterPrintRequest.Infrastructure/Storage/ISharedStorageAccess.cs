@@ -29,6 +29,8 @@ public interface ISharedStorageAccess
 
     void DeleteDirectory(string relativePath);
 
+    void HideDirectory(string relativePath);
+
     long FileLength(string relativePath);
 
     bool IsReparsePoint(string relativePath);

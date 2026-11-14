@@ -22,6 +22,8 @@ public sealed class PosterPrintRequestDbContext : DbContext
 
     public DbSet<PosterProcessing> PosterProcessings => Set<PosterProcessing>();
 
+    public DbSet<PosterRetentionAudit> PosterRetentionAudits => Set<PosterRetentionAudit>();
+
     public DbSet<PrintingConsumable> PrintingConsumables => Set<PrintingConsumable>();
 
     public DbSet<PrintingStockEntry> PrintingStockEntries => Set<PrintingStockEntry>();

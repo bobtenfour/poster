@@ -25,6 +25,7 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterFile),
                 nameof(PosterProcessing),
                 nameof(PosterRequest),
+                nameof(PosterRetentionAudit),
                 nameof(PrinterModel),
                 nameof(PrinterModelConsumable),
                 nameof(PrintingConsumable),
@@ -72,6 +73,8 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterRequest.LaminationRequested),
                 nameof(PosterRequest.Mentor),
                 nameof(PosterRequest.Name),
+                nameof(PosterRequest.OriginalDirectory),
+                nameof(PosterRequest.PermanentlyDeletedAt),
                 nameof(PosterRequest.Phone),
                 nameof(PosterRequest.PosterFile),
                 nameof(PosterRequest.PosterId),
@@ -83,7 +86,8 @@ public sealed class ApprovedErdModelTests
                 nameof(PosterRequest.Room),
                 nameof(PosterRequest.SubmittedByAccountName),
                 nameof(PosterRequest.SubmittedByObjectId),
-                nameof(PosterRequest.SubmittedBySecurityIdentifier)
+                nameof(PosterRequest.SubmittedBySecurityIdentifier),
+                nameof(PosterRequest.TemporaryDeletionAt)
             },
             PropertyNames(typeof(PosterRequest)));
 
