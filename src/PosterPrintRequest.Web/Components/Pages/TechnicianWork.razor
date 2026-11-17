@@ -44,8 +44,46 @@
 
     @if (View is not null)
     {
+        @if (View.ReplacementCount > 0)
+        {
+            <div class="epx-replaced" id="poster-replaced">
+                <p class="epx-replaced-label">Replaced by the requester @View.ReplacementCount @(View.ReplacementCount == 1 ? "time" : "times")</p>
+                <dl class="epx-meta">
+                    <div>
+                        <dt>Last replacement</dt>
+                        <dd>@View.LastReplacedAtUtc!.Value.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", CultureInfo.CurrentCulture)</dd>
+                    </div>
+                    <div>
+                        <dt>Note</dt>
+                        <dd>@View.LastReplacementNote</dd>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(View.LastReplacementFolder))
+                    {
+                        <div>
+                            <dt>Replaced files</dt>
+                            <dd><a href="@ApplicationUris.BrowserPath(Navigation, PosterPrintRequest.Web.Requests.TechnicianLibrary.LibraryHref(View.LastReplacementFolder.Split('/')))">Open in sustitutions</a></dd>
+                        </div>
+                    }
+                </dl>
+            </div>
+        }
+
         <Panel Kicker="Request" Title="@View.PosterId">
             <dl class="epx-meta">
+                @if (!string.IsNullOrWhiteSpace(View.PosterTitle))
+                {
+                    <div>
+                        <dt>Poster title</dt>
+                        <dd>@View.PosterTitle</dd>
+                    </div>
+                }
+                @if (View.TdxTicketState != PosterPrintRequest.Domain.TdxTicketStates.None || View.TdxTicketId is not null)
+                {
+                    <div>
+                        <dt>TDX ticket</dt>
+                        <dd id="tdx-ticket">@TdxTicketText(View)</dd>
+                    </div>
+                }
                 <div>
                     <dt>Requester</dt>
                     <dd>@View.RequesterName</dd>

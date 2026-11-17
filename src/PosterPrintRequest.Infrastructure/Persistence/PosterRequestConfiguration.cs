@@ -12,6 +12,10 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
 
     public const int SecurityIdentifierMaxLength = 184;
 
+    public const int PosterTitleMaxLength = 200;
+
+    public const int TdxTicketStateMaxLength = 16;
+
     public void Configure(EntityTypeBuilder<PosterRequest> builder)
     {
         builder.HasKey(request => request.PosterRequestId);
@@ -64,6 +68,28 @@ internal sealed class PosterRequestConfiguration : IEntityTypeConfiguration<Post
 
         builder.Property(request => request.OriginalDirectory)
             .HasMaxLength(PosterRetentionAuditConfiguration.DirectoryMaxLength);
+
+        builder.Property(request => request.PosterTitle)
+            .HasMaxLength(PosterTitleMaxLength);
+
+        builder.Property(request => request.TdxTicketId);
+
+        builder.HasIndex(request => request.TdxTicketId)
+            .IsUnique()
+            .HasFilter("[TdxTicketId] IS NOT NULL");
+
+        builder.Property(request => request.TdxTicketState)
+            .HasMaxLength(TdxTicketStateMaxLength)
+            .IsRequired()
+            .HasDefaultValue(TdxTicketStates.None);
+
+        builder.Property(request => request.TdxClaimedUntil)
+            .HasColumnType("datetime2");
+
+        builder.HasMany(request => request.Replacements)
+            .WithOne(replacement => replacement.PosterRequest)
+            .HasForeignKey(replacement => replacement.PosterRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(request => request.DepartmentName)
             .HasMaxLength(DepartmentConfiguration.NameMaxLength)

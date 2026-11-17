@@ -8,6 +8,14 @@ namespace PosterPrintRequest.Web.Components.Pages;
 
 public partial class TechnicianWork : ComponentBase
 {
+    /// <summary>TDX Integration Contract section 12.3 and 8A.5a.</summary>
+    internal static string TdxTicketText(TechnicianView view) =>
+        view.TdxTicketId is int ticketId
+            ? ticketId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : view.TdxTicketState == PosterPrintRequest.Domain.TdxTicketStates.Uncertain
+                ? "Verify in TDX"
+                : "Ticket pending";
+
     private string? _loadedId;
 
     [Parameter]

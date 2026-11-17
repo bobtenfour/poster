@@ -6,6 +6,8 @@ public sealed class RequesterDraft
 
     public string Name { get; set; } = "";
 
+    public string PosterTitle { get; set; } = "";
+
     public string Mentor { get; set; } = "";
 
     public string DepartmentId { get; set; } = "";

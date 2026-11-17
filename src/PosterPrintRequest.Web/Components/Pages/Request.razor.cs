@@ -194,6 +194,12 @@ public partial class Request : ComponentBase
         await PersistDraftAsync();
     }
 
+    private async Task OnPosterTitleChanged(string? value)
+    {
+        Draft.PosterTitle = value ?? "";
+        await PersistDraftAsync();
+    }
+
     private async Task OnMentorChanged(string? value)
     {
         Draft.Mentor = value ?? "";

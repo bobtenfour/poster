@@ -178,7 +178,13 @@
                         @foreach (var item in Snapshot.Queue)
                         {
                             <tr>
-                                <td>@item.PosterId</td>
+                                <td>
+                                    @item.PosterId
+                                    @if (item.Replacements > 0)
+                                    {
+                                        <span class="epx-replaced-label"> Replaced</span>
+                                    }
+                                </td>
                                 <td>@item.RequesterName</td>
                                 <td>@(item.EventName ?? "No event")</td>
                                 <td><span class="epx-stage epx-stage-@item.Stage.ToLowerInvariant()">@item.Stage</span></td>

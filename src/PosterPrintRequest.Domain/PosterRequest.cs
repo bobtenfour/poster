@@ -49,6 +49,20 @@ public sealed class PosterRequest
     /// <summary>Poster directory relative to the shared-storage root before temporary deletion.</summary>
     public string? OriginalDirectory { get; set; }
 
+    /// <summary>Poster title (PHASE 15). Required on new requests; null on requests accepted before PHASE 15.</summary>
+    public string? PosterTitle { get; set; }
+
+    /// <summary>TDX ticket number returned by TDX. Written once; unique when set.</summary>
+    public int? TdxTicketId { get; set; }
+
+    /// <summary>One of <see cref="TdxTicketStates"/>.</summary>
+    public string TdxTicketState { get; set; } = TdxTicketStates.None;
+
+    /// <summary>UTC end of the claim by which one processor owns ticket creation. Null when unclaimed.</summary>
+    public DateTime? TdxClaimedUntil { get; set; }
+
+    public List<PosterReplacement> Replacements { get; set; } = [];
+
     public PosterFile PosterFile { get; set; } = null!;
 
     public ApprovalSheet? ApprovalSheet { get; set; }

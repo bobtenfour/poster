@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Builds the PosterPrintRequest production deployment package (PHASE 12 + PHASE 13).
+    Builds the PosterPrintRequest production release directory (PHASE 12 + PHASE 13).
 
 .DESCRIPTION
     Run from any folder on the build machine:
@@ -12,16 +12,16 @@
          and that dotnet ef generates the same statements as Poster.Database.Upgrade.sql.
       3. Runs the test suite (Release).
       4. Publishes the web application (Release, framework-dependent).
-      5. Checks that the package contains no secret, connection string, Entra identifier or credential file.
-      6. Writes PosterPrintRequest-Release-<commit>.zip and its SHA-256 file in this folder.
+      5. Checks that the release directory contains no secret, connection string, Entra identifier or credential file.
+      6. Leaves the verified Release publish output as a directory in this folder; no archive is created.
 
     The script changes no server, IIS site, database, Entra registration or source file.
 
 .PARAMETER SkipTests
-    Skips step 3. The package is then not release evidence.
+    Skips step 3. The output is then not release evidence.
 
 .PARAMETER AllowUncommittedChanges
-    Builds from a working tree with uncommitted build inputs. The package name gets the suffix -dirty.
+    Builds from a working tree with uncommitted build inputs. The release directory name gets the suffix -dirty.
 
 .PARAMETER SkipDatabaseScriptCheck
     Skips the dotnet ef comparison of step 2 (for example when dotnet-ef is not installed).
@@ -67,11 +67,11 @@ try {
             $dirty | ForEach-Object { Write-Host "  $_" }
             throw 'Build inputs have uncommitted changes. Commit them, or run with -AllowUncommittedChanges.'
         }
-        Write-Warning 'Building from uncommitted build inputs. The package is marked -dirty.'
+        Write-Warning 'Building from uncommitted build inputs. The release directory is marked -dirty.'
         $suffix = '-dirty'
     }
-    $packageName = "PosterPrintRequest-Release-$commit$suffix"
-    Write-Host "  Package: $packageName"
+    $releaseName = "PosterPrintRequest-Release-$commit$suffix"
+    Write-Host "  Release directory: $releaseName"
 
     Step 'Database scripts'
     foreach ($name in 'Poster.Database.Install.sql', 'Poster.Database.Upgrade.sql') {
@@ -120,25 +120,25 @@ try {
     }
 
     if ($SkipTests) {
-        Write-Warning 'Tests skipped. This package is not release evidence.'
+        Write-Warning 'Tests skipped. This output is not release evidence.'
     } else {
         Step 'Tests'
         Invoke-Checked 'dotnet' @('test', $Solution, '-c', 'Release')
     }
 
     Step 'Publish'
-    $publishDir = Join-Path $DeploymentDir $packageName
+    $publishDir = Join-Path $DeploymentDir $releaseName
     if (Test-Path -LiteralPath $publishDir) { throw "$publishDir already exists. Remove it or build another commit." }
     Invoke-Checked 'dotnet' @('publish', $WebProject, '-c', 'Release', '--self-contained', 'false', '-o', $publishDir)
 
     $devSettings = Join-Path $publishDir 'appsettings.Development.json'
     if (Test-Path -LiteralPath $devSettings) { Remove-Item -LiteralPath $devSettings }
 
-    Step 'Package content checks'
+    Step 'Release directory content checks'
     if (-not (Test-Path -LiteralPath (Join-Path $publishDir 'web.config'))) { throw 'web.config is missing from the publish output.' }
     $forbiddenFiles = Get-ChildItem -LiteralPath $publishDir -Recurse -File |
         Where-Object { ($_.Extension -in @('.pfx', '.key', '.pem', '.dpapi', '.sql')) -or (($_.Name -like '*secret*') -and ($_.Extension -ne '.dll')) }
-    if ($forbiddenFiles) { $forbiddenFiles | ForEach-Object { Write-Host "  $($_.FullName)" }; throw 'The package contains a credential or database file.' }
+    if ($forbiddenFiles) { $forbiddenFiles | ForEach-Object { Write-Host "  $($_.FullName)" }; throw 'The release directory contains a credential or database file.' }
     foreach ($settings in Get-ChildItem -LiteralPath $publishDir -Filter 'appsettings*.json') {
         $json = Get-Content -LiteralPath $settings.FullName -Raw | ConvertFrom-Json
         if ($json.PSObject.Properties.Name -contains 'ConnectionStrings') { throw "$($settings.Name) contains ConnectionStrings." }
@@ -148,18 +148,12 @@ try {
         $raw = Get-Content -LiteralPath $settings.FullName -Raw
         if ($raw -match '(?i)password|secret|tenantid|clientid') { throw "$($settings.Name) contains a credential-like key." }
     }
-    Write-Host '  No secret, connection string, Entra identifier or credential file in the package.'
+    Write-Host '  No secret, connection string, Entra identifier or credential file in the release directory.'
 
-    Step 'Archive'
-    $zip = Join-Path $DeploymentDir "$packageName.zip"
-    if (Test-Path -LiteralPath $zip) { throw "$zip already exists." }
-    Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zip
-    $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
-    Set-Content -LiteralPath "$zip.sha256" -Value "$hash  $packageName.zip" -Encoding ASCII
+    Step 'Release directory ready'
 
     Step 'Done'
-    Write-Host "  Package : $zip"
-    Write-Host "  SHA-256 : $hash"
+    Write-Host "  Release directory: $publishDir"
     Write-Host "  Database: Poster.Database.Upgrade.sql (existing POSTER) or Poster.Database.Install.sql (new POSTER)"
     Write-Host "  Read DEPLOYMENT-README.txt before deploying."
 }

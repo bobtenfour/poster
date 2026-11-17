@@ -1,0 +1,19 @@
+{
+  // Copy this file beside the executable as tdx-validator.settings.json.
+  // Replace every placeholder before running. Do not put a username or password in this file.
+  // lookupAttempts and lookupIntervalSeconds are the bounded lookup schedule used only after an uncertain creation.
+  "applicationId": "<APPLICATION_ID>",
+  "formId": "<FORM_ID>",
+  "typeId": "<TYPE_ID>",
+  "statusId": "<STATUS_ID>",
+  "priorityId": "<PRIORITY_ID>",
+  "accountId": "<ACCOUNT_ID>",
+  // Optional. Use a non-negative integer, or null when the sandbox does not require it.
+  "sourceId": "<SOURCE_ID_OR_NULL>",
+  // Optional. Use a non-negative integer, or null when the sandbox does not require it.
+  "responsibleGroupId": "<RESPONSIBLE_GROUP_ID_OR_NULL>",
+  // Optional. Add required custom attributes as { "id": 0, "value": "" }. Leave the array empty when none are required.
+  "customAttributes": [],
+  "lookupAttempts": 3,
+  "lookupIntervalSeconds": 5
+}

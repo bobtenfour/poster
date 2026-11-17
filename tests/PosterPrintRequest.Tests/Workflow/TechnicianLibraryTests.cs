@@ -48,7 +48,10 @@ public sealed class TechnicianLibraryTests : IDisposable
         var root = library.List(null);
         Assert.NotNull(root);
         Assert.True(root.Available);
-        Assert.Equal(4, root.Entries.Count);
+        Assert.Equal(5, root.Entries.Count);
+        Assert.Equal(ReplacementNames.Root, root.Entries[4].Name);
+        Assert.Equal(ReplacementNames.Tone, root.Entries[4].Tone);
+        Assert.Equal("/technician/library/sustitutions", root.Entries[4].NavigateHref);
         Assert.Equal("TO BE PRINTED", root.Entries[0].Name);
         Assert.Equal("Events", root.Entries[0].Kind);
         Assert.Equal(PrintFolderPaths.ToBePrintedTone, root.Entries[0].Tone);
@@ -134,6 +137,40 @@ public sealed class TechnicianLibraryTests : IDisposable
         Assert.False(unavailable.Available);
         Assert.Empty(unavailable.Entries);
         Assert.Null(missingRoot.List("drafts"));
+    }
+
+    // TDX Integration Contract section 17.11: the sustitutions card and its archive folders.
+    [Fact]
+    public void The_sustitutions_folder_lists_only_archive_folders_and_files()
+    {
+        var folder = Path.Combine(_root, ReplacementNames.Root, "2026-11-16 POSTER-2026-000123 TDX-PENDING");
+        Directory.CreateDirectory(folder);
+        File.WriteAllBytes(Path.Combine(folder, "090507 - Poster.pdf"), "old"u8.ToArray());
+        File.WriteAllText(Path.Combine(folder, "090507 - Note.txt"), "Wrong author list");
+        File.WriteAllText(Path.Combine(folder, "other.txt"), "hidden");
+        Directory.CreateDirectory(Path.Combine(_root, ReplacementNames.Root, "random folder"));
+
+        var library = Create(_root);
+        var root = library.List(null);
+        Assert.NotNull(root);
+        var card = root.Entries[^1];
+        Assert.Equal(ReplacementNames.Root, card.Name);
+        Assert.Equal(ReplacementNames.Tone, card.Tone);
+
+        var archive = library.List(ReplacementNames.Root);
+        Assert.NotNull(archive);
+        var entry = Assert.Single(archive.Entries);
+        Assert.Equal("2026-11-16 POSTER-2026-000123 TDX-PENDING", entry.Name);
+        Assert.Null(entry.WorkHref);
+        Assert.False(entry.CanDelete);
+
+        var files = library.List(ReplacementNames.Root + "/2026-11-16 POSTER-2026-000123 TDX-PENDING");
+        Assert.NotNull(files);
+        Assert.Equal(2, files.Entries.Count);
+        Assert.Contains(files.Entries, item => item.Name == "090507 - Poster.pdf"
+            && item.ViewHref == "/technician/files/sustitutions/2026-11-16%20POSTER-2026-000123%20TDX-PENDING/090507%20-%20Poster.pdf?inline=true");
+        Assert.Contains(files.Entries, item => item.Name == "090507 - Note.txt" && item.Kind == "Note");
+        Assert.Null(library.List(ReplacementNames.Root + "/random folder"));
     }
 
     public void Dispose()

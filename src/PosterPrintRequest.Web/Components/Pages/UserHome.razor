@@ -31,6 +31,11 @@
             <p class="epx-stat-value" id="stat-events-participated">@Activity.EventsParticipated</p>
             <p class="epx-stat-detail">Distinct events on your requests</p>
         </article>
+        <article class="epx-stat-card">
+            <h2 class="epx-stat-label">Replacements</h2>
+            <p class="epx-stat-value" id="stat-replacements">@Activity.Replacements</p>
+            <p class="epx-stat-detail">Poster files you replaced</p>
+        </article>
     </section>
 
     <Panel Kicker="Activity" Title="Personal activity">
@@ -48,6 +53,7 @@
                             <th>Event</th>
                             <th>Date in</th>
                             <th>Printing</th>
+                            <th>Poster file</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -58,6 +64,12 @@
                                 <td>@(string.IsNullOrWhiteSpace(poster.EventName) ? "No event" : poster.EventName)</td>
                                 <td>@poster.DateIn.ToString("MMMM d, yyyy", CultureInfo.CurrentCulture)</td>
                                 <td>@(poster.Printed ? "Printed" : "Waiting")</td>
+                                <td>
+                                    @if (poster.CanReplace)
+                                    {
+                                        <a href="@ApplicationUris.BrowserPath(Navigation, "/request/replace/" + poster.PosterId)">Replace poster</a>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>

@@ -176,7 +176,9 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 Folder("TO BE PRINTED", "Events", PrintFolderPaths.ToBePrintedTone, [PrintFolderPaths.EventsToBePrinted]),
                 Folder("PRINTED", "Events", PrintFolderPaths.PrintedTone, [PrintFolderPaths.EventsPrinted]),
                 Folder("TO BE PRINTED", "Without event", PrintFolderPaths.ToBePrintedTone, [PrintFolderPaths.WithoutEventToBePrinted]),
-                Folder("PRINTED", "Without event", PrintFolderPaths.PrintedTone, [PrintFolderPaths.WithoutEventPrinted])
+                Folder("PRINTED", "Without event", PrintFolderPaths.PrintedTone, [PrintFolderPaths.WithoutEventPrinted]),
+                // TDX Integration Contract section 17.11: the fifth card, red.
+                Folder(ReplacementNames.Root, "Replaced posters", ReplacementNames.Tone, [ReplacementNames.Root])
             ]
         };
 
@@ -232,6 +234,11 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
         if (segments.Any(IsReserved))
         {
             return false;
+        }
+
+        if (segments[0] == ReplacementNames.Root)
+        {
+            return segments.Count == 1 || (segments.Count == 2 && ReplacementNames.IsArchiveFolder(segments[1]));
         }
 
         if (segments.Count == 1)
@@ -294,6 +301,13 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             return directory && (name == StorageNames.Events || PrintFolderPaths.IsWithoutPrintRoot(name));
         }
 
+        if (parent[0] == ReplacementNames.Root)
+        {
+            return parent.Count == 1
+                ? directory && ReplacementNames.IsArchiveFolder(name)
+                : parent.Count == 2 && !directory && ReplacementNames.IsArchiveFile(name);
+        }
+
         if (parent.Count == 1 && parent[0] == StorageNames.Events)
         {
             return directory && PrintFolderPaths.IsPrintEventFolder(name);
@@ -342,6 +356,11 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
     private static string Kind(IReadOnlyList<string> parent, string name, bool directory)
     {
+        if (parent.Count > 0 && parent[0] == ReplacementNames.Root)
+        {
+            return directory ? "Replacement" : name.EndsWith("Note.txt", StringComparison.Ordinal) ? "Note" : "Replaced poster";
+        }
+
         if (!directory)
         {
             if (name is StorageNames.PosterPdf or StorageNames.PosterPptx)
@@ -372,6 +391,12 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
     private static string? ViewHref(IReadOnlyList<string> parent, string name, bool directory)
     {
+        if (!directory && parent.Count == 2 && parent[0] == ReplacementNames.Root)
+        {
+            return "/technician/files/" + ReplacementNames.Root + "/" + Uri.EscapeDataString(parent[1]) + "/"
+                + Uri.EscapeDataString(name) + "?inline=true";
+        }
+
         if (directory || !IsPosterLocation(parent))
         {
             return null;

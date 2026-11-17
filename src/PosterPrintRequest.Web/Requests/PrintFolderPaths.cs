@@ -97,6 +97,39 @@ public static class PrintFolderPaths
         return true;
     }
 
+    /// <summary>
+    /// The reverse of <see cref="TryMapPrintedFile"/>: a file in a PRINTED folder mapped back to its TO BE PRINTED folder
+    /// (TDX Integration Contract section 17.8).
+    /// </summary>
+    public static bool TryMapToBePrintedFile(string? relativeFile, out string destinationFile)
+    {
+        destinationFile = string.Empty;
+        if (!TrySplit(relativeFile, out var segments) || segments.Length < 4)
+        {
+            return false;
+        }
+
+        int index;
+        if (segments[0] == StorageNames.Events
+            && segments[1].EndsWith(PrintedSuffix, StringComparison.Ordinal)
+            && !segments[1].EndsWith(ToBePrintedSuffix, StringComparison.Ordinal))
+        {
+            index = 1;
+        }
+        else if (segments[0] == WithoutEventPrinted)
+        {
+            index = 0;
+        }
+        else
+        {
+            return false;
+        }
+
+        segments[index] = segments[index][..^PrintedSuffix.Length] + ToBePrintedSuffix;
+        destinationFile = string.Join('/', segments);
+        return true;
+    }
+
     public static string? DirectoryOf(string? relativeFile)
     {
         if (!TrySplit(relativeFile, out var segments) || segments.Length < 2)

@@ -1,0 +1,113 @@
+@page "/request/replace/{PosterId}"
+@attribute [Authorize(Policy = PosterAccess.UserPolicy)]
+@rendermode InteractiveServer
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Replace poster</PageTitle>
+<SessionGuard />
+
+<section class="epx-blueignix-home" aria-label="Replace poster">
+    @if (!Loaded)
+    {
+        <PageHeader Kicker="UIC Dentistry School" Title="Replace poster" Subtitle="Loading the request." />
+    }
+    else if (Target is null)
+    {
+        <PageHeader Kicker="UIC Dentistry School"
+                    Title="Request not found"
+                    Subtitle="Only the requester can replace a poster. Check the Poster ID and open it again from your home page." />
+    }
+    else if (Done)
+    {
+        <PageHeader Kicker="UIC Dentistry School"
+                    Title="Poster replaced"
+                    Subtitle="The new file is now the poster of this request. The Poster ID and the TDX ticket stay the same." />
+        <p class="epx-blueignix-kicker">Poster ID</p>
+        <p class="epx-poster-id">@Target.PosterId</p>
+        @if (Target.Printed)
+        {
+            <Callout Kicker="Printing" Title="It will be printed again" Tone="info">
+                The poster had been printed. It is back in the list to be printed, and the technicians follow the normal steps again.
+            </Callout>
+        }
+        <div class="epx-form-actions">
+            <a class="epx-button epx-button-primary" href="@ApplicationUris.BrowserPath(Navigation, "/staff")">Back to home</a>
+        </div>
+    }
+    else
+    {
+        <PageHeader Kicker="UIC Dentistry School"
+                    Title="Replace poster"
+                    Subtitle="Upload the corrected poster file. The Poster ID and the TDX ticket stay the same." />
+
+        <p class="epx-blueignix-kicker">Poster ID</p>
+        <p class="epx-poster-id">@Target.PosterId</p>
+        <dl class="epx-meta">
+            @if (!string.IsNullOrWhiteSpace(Target.PosterTitle))
+            {
+                <div>
+                    <dt>Poster title</dt>
+                    <dd>@Target.PosterTitle</dd>
+                </div>
+            }
+            <div>
+                <dt>Current file</dt>
+                <dd>@Target.CurrentFileName</dd>
+            </div>
+            <div>
+                <dt>Printing</dt>
+                <dd>@(Target.Printed ? "Printed" : "Waiting")</dd>
+            </div>
+        </dl>
+
+        <Callout Kicker="This step" Title="What happens" Tone="info">
+            The new file is checked like a new request: a PDF with one page or a PPTX with one slide, no wider than 36 inches and no longer than 72 inches.
+            The current file is kept as history and is not printed. If the poster was already printed, it goes back to be printed.
+        </Callout>
+
+        @if (!string.IsNullOrWhiteSpace(FormError))
+        {
+            <p class="epx-field-error" role="alert">@FormError</p>
+        }
+
+        <form novalidate @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+            <Panel Kicker="Replacement" Title="New poster and note">
+                <div class="epx-form-grid">
+                    <div class="epx-form-span">
+                        <FileDropField InputId="replacement-file"
+                                       Label="New poster"
+                                       Required="true"
+                                       Accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                                       Help="@($"PDF or PPTX. One file, up to {UploadLimits.MaxLabel}. Drop it here or choose a file.")"
+                                       FileName="@Poster?.OriginalFileName"
+                                       SizeLabel="@SizeLabel"
+                                       Status="@PosterStatus"
+                                       Uploading="@Uploading"
+                                       Progress="@Progress"
+                                       InputKey="@InputKey"
+                                       Error="@Error("poster")"
+                                       OnSelected="OnPosterSelected"
+                                       OnRemove="RemovePosterAsync" />
+                        @if (Poster?.Preflight is not null)
+                        {
+                            <PosterPreflightReport Result="Poster.Preflight" />
+                        }
+                    </div>
+                    <div class="epx-form-span">
+                        <TextField FieldId="replacement-note"
+                                   Label="Note"
+                                   Required="true"
+                                   Help="@($"Explain the error in a short note, up to {ReplacementNames.NoteMaxLength} characters.")"
+                                   Value="@Note"
+                                   ValueChanged="OnNoteChanged"
+                                   Error="@Error("note")" />
+                    </div>
+                </div>
+                <div class="epx-form-actions">
+                    <ActionButton Variant="primary" ButtonType="submit" Disabled="@(Saving || Uploading)">Replace poster</ActionButton>
+                    <a class="epx-button" href="@ApplicationUris.BrowserPath(Navigation, "/staff")">Cancel</a>
+                </div>
+            </Panel>
+        </form>
+    }
+</section>

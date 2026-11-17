@@ -48,6 +48,22 @@ public sealed class TechnicianView
     public string? PickedUpBy { get; init; }
 
     public string? Comments { get; init; }
+
+    public string? PosterTitle { get; init; }
+
+    public int? TdxTicketId { get; init; }
+
+    public string TdxTicketState { get; init; } = TdxTicketStates.None;
+
+    /// <summary>Replacements of the poster file by the requester (TDX Integration Contract section 17.11).</summary>
+    public int ReplacementCount { get; init; }
+
+    public DateTime? LastReplacedAtUtc { get; init; }
+
+    public string? LastReplacementNote { get; init; }
+
+    /// <summary>Archive folder of the last replacement, relative to the shared-storage root.</summary>
+    public string? LastReplacementFolder { get; init; }
 }
 
 public sealed class TechnicianOutcome
@@ -92,7 +108,56 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
     public async Task<TechnicianView?> FindAsync(string? posterId, CancellationToken cancellationToken)
     {
         var request = await LoadAsync(posterId, cancellationToken);
-        return request is null ? null : ToView(request);
+        if (request is null)
+        {
+            return null;
+        }
+
+        var replacements = await _db.PosterReplacements
+            .AsNoTracking()
+            .Where(replacement => replacement.PosterRequestId == request.PosterRequestId)
+            .OrderByDescending(replacement => replacement.ReplacedAt)
+            .ThenByDescending(replacement => replacement.PosterReplacementId)
+            .Select(replacement => new { replacement.ReplacedAt, replacement.Note, replacement.ArchivedFilePath })
+            .ToListAsync(cancellationToken);
+        var view = ToView(request);
+        if (replacements.Count == 0)
+        {
+            return view;
+        }
+
+        var last = replacements[0];
+        return new TechnicianView
+        {
+            PosterId = view.PosterId,
+            RequesterName = view.RequesterName,
+            Department = view.Department,
+            Mentor = view.Mentor,
+            EventName = view.EventName,
+            Room = view.Room,
+            Phone = view.Phone,
+            Email = view.Email,
+            LaminationRequested = view.LaminationRequested,
+            DateIn = view.DateIn,
+            PosterFileName = view.PosterFileName,
+            ApprovalFileName = view.ApprovalFileName,
+            Folder = view.Folder,
+            ItPerson = view.ItPerson,
+            Received = view.Received,
+            Printed = view.Printed,
+            Laminated = view.Laminated,
+            Notified = view.Notified,
+            DateOut = view.DateOut,
+            PickedUpBy = view.PickedUpBy,
+            Comments = view.Comments,
+            PosterTitle = view.PosterTitle,
+            TdxTicketId = view.TdxTicketId,
+            TdxTicketState = view.TdxTicketState,
+            ReplacementCount = replacements.Count,
+            LastReplacedAtUtc = last.ReplacedAt,
+            LastReplacementNote = last.Note,
+            LastReplacementFolder = DirectoryOf(last.ArchivedFilePath)
+        };
     }
 
     public async Task<TechnicianOutcome> TakeAsync(
@@ -391,7 +456,10 @@ public sealed class TechnicianWorkflow : ITechnicianWorkflow
             Notified = processing.Notified,
             DateOut = processing.DateOut,
             PickedUpBy = processing.PickedUpBy,
-            Comments = processing.Comments
+            Comments = processing.Comments,
+            PosterTitle = request.PosterTitle,
+            TdxTicketId = request.TdxTicketId,
+            TdxTicketState = request.TdxTicketState
         };
     }
 

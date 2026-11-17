@@ -283,6 +283,179 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         }
     }
 
+    // TDX Integration Contract section 17.15 (a), (b), (e).
+    [Fact]
+    public async Task Replacement_keeps_the_poster_id_and_ticket_and_archives_the_old_file_with_the_note()
+    {
+        var choices = await LoadChoicesAsync();
+        var department = choices.Departments.First();
+        var draft = await CreateDraftAsync(department.Value, "", includeApproval: false);
+        FillRequester(draft, "Replace Keeper");
+        await using var context = _database.CreateContext();
+        var outcome = await SubmitAsync(context, draft);
+        Assert.True(outcome.Saved);
+        var saved = await context.PosterRequests.Include(request => request.PosterFile).SingleAsync(request => request.PosterId == outcome.PosterId);
+        saved.TdxTicketId = 4_000_000 + Random.Shared.Next(1, 999_999);
+        saved.TdxTicketState = PosterPrintRequest.Domain.TdxTicketStates.Created;
+        await context.SaveChangesAsync();
+        var oldBytes = await File.ReadAllBytesAsync(Full(saved.PosterFile.StoragePath));
+
+        var replacementDraft = DraftIds.Create();
+        var newPoster = SamplePosters.Pdf(24, 36);
+        await SaveBytesAsync(replacementDraft, DraftFileRole.Poster, "Corrected.pdf", newPoster);
+        await using (var replaceContext = _database.CreateContext())
+        {
+            var stranger = await Replacer(replaceContext).ReplaceAsync(
+                outcome.PosterId, InstitutionalTestIdentities.Technician, replacementDraft, "Corrected.pdf", "Wrong author list", CancellationToken.None);
+            Assert.False(stranger.Completed);
+        }
+
+        await using (var replaceContext = _database.CreateContext())
+        {
+            var result = await Replacer(replaceContext).ReplaceAsync(
+                outcome.PosterId, InstitutionalTestIdentities.Requester, replacementDraft, "Corrected.pdf", "  Wrong author list  ", CancellationToken.None);
+            Assert.True(result.Completed, result.Message);
+        }
+
+        await using var check = _database.CreateContext();
+        var after = await check.PosterRequests
+            .Include(request => request.PosterFile)
+            .Include(request => request.Replacements)
+            .SingleAsync(request => request.PosterId == outcome.PosterId);
+        Assert.Equal(saved.PosterRequestId, after.PosterRequestId);
+        Assert.Equal(saved.TdxTicketId, after.TdxTicketId);
+        Assert.Equal(PosterPrintRequest.Domain.TdxTicketStates.Created, after.TdxTicketState);
+        Assert.Equal(saved.PosterFile.StoragePath, after.PosterFile.StoragePath);
+        Assert.Equal("Corrected.pdf", after.PosterFile.OriginalFileName);
+        Assert.Equal(newPoster, await File.ReadAllBytesAsync(Full(after.PosterFile.StoragePath)));
+        var replacement = Assert.Single(after.Replacements);
+        Assert.Equal("Wrong author list", replacement.Note);
+        Assert.Equal(InstitutionalTestIdentities.RequesterOid, replacement.ReplacedByObjectId);
+        var folder = ReplacementNames.Folder(replacement.ReplacedAt.ToLocalTime(), outcome.PosterId!, saved.TdxTicketId);
+        Assert.StartsWith(ReplacementNames.Root + "/" + folder + "/", replacement.ArchivedFilePath, StringComparison.Ordinal);
+        Assert.EndsWith(" - Poster.pdf", replacement.ArchivedFilePath, StringComparison.Ordinal);
+        Assert.Equal(oldBytes, await File.ReadAllBytesAsync(Full(replacement.ArchivedFilePath)));
+        var noteFile = replacement.ArchivedFilePath[..^"Poster.pdf".Length] + "Note.txt";
+        Assert.Equal("Wrong author list", await File.ReadAllTextAsync(Full(noteFile)));
+        Assert.False(_files.Exists(replacementDraft, DraftFileRole.Poster));
+    }
+
+    // Section 17.15 (c).
+    [Fact]
+    public async Task Replacement_of_a_printed_poster_returns_it_to_be_printed_and_clears_the_later_stages()
+    {
+        var choices = await LoadChoicesAsync();
+        var department = choices.Departments.First();
+        var draft = await CreateDraftAsync(department.Value, "", includeApproval: false);
+        FillRequester(draft, "Printed Replacer");
+        await using var context = _database.CreateContext();
+        var outcome = await SubmitAsync(context, draft);
+        Assert.True(outcome.Saved);
+        var saved = await context.PosterRequests
+            .Include(request => request.PosterFile)
+            .Include(request => request.PosterProcessing)
+            .SingleAsync(request => request.PosterId == outcome.PosterId);
+        var toBePrinted = saved.PosterFile.StoragePath;
+        Assert.True(PrintFolderPaths.TryMapPrintedFile(toBePrinted, out var printed));
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetDirectoryName(Full(printed))!)!);
+        Directory.Move(Path.GetDirectoryName(Full(toBePrinted))!, Path.GetDirectoryName(Full(printed))!);
+        saved.PosterFile.StoragePath = printed;
+        saved.PosterProcessing.Received = new DateOnly(2026, 11, 10);
+        saved.PosterProcessing.Printed = true;
+        saved.PosterProcessing.Notified = true;
+        saved.PosterProcessing.DateOut = new DateOnly(2026, 11, 12);
+        saved.PosterProcessing.PickedUpBy = "Front desk";
+        await context.SaveChangesAsync();
+
+        var replacementDraft = DraftIds.Create();
+        await SaveBytesAsync(replacementDraft, DraftFileRole.Poster, "Fixed.pdf", SamplePosters.Pdf(30, 40));
+        await using (var replaceContext = _database.CreateContext())
+        {
+            var result = await Replacer(replaceContext).ReplaceAsync(
+                outcome.PosterId, InstitutionalTestIdentities.Requester, replacementDraft, "Fixed.pdf", "Typo in the title", CancellationToken.None);
+            Assert.True(result.Completed, result.Message);
+        }
+
+        await using var check = _database.CreateContext();
+        var after = await check.PosterRequests
+            .Include(request => request.PosterFile)
+            .Include(request => request.PosterProcessing)
+            .SingleAsync(request => request.PosterId == outcome.PosterId);
+        Assert.Equal(toBePrinted, after.PosterFile.StoragePath);
+        Assert.True(File.Exists(Full(toBePrinted)));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(Full(printed))));
+        Assert.Equal(new DateOnly(2026, 11, 10), after.PosterProcessing.Received);
+        Assert.False(after.PosterProcessing.Printed);
+        Assert.False(after.PosterProcessing.Laminated);
+        Assert.False(after.PosterProcessing.Notified);
+        Assert.Null(after.PosterProcessing.DateOut);
+        Assert.Null(after.PosterProcessing.PickedUpBy);
+    }
+
+    // Section 17.15 (d).
+    [Fact]
+    public async Task A_replacement_that_fails_preflight_or_has_no_note_changes_nothing()
+    {
+        var choices = await LoadChoicesAsync();
+        var department = choices.Departments.First();
+        var draft = await CreateDraftAsync(department.Value, "", includeApproval: false);
+        FillRequester(draft, "Unchanged Requester");
+        await using var context = _database.CreateContext();
+        var outcome = await SubmitAsync(context, draft);
+        Assert.True(outcome.Saved);
+        var before = await context.PosterRequests.AsNoTracking().Include(request => request.PosterFile)
+            .SingleAsync(request => request.PosterId == outcome.PosterId);
+        var bytes = await File.ReadAllBytesAsync(Full(before.PosterFile.StoragePath));
+
+        var wide = DraftIds.Create();
+        await SaveBytesAsync(wide, DraftFileRole.Poster, "Wide.pdf", SamplePosters.Pdf(40, 72));
+        await using (var replaceContext = _database.CreateContext())
+        {
+            var result = await Replacer(replaceContext).ReplaceAsync(
+                outcome.PosterId, InstitutionalTestIdentities.Requester, wide, "Wide.pdf", "Too wide", CancellationToken.None);
+            Assert.False(result.Completed);
+            Assert.True(result.FieldErrors.ContainsKey("poster"));
+        }
+
+        var fine = DraftIds.Create();
+        await SaveBytesAsync(fine, DraftFileRole.Poster, "Fine.pdf", SamplePosters.Pdf(24, 36));
+        await using (var replaceContext = _database.CreateContext())
+        {
+            var result = await Replacer(replaceContext).ReplaceAsync(
+                outcome.PosterId, InstitutionalTestIdentities.Requester, fine, "Fine.pdf", "   ", CancellationToken.None);
+            Assert.False(result.Completed);
+            Assert.True(result.FieldErrors.ContainsKey("note"));
+        }
+
+        await using var check = _database.CreateContext();
+        var after = await check.PosterRequests.AsNoTracking().Include(request => request.PosterFile).Include(request => request.Replacements)
+            .SingleAsync(request => request.PosterId == outcome.PosterId);
+        Assert.Empty(after.Replacements);
+        Assert.Equal(before.PosterFile.StoragePath, after.PosterFile.StoragePath);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(Full(after.PosterFile.StoragePath)));
+        Assert.False(Directory.Exists(Path.Combine(_root, ReplacementNames.Root))
+            && Directory.EnumerateFiles(Path.Combine(_root, ReplacementNames.Root), "*", SearchOption.AllDirectories)
+                .Any(path => path.Contains(outcome.PosterId!, StringComparison.Ordinal)));
+    }
+
+    private PosterReplacementService Replacer(PosterPrintRequest.Infrastructure.Persistence.PosterPrintRequestDbContext context) =>
+        new(
+            context,
+            TestStorage.Access(_root),
+            _files,
+            new PosterPreflight(_files, TestStorage.Access(_root)),
+            new AcceptedStorage(TestStorage.Access(_root), _files),
+            TimeProvider.System,
+            NullLogger<PosterReplacementService>.Instance);
+
+    private static void FillRequester(RequesterDraft draft, string name)
+    {
+        draft.Name = name;
+        draft.Room = "1";
+        draft.Phone = "555-0100";
+        draft.Email = "replace@example.edu";
+    }
+
     private async Task<RequesterChoices> LoadChoicesAsync()
     {
         await using var context = _database.CreateContext();
@@ -323,7 +496,8 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         {
             DraftId = DraftIds.Create(),
             DepartmentId = departmentId,
-            ReasonId = reasonId
+            ReasonId = reasonId,
+            PosterTitle = "Test poster"
         };
         await SaveBytesAsync(draft.DraftId, DraftFileRole.Poster, posterName, poster);
         draft.Poster = new DraftFileState

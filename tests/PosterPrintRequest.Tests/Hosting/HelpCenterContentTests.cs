@@ -38,7 +38,7 @@ public sealed class HelpCenterContentTests : BunitContext
         Assert.Contains("Longer than 72 inches is not accepted.", html, StringComparison.Ordinal);
         Assert.Contains("exactly one page", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("exactly one slide", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("This application does not create a TDX ticket.", html, StringComparison.Ordinal);
+        Assert.Contains("This application creates the TDX ticket for each accepted request.", html, StringComparison.Ordinal);
         Assert.Contains("id=\"poster-size\"", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/help#poster-file\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("BlueIgnix", html, StringComparison.Ordinal);

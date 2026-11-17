@@ -96,6 +96,15 @@
         <Panel Kicker="Files" Title="Poster and Approval Sheet">
             <div class="epx-form-grid">
                 <div class="epx-form-span">
+                    <TextField FieldId="poster-title"
+                               Label="Poster title"
+                               Required="true"
+                               Help="@($"Up to {PosterTitleRules.MaxLength} characters.")"
+                               Value="@Draft.PosterTitle"
+                               ValueChanged="OnPosterTitleChanged"
+                               Error="@Error("posterTitle")" />
+                </div>
+                <div class="epx-form-span">
                     <FileDropField InputId="poster-file"
                                    Label="Poster"
                                    Required="true"

@@ -1741,6 +1741,22 @@ a.epx-folder-name:focus-visible {
   color: var(--epx-blueignix-green);
 }
 
+/* TDX Integration Contract section 17.11: replaced posters and the sustitutions folder are red. */
+.epx-folder-sustitutions .epx-folder-name,
+.epx-folder-sustitutions a.epx-folder-name {
+  color: var(--epx-blueignix-red);
+}
+
+.epx-replaced {
+  border-left: 3px solid var(--epx-blueignix-red);
+  padding-left: 0.75rem;
+}
+
+.epx-replaced-label {
+  color: var(--epx-blueignix-red);
+  font-weight: 700;
+}
+
 .epx-folder-actions {
   display: flex;
   flex-wrap: wrap;

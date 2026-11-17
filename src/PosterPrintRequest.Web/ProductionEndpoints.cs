@@ -42,6 +42,46 @@ public static class ProductionEndpoints
         app.MapGet("/technician/files/{posterId}/approval", (string posterId, bool? inline, PosterPrintRequestDbContext db, ISharedStorageAccess storage, CancellationToken cancellationToken) =>
             SendFileAsync(posterId, approval: true, inline == true, db, storage, cancellationToken))
             .RequireAuthorization(PosterAccess.OperatorPolicy);
+
+        // TDX Integration Contract section 17.11: replaced files are history, shown to technicians only.
+        app.MapGet("/technician/files/" + ReplacementNames.Root + "/{folder}/{file}", (string folder, string file, bool? inline, ISharedStorageAccess storage) =>
+            SendArchivedFile(folder, file, inline == true, storage))
+            .RequireAuthorization(PosterAccess.OperatorPolicy);
+    }
+
+    private static IResult SendArchivedFile(string folder, string file, bool inline, ISharedStorageAccess storage)
+    {
+        if (!ReplacementNames.IsArchiveFolder(folder) || !ReplacementNames.IsArchiveFile(file))
+        {
+            return Results.NotFound();
+        }
+
+        var relative = ReplacementNames.Root + "/" + folder + "/" + file;
+        if (storage.IsReparsePoint(ReplacementNames.Root)
+            || storage.IsReparsePoint(ReplacementNames.Root + "/" + folder)
+            || !storage.FileExists(relative))
+        {
+            return Results.NotFound();
+        }
+
+        Stream content;
+        try
+        {
+            content = storage.OpenRead(relative);
+        }
+        catch (StorageFailureException)
+        {
+            return Results.NotFound();
+        }
+
+        var contentType = file.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+            ? "application/pdf"
+            : file.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase)
+                ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                : "text/plain; charset=utf-8";
+        return inline
+            ? Results.File(content, contentType, enableRangeProcessing: true)
+            : Results.File(content, contentType, file, enableRangeProcessing: true);
     }
 
     private static async Task<IResult> Ready(

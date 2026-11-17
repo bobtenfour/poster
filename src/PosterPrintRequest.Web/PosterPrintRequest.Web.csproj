@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PosterPrintRequest.Infrastructure\PosterPrintRequest.Infrastructure.csproj" />
+    <ProjectReference Include="..\PosterPrintRequest.Tdx\PosterPrintRequest.Tdx.csproj" />
   </ItemGroup>
 
   <ItemGroup>

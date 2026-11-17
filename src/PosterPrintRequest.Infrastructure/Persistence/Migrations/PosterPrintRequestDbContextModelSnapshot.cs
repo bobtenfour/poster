@@ -168,6 +168,40 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.ToTable("PosterProcessings");
                 });
 
+            modelBuilder.Entity("PosterPrintRequest.Domain.PosterReplacement", b =>
+                {
+                    b.Property<int>("PosterReplacementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PosterReplacementId"));
+
+                    b.Property<string>("ArchivedFilePath")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("PosterRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ReplacedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ReplacedByObjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("PosterReplacementId");
+
+                    b.HasIndex("PosterRequestId");
+
+                    b.ToTable("PosterReplacements");
+                });
+
             modelBuilder.Entity("PosterPrintRequest.Domain.PosterRequest", b =>
                 {
                     b.Property<int>("PosterRequestId")
@@ -220,6 +254,10 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("PosterTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<int?>("ReasonId")
                         .HasColumnType("int");
 
@@ -242,6 +280,19 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .HasMaxLength(184)
                         .HasColumnType("nvarchar(184)");
 
+                    b.Property<DateTime?>("TdxClaimedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("TdxTicketId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TdxTicketState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("None");
+
                     b.Property<DateTime?>("TemporaryDeletionAt")
                         .HasColumnType("datetime2");
 
@@ -253,6 +304,10 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("ReasonId");
+
+                    b.HasIndex("TdxTicketId")
+                        .IsUnique()
+                        .HasFilter("[TdxTicketId] IS NOT NULL");
 
                     b.ToTable("PosterRequests");
                 });
@@ -492,6 +547,17 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Navigation("PosterRequest");
                 });
 
+            modelBuilder.Entity("PosterPrintRequest.Domain.PosterReplacement", b =>
+                {
+                    b.HasOne("PosterPrintRequest.Domain.PosterRequest", "PosterRequest")
+                        .WithMany("Replacements")
+                        .HasForeignKey("PosterRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PosterRequest");
+                });
+
             modelBuilder.Entity("PosterPrintRequest.Domain.PosterRequest", b =>
                 {
                     b.HasOne("PosterPrintRequest.Domain.Department", "Department")
@@ -563,6 +629,8 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
 
                     b.Navigation("PosterProcessing")
                         .IsRequired();
+
+                    b.Navigation("Replacements");
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.PrinterModel", b =>

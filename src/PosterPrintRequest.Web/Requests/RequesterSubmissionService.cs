@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PosterPrintRequest.Domain;
 using PosterPrintRequest.Infrastructure.Persistence;
+using PosterPrintRequest.Web.Tdx;
 
 namespace PosterPrintRequest.Web.Requests;
 
@@ -17,6 +18,7 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
     private readonly IApprovalSheetCheck _approvalSheets;
     private readonly ILogger<RequesterSubmissionService> _logger;
     private readonly SignedInAccount? _account;
+    private readonly TdxTicketSignal? _tdx;
 
     public RequesterSubmissionService(
         PosterPrintRequestDbContext db,
@@ -25,7 +27,8 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
         AcceptedStorage storage,
         IApprovalSheetCheck approvalSheets,
         ILogger<RequesterSubmissionService> logger,
-        SignedInAccount? account = null)
+        SignedInAccount? account = null,
+        TdxTicketSignal? tdx = null)
     {
         _db = db;
         _files = files;
@@ -34,6 +37,7 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
         _approvalSheets = approvalSheets;
         _logger = logger;
         _account = account;
+        _tdx = tdx;
     }
 
     public async Task<SubmissionOutcome> SubmitAsync(RequesterDraft draft, CancellationToken cancellationToken)
@@ -139,6 +143,8 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
                 SubmittedByObjectId = actor.ObjectId,
                 SubmittedByAccountName = actor.PreferredUsername,
                 Name = draft.Name.Trim(),
+                PosterTitle = draft.PosterTitle.Trim(),
+                TdxTicketState = TdxTicketStates.Pending,
                 Mentor = string.IsNullOrWhiteSpace(draft.Mentor) ? null : draft.Mentor.Trim(),
                 DepartmentId = departmentId,
                 DepartmentName = departmentName,
@@ -200,6 +206,8 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
             {
             }
 
+            // TDX Integration Contract section 8.2: the ticket is created after the acceptance is committed.
+            _tdx?.Notify();
             _logger.LogInformation(
                 "Accepted poster {PosterId}. Event: {EventName}. Approval sheet uploaded: {ApprovalSheetUploaded}.",
                 posterId,
@@ -222,6 +230,12 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
         if (!choices.Departments.Any(option => option.Value == draft.DepartmentId))
         {
             errors["department"] = "Choose a department.";
+        }
+
+        var titleError = PosterTitleRules.Check(draft.PosterTitle);
+        if (titleError is not null)
+        {
+            errors["posterTitle"] = titleError;
         }
 
         if (string.IsNullOrWhiteSpace(draft.Room))

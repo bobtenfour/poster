@@ -61,6 +61,18 @@ public sealed class StorageAccessContractTests : IDisposable
     private static readonly string EntraSecretReader =
         Path.Combine("PosterPrintRequest.Web", "Identity", "EntraClientSecret.cs");
 
+    // Exemption authorized by the project owner on 14 November 2026. The TDX validation executable is not the
+    // application and never touches the shared-storage root: it reads its local settings file and writes its reports
+    // beside the executable on the execution host (TDX Validation Tool Contract sections 2, 6 and 11). Only the
+    // validator project is exempt; the shared TDX library stays under this check.
+    private static readonly string TdxValidatorProject =
+        "PosterPrintRequest.TdxValidator" + Path.DirectorySeparatorChar;
+
+    // Exemption (e) authorized by the project owner on 16 November 2026 (Storage Access Contract section 14 amendment;
+    // TDX Integration Contract section 9.5): the DPAPI-protected TDX credential reader, named by exact path.
+    private static readonly string TdxCredentialReader =
+        Path.Combine("PosterPrintRequest.Web", "Tdx", "TdxCredential.cs");
+
     [Fact]
     public void Only_the_storage_boundary_touches_the_file_system_under_the_root()
     {
@@ -79,6 +91,8 @@ public sealed class StorageAccessContractTests : IDisposable
             var relative = Path.GetRelativePath(source, file);
             if (relative.Contains(boundary, StringComparison.Ordinal)
                 || relative == EntraSecretReader
+                || relative == TdxCredentialReader
+                || relative.StartsWith(TdxValidatorProject, StringComparison.Ordinal)
                 || relative.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
                 || relative.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             {

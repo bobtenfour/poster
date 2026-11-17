@@ -273,7 +273,7 @@ public sealed class EntraIdentityTests
             var denied = await client.GetStringAsync("/request/accepted/" + posterId);
 
             Assert.Contains(AcceptanceLookup.HistoricalNotLinkedMessage, denied, StringComparison.Ordinal);
-            Assert.DoesNotContain("Create the TDX ticket", denied, StringComparison.Ordinal);
+            Assert.DoesNotContain("within the next 48 hours", denied, StringComparison.Ordinal);
             Assert.DoesNotContain("Historical Requester", denied, StringComparison.Ordinal);
         }
         finally
@@ -295,7 +295,7 @@ public sealed class EntraIdentityTests
 
             var shown = await client.GetStringAsync("/request/accepted/" + posterId);
 
-            Assert.Contains("Create the TDX ticket", shown, StringComparison.Ordinal);
+            Assert.Contains("within the next 48 hours", shown, StringComparison.Ordinal);
             Assert.DoesNotContain(AcceptanceLookup.HistoricalNotLinkedMessage, shown, StringComparison.Ordinal);
             Assert.Equal(InstitutionalTestIdentities.RequesterOid, (await LoadAsync(posterId)).SubmittedByObjectId);
         }

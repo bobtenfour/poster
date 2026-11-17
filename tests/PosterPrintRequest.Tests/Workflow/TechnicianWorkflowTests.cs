@@ -221,7 +221,8 @@ public sealed class TechnicianWorkflowTests : IDisposable
         {
             DraftId = DraftIds.Create(),
             DepartmentId = departmentId,
-            ReasonId = reasonId
+            ReasonId = reasonId,
+            PosterTitle = "Test poster"
         };
         await using var stream = new MemoryStream(poster);
         var saved = await _files.SaveAsync(draft.DraftId, DraftFileRole.Poster, "Poster.pdf", stream, poster.Length, null, CancellationToken.None);

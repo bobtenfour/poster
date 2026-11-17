@@ -49,6 +49,9 @@ public sealed class TechnicianWorkItem
     public required DateTime DateIn { get; init; }
 
     public required bool LaminationRequested { get; init; }
+
+    /// <summary>Replacements by the requester (TDX Integration Contract section 17.11).</summary>
+    public int Replacements { get; init; }
 }
 
 public interface ITechnicianDashboard
@@ -116,7 +119,10 @@ public sealed class TechnicianDashboard : ITechnicianDashboard
                 request.PosterProcessing.Printed,
                 request.PosterProcessing.Laminated,
                 request.PosterProcessing.Notified,
-                request.PosterProcessing.DateOut))
+                request.PosterProcessing.DateOut)
+            {
+                Replacements = request.Replacements.Count
+            })
             .ToListAsync(cancellationToken);
 
         var printedThisMonth = rows.Where(row => PrintedIn(row, year, month)).ToList();
@@ -130,7 +136,8 @@ public sealed class TechnicianDashboard : ITechnicianDashboard
                 EventName = row.EventName,
                 Stage = Stage(row),
                 DateIn = row.DateIn,
-                LaminationRequested = row.LaminationRequested
+                LaminationRequested = row.LaminationRequested,
+                Replacements = row.Replacements
             })
             .OrderBy(item => StageOrder(item.Stage))
             .ThenBy(item => item.DateIn)
@@ -232,5 +239,8 @@ public sealed class TechnicianDashboard : ITechnicianDashboard
         bool Printed,
         bool Laminated,
         bool Notified,
-        DateOnly? DateOut);
+        DateOnly? DateOut)
+    {
+        public int Replacements { get; init; }
+    }
 }

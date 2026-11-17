@@ -7,6 +7,7 @@ using PosterPrintRequest.Infrastructure.Storage;
 using PosterPrintRequest.Web;
 using PosterPrintRequest.Web.Components;
 using PosterPrintRequest.Web.Requests;
+using PosterPrintRequest.Web.Tdx;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +31,7 @@ builder.Services.AddScoped<IPosterPreflight, PosterPreflight>();
 builder.Services.AddScoped<AcceptedStorage>();
 builder.Services.AddScoped<IApprovalSheetCheck, ApprovalSheetCheck>();
 builder.Services.AddScoped<IRequesterSubmission, RequesterSubmissionService>();
+builder.Services.AddScoped<IPosterReplacement, PosterReplacementService>();
 builder.Services.AddScoped<SignedInAccount>();
 builder.Services.AddScoped<AcceptanceLookup>();
 builder.Services.AddScoped<ITechnicianWorkflow, TechnicianWorkflow>();
@@ -39,6 +41,10 @@ builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PosterRetentionSchedule>();
 builder.Services.AddScoped<IPosterRetention, PosterRetention>();
 builder.Services.AddHostedService<PosterRetentionExpiration>();
+// TDX Integration Contract section 8A.1: one background processor creates the tickets of accepted requests.
+builder.Services.AddSingleton<TdxTicketSignal>();
+builder.Services.AddScoped<ITdxTicketStore, TdxTicketStore>();
+builder.Services.AddHostedService<TdxTicketService>();
 builder.Services.AddScoped<PrintFolderMigration>();
 builder.Services.AddScoped<IPrintingInventory, PrintingInventory>();
 builder.Services.AddScoped<IOperatorConfiguration, OperatorConfiguration>();

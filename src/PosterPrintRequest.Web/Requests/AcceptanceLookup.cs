@@ -14,6 +14,10 @@ public sealed class AcceptanceDetails
     public required DateTime DateIn { get; init; }
 
     public required bool LaminationRequested { get; init; }
+
+    public int? TdxTicketId { get; init; }
+
+    public string TdxTicketState { get; init; } = PosterPrintRequest.Domain.TdxTicketStates.None;
 }
 
 /// <summary>
@@ -61,7 +65,9 @@ public sealed class AcceptanceLookup
                     RequesterName = request.Name,
                     EventName = request.ReasonName,
                     DateIn = request.DateIn,
-                    LaminationRequested = request.LaminationRequested
+                    LaminationRequested = request.LaminationRequested,
+                    TdxTicketId = request.TdxTicketId,
+                    TdxTicketState = request.TdxTicketState
                 }
             })
             .SingleOrDefaultAsync(cancellationToken);

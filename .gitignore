@@ -5,3 +5,5 @@ obj/
 TestResults/
 .dotnet/
 .env.demo
+tdx-validator.settings.json
+artifacts/tdx-validator/

@@ -1,21 +1,21 @@
-PosterPrintRequest production deployment — PHASE 12 (Qumulo storage access) and PHASE 13 (Entra ID / OIDC)
+﻿PosterPrintRequest production deployment — PHASE 12 (Qumulo storage access) and PHASE 13 (Entra ID / OIDC)
 
 Governing documents: docs/Storage_Access_Contract_v1.docx and docs/Authentication_Contract_v1.docx.
 This release replaces Windows Negotiate with Microsoft Entra ID. Do not deploy it until every item in
 sections B and C is done; the application refuses to start when its required configuration is missing.
 
 Files in this folder
-- Build-Deployment.ps1          Builds PosterPrintRequest-Release-<commit>.zip and its .sha256 file.
+- Build-Deployment.ps1          Builds the PosterPrintRequest-Release-<commit> directory only. No ZIP or checksum file is created.
 - Poster.Database.Upgrade.sql   Existing POSTER database: adds migration 20261108191516_AddEntraObjectIdentifiers.
 - Poster.Database.Install.sql   New POSTER database only: creates POSTER with all nine migrations.
 - DEPLOYMENT-README.txt         This file.
-The ZIP contains the Release publish output at the archive root. It contains no source code, database
+The release directory contains the Release publish output directly. It contains no source code, database
 script, connection string, Entra identifier, client secret, Qumulo credential or credential file.
 
 A. Build (build machine)
 1. Commit the source changes. The build refuses uncommitted build inputs unless -AllowUncommittedChanges.
 2. Run: powershell -ExecutionPolicy Bypass -File C:\projects\posters\artifacts\deployment\Build-Deployment.ps1
-3. Keep the .zip and the .sha256 file together.
+3. The verified release directory is created under artifacts\deployment\PosterPrintRequest-Release-<commit>.
 
 B. External prerequisites (IT and server administrator)
 Entra (Authentication Contract sections 4, 5.4, 5.13, 13):
@@ -28,7 +28,7 @@ IIS (Authentication Contract sections 5.5, 7, 10):
 - Windows Authentication disabled and Anonymous Authentication enabled for the application.
 - Application Pool LoadUserProfile = false (verify; set if necessary).
 - Run Microsoft's Provision-AutoGenKeys.ps1 for the PosterPrintRequest Application Pool.
-Credentials (provisioned on the IIS host, never in this package):
+Credentials (provisioned on the IIS host, never in the release directory):
 - Entra client secret file: docs/Entra_Credential_Provisioning.md.
 - Qumulo credential file:   docs/Storage_Credential_Provisioning.md.
 - Storage Access Contract section 13 (E1-E5) and Authentication Contract section 13 (A1-A8) confirmations on record.
@@ -41,7 +41,7 @@ C. IIS application configuration (environment variables of the PosterPrintReques
 - Authentication__TenantId                Entra tenant identifier.
 - Authentication__ClientId                Entra application (client) identifier.
 - Authentication__ClientSecretFile        Absolute path of the Entra DPAPI client secret file.
-Never put a password, secret or connection string in appsettings.json or in this package.
+Never put a password, secret or connection string in appsettings.json or in the release directory.
 
 D. Database (SQL Server administrator; back up POSTER first)
 - Existing POSTER at migration 20261023184022_RemoveApplicationManagedAuthentication:
@@ -54,10 +54,10 @@ Before deploying, count historical requests that cannot be linked (read-only):
   SELECT COUNT(*) AS RequestsWithoutSubmitterSid FROM dbo.PosterRequests WHERE SubmittedBySecurityIdentifier IS NULL;
 
 E. Deploy (IIS host)
-1. Verify the ZIP against its .sha256 file (Get-FileHash -Algorithm SHA256).
+1. Use the release directory produced on the build machine; no ZIP extraction or checksum-file step is required.
 2. Use the existing PosterPrintRequest application's physical directory. Do not change that path.
-3. Stop the Application Pool. Copy the ZIP contents into the physical directory, replacing the published files.
-   Persistent files on the Qumulo share and the database are not in the package and are not replaced.
+3. Stop the Application Pool. Copy the contents of the release directory into the physical directory, replacing the published files.
+   Persistent files on the Qumulo share and the database are not in the release directory and are not replaced.
 4. Start the Application Pool.
 5. Check https://posters.den.uic.edu/PosterPrintRequest/health/ready and the startup log: no storage or
    credential refusal and no "ephemeral key repository" warning.

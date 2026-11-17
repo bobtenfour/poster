@@ -100,6 +100,7 @@ public sealed class ProductionReadinessTests : IDisposable
                 DepartmentId = choices.Departments.First().Value,
                 ReasonId = "",
                 Name = "Acceptance Check",
+                PosterTitle = "Acceptance poster",
                 Room = "18",
                 Phone = "555-0130",
                 Email = "acceptance@example.edu"
@@ -119,7 +120,7 @@ public sealed class ProductionReadinessTests : IDisposable
         Assert.Contains(posterId, confirmationHtml, StringComparison.Ordinal);
         Assert.Contains("Poster ID", confirmationHtml, StringComparison.Ordinal);
         Assert.Contains("within the next 48 hours", confirmationHtml, StringComparison.Ordinal);
-        Assert.Contains("Create the TDX ticket yourself", confirmationHtml, StringComparison.Ordinal);
+        Assert.Contains("The TDX ticket for this request is being created.", confirmationHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("WITHOUT-EVENT", confirmationHtml, StringComparison.Ordinal);
         Assert.DoesNotContain(_root, confirmationHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("StoragePath", confirmationHtml, StringComparison.Ordinal);
