@@ -5,7 +5,8 @@ using PosterPrintRequest.Web.Tdx;
 namespace PosterPrintRequest.Tests.Persistence;
 
 /// <summary>TDX Integration Contract sections 7 and 8A against SQL Server: claim, marker, result and backstop.</summary>
-public sealed class TdxTicketStoreTests : IClassFixture<SqlServerDatabaseFixture>
+[Collection(SqlServerDatabaseCollection.Name)]
+public sealed class TdxTicketStoreTests
 {
     private readonly SqlServerDatabaseFixture _database;
 

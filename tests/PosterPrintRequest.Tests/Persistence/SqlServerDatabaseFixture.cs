@@ -5,6 +5,13 @@ using PosterPrintRequest.Infrastructure.Persistence;
 
 namespace PosterPrintRequest.Tests.Persistence;
 
+/// <summary>One shared foundation database: every class that uses it runs in this collection, so two fixtures never create the same database in parallel.</summary>
+[CollectionDefinition(Name)]
+public sealed class SqlServerDatabaseCollection : ICollectionFixture<SqlServerDatabaseFixture>
+{
+    public const string Name = "Foundation database";
+}
+
 public sealed class SqlServerDatabaseFixture : IDisposable
 {
     public const string TestDatabaseName = "PosterPrintRequest_FoundationTests";

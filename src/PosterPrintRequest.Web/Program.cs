@@ -33,6 +33,9 @@ builder.Services.AddScoped<IApprovalSheetCheck, ApprovalSheetCheck>();
 builder.Services.AddScoped<IRequesterSubmission, RequesterSubmissionService>();
 builder.Services.AddScoped<IPosterReplacement, PosterReplacementService>();
 builder.Services.AddScoped<SignedInAccount>();
+// Request and ReplacePoster render in interactive circuits under a static Routes component; the sign-in
+// state is provided at the root so it reaches them (Authentication Contract sections 3.1 and 3.9).
+builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AcceptanceLookup>();
 builder.Services.AddScoped<ITechnicianWorkflow, TechnicianWorkflow>();
 builder.Services.AddScoped<ITechnicianDashboard, TechnicianDashboard>();

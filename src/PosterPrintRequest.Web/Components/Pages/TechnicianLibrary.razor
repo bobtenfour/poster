@@ -51,11 +51,11 @@
                         <li>
                             @if (last)
                             {
-                                <span aria-current="page">@segment</span>
+                                <span aria-current="page">@(index == 0 ? ReplacementNames.Display(segment) : segment)</span>
                             }
                             else
                             {
-                                <a href="@ApplicationUris.BrowserPath(Navigation, CrumbHref(Listing.Segments.Take(index + 1)))">@segment</a>
+                                <a href="@ApplicationUris.BrowserPath(Navigation, CrumbHref(Listing.Segments.Take(index + 1)))">@(index == 0 ? ReplacementNames.Display(segment) : segment)</a>
                             }
                         </li>
                     }

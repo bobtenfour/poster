@@ -178,7 +178,7 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
                 Folder("TO BE PRINTED", "Without event", PrintFolderPaths.ToBePrintedTone, [PrintFolderPaths.WithoutEventToBePrinted]),
                 Folder("PRINTED", "Without event", PrintFolderPaths.PrintedTone, [PrintFolderPaths.WithoutEventPrinted]),
                 // TDX Integration Contract section 17.11: the fifth card, red.
-                Folder(ReplacementNames.Root, "Replaced posters", ReplacementNames.Tone, [ReplacementNames.Root])
+                Folder(ReplacementNames.Label, "Replaced posters", ReplacementNames.Tone, [ReplacementNames.Root])
             ]
         };
 

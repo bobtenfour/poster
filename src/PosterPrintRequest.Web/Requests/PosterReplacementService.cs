@@ -49,6 +49,14 @@ public static class ReplacementNames
 {
     public const string Root = "sustitutions";
 
+    /// <summary>
+    /// The name shown on screen for <see cref="Root"/>, in capitals like the other library cards
+    /// (section 17.11 clarification). The folder on the share keeps the name <see cref="Root"/> (section 17.6).
+    /// </summary>
+    public const string Label = "SUSTITUTIONS";
+
+    public static string Display(string segment) => segment == Root ? Label : segment;
+
     public const int NoteMaxLength = 500;
 
     public static string FolderPrefix(DateTime localNow, string posterId) =>

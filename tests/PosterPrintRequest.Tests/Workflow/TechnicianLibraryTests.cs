@@ -49,7 +49,8 @@ public sealed class TechnicianLibraryTests : IDisposable
         Assert.NotNull(root);
         Assert.True(root.Available);
         Assert.Equal(5, root.Entries.Count);
-        Assert.Equal(ReplacementNames.Root, root.Entries[4].Name);
+        Assert.Equal(ReplacementNames.Label, root.Entries[4].Name);
+        Assert.Equal("SUSTITUTIONS", root.Entries[4].Name);
         Assert.Equal(ReplacementNames.Tone, root.Entries[4].Tone);
         Assert.Equal("/technician/library/sustitutions", root.Entries[4].NavigateHref);
         Assert.Equal("TO BE PRINTED", root.Entries[0].Name);
@@ -154,7 +155,9 @@ public sealed class TechnicianLibraryTests : IDisposable
         var root = library.List(null);
         Assert.NotNull(root);
         var card = root.Entries[^1];
-        Assert.Equal(ReplacementNames.Root, card.Name);
+        // Section 17.11 clarification: the card shows SUSTITUTIONS; the folder on the share stays sustitutions.
+        Assert.Equal("SUSTITUTIONS", card.Name);
+        Assert.Equal("/technician/library/sustitutions", card.NavigateHref);
         Assert.Equal(ReplacementNames.Tone, card.Tone);
 
         var archive = library.List(ReplacementNames.Root);
