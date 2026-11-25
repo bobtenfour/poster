@@ -14,7 +14,7 @@ public sealed class PrinterMonitoringContractTests
 {
     private const string PrinterIp = "192.0.2.10";
 
-    private const string SuppliesUri = "http://192.0.2.10/hp/device/webAccess/index.htm?content=supplies";
+    private const string SuppliesUri = "http://192.0.2.10/hp/device/webAccess/open_status.xml";
 
     private const string ForeignUri = "http://198.51.100.20/unintended";
 
@@ -23,7 +23,7 @@ public sealed class PrinterMonitoringContractTests
         "tests",
         "PosterPrintRequest.Tests",
         "Fixtures",
-        "printer-supplies.html"));
+        "printer-status.xml"));
 
     // T1
     [Fact]
@@ -43,7 +43,7 @@ public sealed class PrinterMonitoringContractTests
         Assert.Equal("refused", reading.Redirected);
         Assert.Equal("302", reading.HttpStatus);
         Assert.Empty(reading.Cartridges);
-        Assert.Equal("http://***/hp/device/webAccess/index.htm", reading.FinalUri);
+        Assert.Equal("http://***/hp/device/webAccess/open_status.xml", reading.FinalUri);
         Assert.DoesNotContain(PrinterIp, reading.Errors);
     }
 

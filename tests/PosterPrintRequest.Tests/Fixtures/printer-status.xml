@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic sample shaped like open_status.xml of the HP DesignJet T1300 (Serviceability 1.3).
+     Levels: Ink_Consumed is the ink that remains; level = Ink_Consumed / Capacity. -->
+<Serviceability version="1.3">
+  <Printer_Status>
+    <PrintEngine>
+      <Status>Sleeping</Status>
+    </PrintEngine>
+    <Printheads>
+      <Printhead Id="1" Color="MK-G">
+        <Status><Id>0</Id><Description>OK</Description></Status>
+        <Health>3</Health>
+        <Product_Number>C1Q12A</Product_Number>
+        <Used_With_NonHP_Ink>false</Used_With_NonHP_Ink>
+      </Printhead>
+      <Printhead Id="2" Color="C-M">
+        <Status><Id>0</Id><Description>OK</Description></Status>
+        <Health>3</Health>
+        <Product_Number>C1Q12A</Product_Number>
+        <Used_With_NonHP_Ink>false</Used_With_NonHP_Ink>
+      </Printhead>
+      <Printhead Id="3" Color="Y-PK">
+        <Status><Id>0</Id><Description>OK</Description></Status>
+        <Health>2</Health>
+        <Product_Number>C1Q12A</Product_Number>
+        <Used_With_NonHP_Ink>false</Used_With_NonHP_Ink>
+      </Printhead>
+    </Printheads>
+    <Cartridges>
+      <Cartridge Id="1" Color="G"><Status>0</Status><Capacity>130</Capacity><Ink_Consumed>35.1</Ink_Consumed><Ink_Consumed_Units>cc</Ink_Consumed_Units></Cartridge>
+      <Cartridge Id="2" Color="pK"><Status>0</Status><Capacity>130</Capacity><Ink_Consumed>46.8</Ink_Consumed><Ink_Consumed_Units>cc</Ink_Consumed_Units></Cartridge>
+      <Cartridge Id="3" Color="mK"><Status>0</Status><Capacity>130</Capacity><Ink_Consumed>104</Ink_Consumed><Ink_Consumed_Units>cc</Ink_Consumed_Units></Cartridge>
+      <Cartridge Id="4" Color="Y"><Status>0</Status><Capacity>130</Capacity><Ink_Consumed>44.2</Ink_Consumed><Ink_Consumed_Units>cc</Ink_Consumed_Units></Cartridge>
+      <Cartridge Id="5" Color="M"><Status>0</Status><Capacity>130</Capacity><Ink_Consumed>115.7</Ink_Consumed><Ink_Consumed_Units>cc</Ink_Consumed_Units></Cartridge>
+      <Cartridge Id="6" Color="C"><Status>0</Status><Capacity>130</Capacity><Ink_Consumed>91</Ink_Consumed><Ink_Consumed_Units>cc</Ink_Consumed_Units></Cartridge>
+    </Cartridges>
+  </Printer_Status>
+</Serviceability>

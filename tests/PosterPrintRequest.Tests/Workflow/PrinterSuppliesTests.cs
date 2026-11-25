@@ -7,14 +7,14 @@ namespace PosterPrintRequest.Tests.Workflow;
 
 public sealed class PrinterSuppliesTests
 {
-    private const string SuppliesPath = "/hp/device/webAccess/index.htm?content=supplies";
+    private const string SuppliesPath = "/hp/device/webAccess/open_status.xml";
 
     private static readonly string ReferencePage = File.ReadAllText(Path.Combine(
         RepositoryPaths.Root(),
         "tests",
         "PosterPrintRequest.Tests",
         "Fixtures",
-        "printer-supplies.html"));
+        "printer-status.xml"));
 
     [Fact]
     public void Committed_configuration_leaves_the_printer_address_empty()

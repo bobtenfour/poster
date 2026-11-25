@@ -12,9 +12,8 @@ public sealed class PrinterInkProbe
 {
     private const string BaseUrlKey = "PrinterMonitoring:BaseUrl";
 
-    private const string SuppliesPath = "/hp/device/webAccess/index.htm";
-
-    private const string SuppliesQuery = "content=supplies";
+    // Printer Monitoring Contract amendment of 25 November 2026: the dashboard reads open_status.xml.
+    private const string SuppliesPath = PrinterStatusDocument.RelativePath;
 
     private const string SuppliesUserAgent = "Mozilla/5.0";
 
@@ -32,6 +31,9 @@ public sealed class PrinterInkProbe
         string PreviewTruncated,
         string Errors)
     {
+        /// <summary>Printheads of open_status.xml (amendment of 25 November 2026); empty when not read.</summary>
+        public IReadOnlyList<PrinterPrinthead> Printheads { get; init; } = [];
+
         public static Reading Empty { get; } = new(
             [],
             "none",
@@ -133,7 +135,8 @@ public sealed class PrinterInkProbe
             }
 
             var decoded = Decode(response, bytes);
-            var cartridges = PrinterSupplies.Parse(decoded);
+            var statusDocument = PrinterStatusDocument.Parse(decoded);
+            var cartridges = statusDocument?.Cartridges;
             var (preview, truncated) = CreatePreview(decoded);
             var errors = new List<string>();
             if (!response.IsSuccessStatusCode)
@@ -143,10 +146,10 @@ public sealed class PrinterInkProbe
 
             if (cartridges is null)
             {
-                errors.Add("The supplies response did not contain six cartridge readings.");
+                errors.Add("The status document did not contain six cartridge readings.");
             }
 
-            return Finish(
+            var reading = Finish(
                 started,
                 cartridges ?? [],
                 status,
@@ -159,6 +162,7 @@ public sealed class PrinterInkProbe
                 preview,
                 truncated,
                 errors.Count == 0 ? "none" : string.Join(" ", errors));
+            return reading with { Printheads = statusDocument?.Printheads ?? [] };
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && limit.IsCancellationRequested)
         {
@@ -225,7 +229,7 @@ public sealed class PrinterInkProbe
             return false;
         }
 
-        var suppliesTarget = SuppliesPath + "?" + SuppliesQuery;
+        var suppliesTarget = SuppliesPath;
         string target;
         if (IPAddress.TryParse(configured, out var address))
         {
@@ -244,7 +248,7 @@ public sealed class PrinterInkProbe
             || !string.IsNullOrEmpty(candidate.UserInfo)
             || !string.IsNullOrEmpty(candidate.Fragment)
             || !candidate.AbsolutePath.EndsWith(SuppliesPath, StringComparison.Ordinal)
-            || candidate.Query != "?" + SuppliesQuery)
+            || !string.IsNullOrEmpty(candidate.Query))
         {
             error = "The supplies address is not an absolute URI.";
             return false;

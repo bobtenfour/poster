@@ -18,7 +18,7 @@ public sealed class PrinterDashboardTests : BunitContext
         "tests",
         "PosterPrintRequest.Tests",
         "Fixtures",
-        "printer-supplies.html"));
+        "printer-status.xml"));
 
     public PrinterDashboardTests()
     {

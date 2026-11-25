@@ -12,7 +12,7 @@ public sealed class PrinterReadingTests
         "tests",
         "PosterPrintRequest.Tests",
         "Fixtures",
-        "printer-supplies.html"));
+        "printer-status.xml"));
 
     [Fact]
     public void An_available_reading_keeps_the_six_original_cartridges()

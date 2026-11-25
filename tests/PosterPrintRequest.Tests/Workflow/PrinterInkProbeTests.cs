@@ -9,14 +9,14 @@ public sealed class PrinterInkProbeTests
 {
     private const string PrinterIp = "192.0.2.10";
 
-    private const string SuppliesUri = "http://192.0.2.10/hp/device/webAccess/index.htm?content=supplies";
+    private const string SuppliesUri = "http://192.0.2.10/hp/device/webAccess/open_status.xml";
 
     private static readonly string Fixture = File.ReadAllText(Path.Combine(
         RepositoryPaths.Root(),
         "tests",
         "PosterPrintRequest.Tests",
         "Fixtures",
-        "printer-supplies.html"));
+        "printer-status.xml"));
 
     [Fact]
     public void The_probe_client_is_anonymous()
@@ -45,8 +45,8 @@ public sealed class PrinterInkProbeTests
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.True(request.RequestUri!.IsAbsoluteUri);
         Assert.Equal(SuppliesUri, request.RequestUri.AbsoluteUri);
-        Assert.Equal("/hp/device/webAccess/index.htm", request.RequestUri.AbsolutePath);
-        Assert.Equal("?content=supplies", request.RequestUri.Query);
+        Assert.Equal("/hp/device/webAccess/open_status.xml", request.RequestUri.AbsolutePath);
+        Assert.Equal(string.Empty, request.RequestUri.Query);
         Assert.Null(request.Headers.Authorization);
         Assert.DoesNotContain(request.Headers, header => header.Key.Equals("Cookie", StringComparison.OrdinalIgnoreCase));
         Assert.Equal("Mozilla/5.0", Assert.Single(request.Headers.GetValues("User-Agent")));
@@ -61,9 +61,9 @@ public sealed class PrinterInkProbeTests
         Assert.Equal(bytes, reading.BytesRead);
         Assert.Equal(bytes, reading.ContentLength);
         Assert.Equal("text/plain; charset=utf-8", reading.ContentType);
-        Assert.Equal("HTML", reading.Format);
+        Assert.Equal("XML", reading.Format);
         Assert.Equal("no", reading.Redirected);
-        Assert.Equal("http://***/hp/device/webAccess/index.htm", reading.FinalUri);
+        Assert.Equal("http://***/hp/device/webAccess/open_status.xml", reading.FinalUri);
         Assert.DoesNotContain(PrinterIp, reading.FinalUri);
         Assert.DoesNotContain("content=supplies", reading.FinalUri);
         Assert.Matches("^[0-9]+ ms$", reading.Duration);
@@ -105,8 +105,8 @@ public sealed class PrinterInkProbeTests
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.Equal(SuppliesUri, request.RequestUri!.AbsoluteUri);
-        Assert.Equal("?content=supplies", request.RequestUri.Query);
-        Assert.Equal("http://***/hp/device/webAccess/index.htm", reading.FinalUri);
+        Assert.Equal(string.Empty, request.RequestUri.Query);
+        Assert.Equal("http://***/hp/device/webAccess/open_status.xml", reading.FinalUri);
         Assert.DoesNotContain("content=supplies", reading.FinalUri);
         Assert.DoesNotContain(PrinterIp, reading.Errors);
     }
@@ -126,12 +126,12 @@ public sealed class PrinterInkProbeTests
 
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal("/devices/plotter/hp/device/webAccess/index.htm", request.RequestUri!.AbsolutePath);
-        Assert.Equal("?content=supplies", request.RequestUri.Query);
+        Assert.Equal("/devices/plotter/hp/device/webAccess/open_status.xml", request.RequestUri!.AbsolutePath);
+        Assert.Equal(string.Empty, request.RequestUri.Query);
         Assert.Equal(
-            "https://192.0.2.10/devices/plotter/hp/device/webAccess/index.htm?content=supplies",
+            "https://192.0.2.10/devices/plotter/hp/device/webAccess/open_status.xml",
             request.RequestUri.AbsoluteUri);
-        Assert.Equal("https://***/devices/plotter/hp/device/webAccess/index.htm", reading.FinalUri);
+        Assert.Equal("https://***/devices/plotter/hp/device/webAccess/open_status.xml", reading.FinalUri);
         Assert.DoesNotContain("content=supplies", reading.FinalUri);
         Assert.DoesNotContain(PrinterIp, reading.FinalUri);
         Assert.DoesNotContain(PrinterIp, reading.Errors);
@@ -240,8 +240,8 @@ public sealed class PrinterInkProbeTests
 
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal("/hp/device/webAccess/index.htm", request.RequestUri!.AbsolutePath);
-        Assert.Equal("?content=supplies", request.RequestUri.Query);
+        Assert.Equal("/hp/device/webAccess/open_status.xml", request.RequestUri!.AbsolutePath);
+        Assert.Equal(string.Empty, request.RequestUri.Query);
         Assert.Empty(reading.Cartridges);
         Assert.Equal("200", reading.HttpStatus);
         Assert.Equal("HTML", reading.Format);
@@ -259,10 +259,10 @@ public sealed class PrinterInkProbeTests
 
         var reading = await PrinterInkProbe.ReadAsync(Configuration(PrinterIp), CancellationToken.None, handler);
 
-        Assert.Contains("showTip('HP 72 Gray 27%')", reading.BodyPreview);
-        Assert.Contains("<html", reading.BodyPreview);
+        Assert.Contains("<Serviceability", reading.BodyPreview);
+        Assert.Contains("<?xml", reading.BodyPreview);
         Assert.True(reading.BodyPreview.Length <= 1500);
-        Assert.Equal("no", reading.PreviewTruncated);
+        Assert.Equal(Fixture.Length > 1500 ? "yes" : "no", reading.PreviewTruncated);
         Assert.DoesNotContain(PrinterIp, reading.BodyPreview);
     }
 

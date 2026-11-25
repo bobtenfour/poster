@@ -135,6 +135,19 @@
                         </li>
                     }
                 </ul>
+                @if (InkProbe.Printheads.Count > 0)
+                {
+                    @* Printer Monitoring Contract amendment of 25 November 2026: printheads from open_status.xml. *@
+                    <ul class="epx-printheads" id="printer-printheads" aria-label="Printheads">
+                        @foreach (var printhead in InkProbe.Printheads)
+                        {
+                            <li class="epx-printhead" data-printhead="@printhead.Name" data-health="@printhead.Health">
+                                <span class="epx-printhead-name">Printhead @printhead.Name</span>
+                                <span class="epx-printhead-status">@printhead.Status</span>
+                            </li>
+                        }
+                    </ul>
+                }
             }
             else
             {

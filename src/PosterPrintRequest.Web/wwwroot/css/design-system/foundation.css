@@ -2369,3 +2369,19 @@ a.epx-supply-tile:hover {
 .epx-search-results-note {
   margin: 0.75rem 0 0;
 }
+
+/* Printer Monitoring Contract amendment of 25 November 2026: printhead status under the cartridges. */
+.epx-printheads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--epx-space-sm) var(--epx-space-md);
+  margin: var(--epx-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.epx-printhead-name {
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
