@@ -96,7 +96,7 @@ public static class ReplacementNames
             || (ticket.Length is > 0 and <= 10 && ticket.All(char.IsAsciiDigit));
     }
 
-    /// <summary>A file of section 17.6: "HHmmss - Poster.pdf", "HHmmss - Poster.pptx" or "HHmmss - Note.txt".</summary>
+    /// <summary>A file of section 17.6: "HHmmss - &lt;poster file name&gt;" (current or earlier rule) or "HHmmss - Note.txt".</summary>
     public static bool IsArchiveFile(string? name)
     {
         if (string.IsNullOrEmpty(name) || name.Length < 10 || name.Substring(6, 3) != " - ")
@@ -105,7 +105,7 @@ public static class ReplacementNames
         }
 
         return DateTime.TryParseExact(name[..6], "HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
-            && name[9..] is StorageNames.PosterPdf or StorageNames.PosterPptx or "Note.txt";
+            && (name[9..] == "Note.txt" || StorageNames.IsPosterFile(name[9..]));
     }
 
     /// <summary>Section 17.5: trimmed, 1 to 500 characters, no control characters.</summary>
@@ -365,14 +365,21 @@ public sealed class PosterReplacementService : IPosterReplacement
         }
 
         var currentName = current[(current.LastIndexOf('/') + 1)..];
-        if (currentName is not (StorageNames.PosterPdf or StorageNames.PosterPptx))
+        if (!StorageNames.IsPosterFile(currentName))
+        {
+            return null;
+        }
+
+        // Section 17.7 as amended on 25 November 2026: the new file follows the Shared Storage naming rule.
+        var placedName = StorageNames.PosterFileName(request.PosterId, request.Name, request.DateIn, detectedFormat);
+        if (placedName is null)
         {
             return null;
         }
 
         var folder = ExistingFolder(localNow, request.PosterId) ?? ReplacementNames.Folder(localNow, request.PosterId, request.TdxTicketId);
         var archiveFolder = ReplacementNames.Root + "/" + folder;
-        var placed = directory + "/" + StorageNames.PosterFileName(detectedFormat);
+        var placed = directory + "/" + placedName;
         var moveBack = request.PosterProcessing.Printed;
         string? target = null;
         string? newApproval = null;

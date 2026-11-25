@@ -50,6 +50,7 @@ builder.Services.AddSingleton<TdxTicketSignal>();
 builder.Services.AddScoped<ITdxTicketStore, TdxTicketStore>();
 builder.Services.AddHostedService<TdxTicketService>();
 builder.Services.AddScoped<PrintFolderMigration>();
+builder.Services.AddScoped<PosterFileRename>();
 builder.Services.AddScoped<IPrintingInventory, PrintingInventory>();
 builder.Services.AddScoped<IOperatorConfiguration, OperatorConfiguration>();
 builder.Services.AddSingleton(services =>
@@ -134,6 +135,8 @@ if (!string.Equals(entry, "ef", StringComparison.OrdinalIgnoreCase))
     await using var scope = app.Services.CreateAsyncScope();
     var migration = scope.ServiceProvider.GetRequiredService<PrintFolderMigration>();
     await migration.MigrateAsync(CancellationToken.None);
+    // Shared Storage Contract amendment of 25 November 2026: rename files stored under the earlier names.
+    await scope.ServiceProvider.GetRequiredService<PosterFileRename>().RenameAsync(CancellationToken.None);
 }
 
 app.Run();

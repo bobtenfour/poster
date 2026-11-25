@@ -45,8 +45,35 @@ public sealed class AcceptanceRulesTests : IDisposable
         Assert.Equal("Ada Lovelace - POSTER-2026-000001", StorageNames.PosterFolder("Ada Lovelace", "POSTER-2026-000001"));
         Assert.Equal("POSTER-2026-000001", StorageNames.PosterIdFromFolder("Ada Lovelace - POSTER-2026-000001"));
         Assert.Null(StorageNames.PosterIdFromFolder("POSTER-2026-000001"));
-        Assert.Equal(StorageNames.PosterPptx, StorageNames.PosterFileName("PPTX"));
-        Assert.Equal(StorageNames.PosterPdf, StorageNames.PosterFileName("PDF"));
+    }
+
+    // Shared Storage Contract amendment of 25 November 2026.
+    [Fact]
+    public void Poster_and_approval_sheet_file_names_carry_poster_id_requester_and_date_in()
+    {
+        var dateIn = new DateTime(2026, 11, 25, 14, 30, 0);
+        Assert.Equal(
+            "POSTER-2026-000001 - Ada Lovelace - 2026-11-25.pdf",
+            StorageNames.PosterFileName("POSTER-2026-000001", "Ada Lovelace", dateIn, "PDF"));
+        Assert.Equal(
+            "POSTER-2026-000001 - Ada Lovelace - 2026-11-25.pptx",
+            StorageNames.PosterFileName("POSTER-2026-000001", "Ada Lovelace", dateIn, "PPTX"));
+        Assert.Equal(
+            "POSTER-2026-000001 - Ada Lovelace - 2026-11-25 - Approval Sheet.pdf",
+            StorageNames.ApprovalSheetFileName("POSTER-2026-000001", "Ada Lovelace", dateIn));
+        Assert.Equal(
+            "POSTER-2026-000001 - CRD 2026 - 2026-11-25.pdf",
+            StorageNames.PosterFileName("POSTER-2026-000001", "CRD/2026", dateIn, "PDF"));
+        Assert.Null(StorageNames.PosterFileName("POSTER-2026-000001", "..", dateIn, "PDF"));
+        Assert.Null(StorageNames.PosterFileName("not-an-id", "Ada Lovelace", dateIn, "PDF"));
+
+        Assert.True(StorageNames.IsPosterFile("POSTER-2026-000001 - Ada Lovelace - 2026-11-25.pdf"));
+        Assert.True(StorageNames.IsPosterFile(StorageNames.PosterPdf));
+        Assert.False(StorageNames.IsPosterFile("POSTER-2026-000001 - Ada Lovelace - 2026-11-25 - Approval Sheet.pdf"));
+        Assert.False(StorageNames.IsPosterFile("notes.pdf"));
+        Assert.True(StorageNames.IsApprovalSheetFile("POSTER-2026-000001 - Ada Lovelace - 2026-11-25 - Approval Sheet.pdf"));
+        Assert.True(StorageNames.IsApprovalSheetFile(StorageNames.ApprovalSheet));
+        Assert.False(StorageNames.IsApprovalSheetFile("POSTER-2026-000001 - Ada Lovelace - 2026-11-25.pdf"));
     }
 
     [Fact]
@@ -110,8 +137,8 @@ public sealed class AcceptanceRulesTests : IDisposable
             out var placed,
             out var error));
         Assert.Null(error);
-        Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/Poster.pdf", placed!.PosterRelative);
-        Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/Approval-Sheet.pdf", placed.ApprovalRelative);
+        Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/POSTER-2026-000004 - Ada Lovelace - 2026-10-06.pdf", placed!.PosterRelative);
+        Assert.Equal("EVENTS/Example event 2026 TO BE PRINTED/Ada Lovelace - POSTER-2026-000004/POSTER-2026-000004 - Ada Lovelace - 2026-10-06 - Approval Sheet.pdf", placed.ApprovalRelative);
         Assert.Equal(poster, await File.ReadAllBytesAsync(Path.Combine(_root, placed.PosterRelative)));
         Assert.Equal(sheet, await File.ReadAllBytesAsync(Path.Combine(_root, placed.ApprovalRelative!)));
         Assert.Empty(Directory.EnumerateFiles(Path.Combine(_root, placed.DirectoryRelative), "*.txt"));
@@ -130,11 +157,11 @@ public sealed class AcceptanceRulesTests : IDisposable
             "PPTX",
             out var withoutEvent,
             out _));
-        Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2026/Ada Lovelace - POSTER-2026-000005/Poster.pptx", withoutEvent!.PosterRelative);
+        Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2026/Ada Lovelace - POSTER-2026-000005/POSTER-2026-000005 - Ada Lovelace - 2026-10-06.pptx", withoutEvent!.PosterRelative);
         Assert.Null(withoutEvent.ApprovalRelative);
         var withoutDirectory = Path.Combine(_root, withoutEvent.DirectoryRelative);
-        Assert.Equal(slides, await File.ReadAllBytesAsync(Path.Combine(withoutDirectory, StorageNames.PosterPptx)));
-        Assert.False(File.Exists(Path.Combine(withoutDirectory, StorageNames.ApprovalSheet)));
+        Assert.Equal(slides, await File.ReadAllBytesAsync(Path.Combine(withoutDirectory, "POSTER-2026-000005 - Ada Lovelace - 2026-10-06.pptx")));
+        Assert.Single(Directory.EnumerateFiles(withoutDirectory));
         Assert.Empty(Directory.EnumerateFiles(withoutDirectory, "*.txt"));
 
         var laterDraft = DraftIds.Create();
@@ -150,7 +177,7 @@ public sealed class AcceptanceRulesTests : IDisposable
             "PDF",
             out var later,
             out _));
-        Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2027/Grace Hopper - POSTER-2027-000001/Poster.pdf", later!.PosterRelative);
+        Assert.Equal("WITHOUT-EVENT TO BE PRINTED/2027/Grace Hopper - POSTER-2027-000001/POSTER-2027-000001 - Grace Hopper - 2027-03-02.pdf", later!.PosterRelative);
         Assert.Equal(
             new[] { "2026", "2027" },
             Directory.GetDirectories(Path.Combine(_root, PrintFolderPaths.WithoutEventToBePrinted)).Select(Path.GetFileName).OrderBy(name => name).ToArray());

@@ -79,8 +79,9 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.False(saved.PosterProcessing.Laminated);
         Assert.False(saved.PosterProcessing.Notified);
         var folder = $"EVENTS/Example event, mentor and approval sheet required {saved.DateIn.Year} TO BE PRINTED/Ada Lovelace - {saved.PosterId}";
-        Assert.Equal($"{folder}/Poster.pdf", saved.PosterFile.StoragePath);
-        Assert.Equal($"{folder}/Approval-Sheet.pdf", saved.ApprovalSheet.StoragePath);
+        var stem = $"{saved.PosterId} - Ada Lovelace - {saved.DateIn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+        Assert.Equal($"{folder}/{stem}.pdf", saved.PosterFile.StoragePath);
+        Assert.Equal($"{folder}/{stem} - Approval Sheet.pdf", saved.ApprovalSheet.StoragePath);
         Assert.DoesNotContain(_root, saved.PosterFile.StoragePath, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(SamplePosters.Pdf(36, 72), await File.ReadAllBytesAsync(Full(saved.PosterFile.StoragePath)));
         Assert.Equal(SamplePosters.Pdf(8.5m, 11m), await File.ReadAllBytesAsync(Full(saved.ApprovalSheet.StoragePath)));
@@ -147,7 +148,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.Equal(36m, saved.PosterFile.Width);
         Assert.Equal(72m, saved.PosterFile.Length);
         var year = saved.DateIn.ToString("yyyy", CultureInfo.InvariantCulture);
-        Assert.Equal($"WITHOUT-EVENT TO BE PRINTED/{year}/Landscape - {saved.PosterId}/Poster.pdf", saved.PosterFile.StoragePath);
+        Assert.Equal($"WITHOUT-EVENT TO BE PRINTED/{year}/Landscape - {saved.PosterId}/{saved.PosterId} - Landscape - {saved.DateIn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.pdf", saved.PosterFile.StoragePath);
         Assert.Equal(poster, await File.ReadAllBytesAsync(Full(saved.PosterFile.StoragePath)));
         Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(Full(saved.PosterFile.StoragePath))!, "*.txt"));
     }
@@ -175,7 +176,7 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.Equal(1, saved.PosterFile.PageCount);
         Assert.Equal(24m, saved.PosterFile.Width);
         Assert.Equal(36m, saved.PosterFile.Length);
-        Assert.EndsWith("/Poster.pptx", saved.PosterFile.StoragePath, StringComparison.Ordinal);
+        Assert.EndsWith($"/{saved.PosterId} - Content Wins - {saved.DateIn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.pptx", saved.PosterFile.StoragePath, StringComparison.Ordinal);
         Assert.DoesNotContain(_root, saved.PosterFile.StoragePath, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(poster, await File.ReadAllBytesAsync(Full(saved.PosterFile.StoragePath)));
     }
@@ -338,9 +339,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         Assert.Equal(InstitutionalTestIdentities.RequesterOid, replacement.ReplacedByObjectId);
         var folder = ReplacementNames.Folder(replacement.ReplacedAt.ToLocalTime(), outcome.PosterId!, saved.TdxTicketId);
         Assert.StartsWith(ReplacementNames.Root + "/" + folder + "/", replacement.ArchivedFilePath, StringComparison.Ordinal);
-        Assert.EndsWith(" - Poster.pdf", replacement.ArchivedFilePath, StringComparison.Ordinal);
+        Assert.EndsWith(" - " + saved.PosterFile.StoragePath[(saved.PosterFile.StoragePath.LastIndexOf('/') + 1)..], replacement.ArchivedFilePath, StringComparison.Ordinal);
         Assert.Equal(oldBytes, await File.ReadAllBytesAsync(Full(replacement.ArchivedFilePath)));
-        var noteFile = replacement.ArchivedFilePath[..^"Poster.pdf".Length] + "Note.txt";
+        var archivedName = replacement.ArchivedFilePath[(replacement.ArchivedFilePath.LastIndexOf('/') + 1)..];
+        var noteFile = replacement.ArchivedFilePath[..^archivedName.Length] + archivedName[..9] + "Note.txt";
         Assert.Equal("Wrong author list", await File.ReadAllTextAsync(Full(noteFile)));
         Assert.False(_files.Exists(replacementDraft, DraftFileRole.Poster));
     }

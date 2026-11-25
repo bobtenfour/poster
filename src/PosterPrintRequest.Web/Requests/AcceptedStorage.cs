@@ -84,9 +84,17 @@ public sealed class AcceptedStorage
             }
         }
 
-        var posterName = StorageNames.PosterFileName(detectedFormat);
+        // Shared Storage Contract amendment of 25 November 2026: file names carry Poster ID, requester and Date In.
+        var posterName = StorageNames.PosterFileName(posterId, requesterName, dateIn, detectedFormat);
+        var approvalName = StorageNames.ApprovalSheetFileName(posterId, requesterName, dateIn);
+        if (posterName is null || approvalName is null)
+        {
+            error = "The request could not be accepted. Submit it again.";
+            return false;
+        }
+
         var posterRelative = $"{relativeDirectory}/{posterName}";
-        var approvalRelative = storeApproval ? $"{relativeDirectory}/{StorageNames.ApprovalSheet}" : null;
+        var approvalRelative = storeApproval ? $"{relativeDirectory}/{approvalName}" : null;
 
         try
         {

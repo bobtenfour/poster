@@ -149,7 +149,7 @@ public sealed class ProductionReadinessTests : IDisposable
         var download = await technician.GetAsync("/technician/files/" + posterId + "/poster");
         download.EnsureSuccessStatusCode();
         Assert.Equal(poster, await download.Content.ReadAsByteArrayAsync());
-        Assert.Contains("Poster.pdf", download.Content.Headers.ContentDisposition?.FileName, StringComparison.Ordinal);
+        Assert.Contains(posterId + " - ", download.Content.Headers.ContentDisposition?.FileName, StringComparison.Ordinal);
         Assert.DoesNotContain(_root, download.Content.Headers.ToString(), StringComparison.OrdinalIgnoreCase);
 
         var traversal = await technician.GetAsync("/technician/files/not-a-poster/poster");

@@ -114,8 +114,12 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         var posterPage = await allowed.GetAsync("/technician/library/WITHOUT-EVENT%20TO%20BE%20PRINTED/2031/Queue%20Person%20-%20POSTER-2031-000002");
         posterPage.EnsureSuccessStatusCode();
         var posterHtml = await posterPage.Content.ReadAsStringAsync();
-        Assert.Contains("Poster.pdf", posterHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Approval-Sheet.pdf", posterHtml, StringComparison.Ordinal);
+        // Shared Storage Contract amendment of 25 November 2026: the startup rename gave the files their new names.
+        Assert.Contains("POSTER-2031-000002 - Queue Person - 2026-10-04.pdf", posterHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Approval Sheet", posterHtml, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(posterFolder, StorageNames.PosterPdf)));
+        Assert.False(File.Exists(Path.Combine(posterFolder, StorageNames.ApprovalSheet)));
+        Assert.True(File.Exists(Path.Combine(posterFolder, "POSTER-2031-000002 - Queue Person - 2026-10-04 - Approval Sheet.pdf")));
         Assert.DoesNotContain(".txt", posterHtml, StringComparison.Ordinal);
         Assert.Contains("Up", posterHtml, StringComparison.Ordinal);
 
@@ -129,7 +133,7 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         var poster = await allowed.GetAsync("/technician/files/POSTER-2031-000002/poster");
         poster.EnsureSuccessStatusCode();
         Assert.Equal(posterBytes, await poster.Content.ReadAsByteArrayAsync());
-        Assert.Contains("Poster.pdf", poster.Content.Headers.ContentDisposition?.FileName, StringComparison.Ordinal);
+        Assert.Contains("POSTER-2031-000002 - Queue Person - 2026-10-04.pdf", poster.Content.Headers.ContentDisposition?.FileName, StringComparison.Ordinal);
         Assert.DoesNotContain(_root, poster.Content.Headers.ToString(), StringComparison.OrdinalIgnoreCase);
 
         var inline = await allowed.GetAsync("/technician/files/POSTER-2031-000002/poster?inline=true");

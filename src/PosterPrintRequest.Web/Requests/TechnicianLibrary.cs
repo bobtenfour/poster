@@ -346,12 +346,12 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
     private static bool IsVisibleFile(IReadOnlyList<string> parent, string name)
     {
-        if (name is StorageNames.PosterPdf or StorageNames.PosterPptx)
+        if (StorageNames.IsPosterFile(name))
         {
             return true;
         }
 
-        return parent.Count > 0 && IsEventLibraryRoot(parent[0]) && name == StorageNames.ApprovalSheet;
+        return parent.Count > 0 && IsEventLibraryRoot(parent[0]) && StorageNames.IsApprovalSheetFile(name);
     }
 
     private static string Kind(IReadOnlyList<string> parent, string name, bool directory)
@@ -363,12 +363,12 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
 
         if (!directory)
         {
-            if (name is StorageNames.PosterPdf or StorageNames.PosterPptx)
+            if (StorageNames.IsPosterFile(name))
             {
                 return "Poster file";
             }
 
-            return name == StorageNames.ApprovalSheet ? "Approval sheet" : "File";
+            return StorageNames.IsApprovalSheetFile(name) ? "Approval sheet" : "File";
         }
 
         if (name == StorageNames.Events)
@@ -408,12 +408,12 @@ public sealed class TechnicianLibrary : ITechnicianLibrary
             return null;
         }
 
-        if (name is StorageNames.PosterPdf or StorageNames.PosterPptx)
+        if (StorageNames.IsPosterFile(name))
         {
             return "/technician/files/" + posterId + "/poster?inline=true";
         }
 
-        return name == StorageNames.ApprovalSheet
+        return StorageNames.IsApprovalSheetFile(name)
             ? "/technician/files/" + posterId + "/approval?inline=true"
             : null;
     }
