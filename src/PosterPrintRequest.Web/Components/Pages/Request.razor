@@ -38,19 +38,18 @@
     <form novalidate @onsubmit="SubmitAsync" @onsubmit:preventDefault>
         <Panel Kicker="Requester" Title="Your details">
             <div class="epx-form-grid">
+                @* Authentication Contract section 3.9: name and email come from the UIC sign-in and cannot be edited. *@
                 <TextField FieldId="requester-name"
                            Label="Name"
-                           Required="true"
-                           Value="@Draft.Name"
-                           ValueChanged="OnNameChanged"
-                           Error="@Error("name")" />
+                           Value="@Account.Contact?.Name"
+                           Disabled="true"
+                           Help="From your UIC sign-in." />
                 <TextField FieldId="requester-email"
                            Label="Email"
-                           Required="true"
                            InputType="email"
-                           Value="@Draft.Email"
-                           ValueChanged="OnEmailChanged"
-                           Error="@Error("email")" />
+                           Value="@Account.Contact?.Email"
+                           Disabled="true"
+                           Help="From your UIC sign-in." />
                 <TextField FieldId="requester-phone"
                            Label="Phone"
                            Required="true"

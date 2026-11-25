@@ -25,6 +25,9 @@ internal static class InstitutionalTestIdentities
 
     internal const string RequesterAccount = "usera@test.example";
 
+    /// <summary>Name and email of the requester as section 3.9 reads them from the token.</summary>
+    internal static readonly RequesterContact RequesterContact = new("Requester Person", RequesterAccount);
+
     internal const string RequesterSid = "S-1-5-21-1111111111-2222222222-3333333333-1001";
 
     internal const string TechnicianAccount = "usero@test.example";

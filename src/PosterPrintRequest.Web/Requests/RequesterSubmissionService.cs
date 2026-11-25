@@ -48,6 +48,13 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
             return SubmissionOutcome.Failure("The signed-in identity could not be verified.");
         }
 
+        // Authentication Contract section 3.9: name and email come from the sign-in, never from the form.
+        var contact = _account?.Contact;
+        if (contact is null)
+        {
+            return SubmissionOutcome.Failure(RequesterContact.Unreadable);
+        }
+
         var choices = await new RequesterOptionCatalog(_db).LoadAsync(cancellationToken);
         var errors = Validate(draft, choices);
         if (errors.Count > 0)
@@ -112,7 +119,7 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
                     posterId,
                     reason?.Name,
                     dateIn,
-                    draft.Name.Trim(),
+                    contact.Name,
                     needsApproval,
                     inspection.DetectedFormat,
                     out var placement,
@@ -142,7 +149,7 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
                 PosterId = posterId,
                 SubmittedByObjectId = actor.ObjectId,
                 SubmittedByAccountName = actor.PreferredUsername,
-                Name = draft.Name.Trim(),
+                Name = contact.Name,
                 PosterTitle = draft.PosterTitle.Trim(),
                 TdxTicketState = TdxTicketStates.Pending,
                 Mentor = string.IsNullOrWhiteSpace(draft.Mentor) ? null : draft.Mentor.Trim(),
@@ -150,7 +157,7 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
                 DepartmentName = departmentName,
                 Room = draft.Room.Trim(),
                 Phone = draft.Phone.Trim(),
-                Email = draft.Email.Trim(),
+                Email = contact.Email,
                 ReasonId = reason?.Id,
                 ReasonName = reasonName,
                 LaminationRequested = draft.LaminationRequested,
@@ -222,11 +229,6 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
     public static Dictionary<string, string> Validate(RequesterDraft draft, RequesterChoices choices)
     {
         var errors = new Dictionary<string, string>();
-        if (string.IsNullOrWhiteSpace(draft.Name))
-        {
-            errors["name"] = "Enter your name.";
-        }
-
         if (!choices.Departments.Any(option => option.Value == draft.DepartmentId))
         {
             errors["department"] = "Choose a department.";
@@ -246,11 +248,6 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
         if (string.IsNullOrWhiteSpace(draft.Phone))
         {
             errors["phone"] = "Enter a phone number.";
-        }
-
-        if (!IsEmail(draft.Email))
-        {
-            errors["email"] = "Enter an email address.";
         }
 
         var reason = choices.FindReason(draft.ReasonId);
@@ -286,14 +283,6 @@ public sealed class RequesterSubmissionService : IRequesterSubmission
             .ToListAsync(cancellationToken);
         var sequence = PosterIds.NextSequence(existing, year);
         return sequence > PosterIds.MaximumSequence ? null : PosterIds.Format(year, sequence);
-    }
-
-    private static bool IsEmail(string? value)
-    {
-        var email = value?.Trim() ?? "";
-        var at = email.IndexOf('@');
-        var dot = email.IndexOf('.', at + 1);
-        return at > 0 && dot > at && dot < email.Length - 1;
     }
 
     private static string SafeFileName(string fileName)

@@ -92,18 +92,18 @@ public sealed class ProductionReadinessTests : IDisposable
             var files = scope.ServiceProvider.GetRequiredService<DraftFileStore>();
             var options = scope.ServiceProvider.GetRequiredService<IRequesterOptionSource>();
             var submission = scope.ServiceProvider.GetRequiredService<IRequesterSubmission>();
-            scope.ServiceProvider.GetRequiredService<SignedInAccount>().Actor = InstitutionalTestIdentities.Requester;
+            var account = scope.ServiceProvider.GetRequiredService<SignedInAccount>();
+            account.Actor = InstitutionalTestIdentities.Requester;
+            account.Contact = InstitutionalTestIdentities.RequesterContact;
             var choices = await options.LoadAsync(CancellationToken.None);
             var draft = new RequesterDraft
             {
                 DraftId = DraftIds.Create(),
                 DepartmentId = choices.Departments.First().Value,
                 ReasonId = "",
-                Name = "Acceptance Check",
                 PosterTitle = "Acceptance poster",
                 Room = "18",
-                Phone = "555-0130",
-                Email = "acceptance@example.edu"
+                Phone = "555-0130"
             };
             await using var stream = new MemoryStream(poster);
             var saved = await files.SaveAsync(draft.DraftId, DraftFileRole.Poster, "Poster.pdf", stream, poster.Length, null, CancellationToken.None);

@@ -21,6 +21,11 @@ public sealed class TechnicianWorkflowTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "poster-workflow-" + Guid.NewGuid().ToString("N"));
     private readonly DraftFileStore _files;
 
+    // Authentication Contract section 3.9: each test's requester name and email are the sign-in values,
+    // kept per draft here because the draft itself no longer carries them.
+    private readonly Dictionary<string, string> _names = new();
+    private readonly Dictionary<string, string> _emails = new();
+
     public TechnicianWorkflowTests(WorkflowDatabaseFixture database)
     {
         _database = database;
@@ -112,10 +117,10 @@ public sealed class TechnicianWorkflowTests : IDisposable
         var outside = Path.Combine(Directory.GetParent(_root)!.FullName, "outside");
         var existed = Directory.Exists(outside);
         var draft = await CreateDraftAsync(department, openEvent.Id.ToString(CultureInfo.InvariantCulture));
-        draft.Name = @"..\secret";
+        SetName(draft, @"..\secret");
         draft.Room = "1";
         draft.Phone = "555-0199";
-        draft.Email = "secret@example.edu";
+        SetEmail(draft, "secret@example.edu");
 
         await using var context = _database.CreateContext();
         var outcome = await SubmitAsync(context, draft);
@@ -159,10 +164,10 @@ public sealed class TechnicianWorkflowTests : IDisposable
         try
         {
             var draft = await CreateDraftAsync(departmentId.ToString(CultureInfo.InvariantCulture), "");
-            draft.Name = "After Ceiling";
+            SetName(draft, "After Ceiling");
             draft.Room = "2";
             draft.Phone = "555-0189";
-            draft.Email = "after-ceiling@example.edu";
+            SetEmail(draft, "after-ceiling@example.edu");
             var outcome = await SubmitAsync(context, draft);
             Assert.False(outcome.Saved);
             Assert.Equal(0, await context.PosterRequests.CountAsync(request => request.Name == "After Ceiling"));
@@ -186,10 +191,10 @@ public sealed class TechnicianWorkflowTests : IDisposable
     private async Task<PosterRequest> AcceptAsync(string departmentId, string reasonId, string name, bool lamination)
     {
         var draft = await CreateDraftAsync(departmentId, reasonId);
-        draft.Name = name;
+        SetName(draft, name);
         draft.Room = "12";
         draft.Phone = "555-0120";
-        draft.Email = name.Replace(' ', '-').ToLowerInvariant() + "@example.edu";
+        SetEmail(draft, name.Replace(' ', '-').ToLowerInvariant() + "@example.edu");
         draft.LaminationRequested = lamination;
         await using var context = _database.CreateContext();
         var outcome = await SubmitAsync(context, draft);
@@ -212,7 +217,17 @@ public sealed class TechnicianWorkflowTests : IDisposable
             new AcceptedStorage(TestStorage.Access(_root), _files),
             new ApprovalSheetCheck(_files, TestStorage.Access(_root)),
             NullLogger<RequesterSubmissionService>.Instance,
-            new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
+            new SignedInAccount
+            {
+                Actor = InstitutionalTestIdentities.Requester,
+                Contact = new RequesterContact(
+                    _names.GetValueOrDefault(draft.DraftId, InstitutionalTestIdentities.RequesterContact.Name),
+                    _emails.GetValueOrDefault(draft.DraftId, InstitutionalTestIdentities.RequesterContact.Email))
+            }).SubmitAsync(draft, CancellationToken.None);
+
+    private void SetName(RequesterDraft draft, string name) => _names[draft.DraftId] = name;
+
+    private void SetEmail(RequesterDraft draft, string email) => _emails[draft.DraftId] = email;
 
     private async Task<RequesterDraft> CreateDraftAsync(string departmentId, string reasonId)
     {

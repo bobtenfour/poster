@@ -4,8 +4,6 @@ public sealed class RequesterDraft
 {
     public string DraftId { get; set; } = "";
 
-    public string Name { get; set; } = "";
-
     public string PosterTitle { get; set; } = "";
 
     public string Mentor { get; set; } = "";
@@ -15,8 +13,6 @@ public sealed class RequesterDraft
     public string Room { get; set; } = "";
 
     public string Phone { get; set; } = "";
-
-    public string Email { get; set; } = "";
 
     public string ReasonId { get; set; } = "";
 

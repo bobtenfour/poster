@@ -106,6 +106,44 @@ public sealed record InstitutionalActor(Guid ObjectId, string? OnPremisesSecurit
     }
 }
 
+/// <summary>
+/// The requester's name and email on the request form, taken from the validated token and never typed
+/// (Authentication Contract section 3.9): Name from the name claim, Email from preferred_username.
+/// </summary>
+public sealed record RequesterContact(string Name, string Email)
+{
+    public const int MaxLength = 256;
+
+    public const string Unreadable = "Your account details could not be read. Sign out and sign in again.";
+
+    public static RequesterContact? FromPrincipal(ClaimsPrincipal principal)
+    {
+        if (principal.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        var name = principal.FindFirst(PosterClaims.Name)?.Value?.Trim();
+        var email = principal.FindFirst(PosterClaims.PreferredUsername)?.Value?.Trim();
+        return IsName(name) && IsEmail(email) ? new RequesterContact(name!, email!) : null;
+    }
+
+    public static bool IsEmail(string? value)
+    {
+        if (!IsName(value) || value!.Any(char.IsWhiteSpace))
+        {
+            return false;
+        }
+
+        var at = value.IndexOf('@');
+        var dot = value.IndexOf('.', at + 1);
+        return at > 0 && at == value.LastIndexOf('@') && dot > at + 1 && dot < value.Length - 1;
+    }
+
+    private static bool IsName(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value.Length <= MaxLength && !value.Any(char.IsControl);
+}
+
 /// <summary>The single place where a principal becomes an actor (section 9).</summary>
 public interface IInstitutionalActorSource
 {

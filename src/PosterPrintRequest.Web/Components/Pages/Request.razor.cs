@@ -121,6 +121,23 @@ public partial class Request : ComponentBase
     protected override async Task OnInitializedAsync()
     {
         Choices = await Options.LoadAsync(CancellationToken.None);
+        await ReadSignInAsync();
+    }
+
+    // Authentication Contract sections 3.1 and 3.9: the actor and the requester's name and email
+    // come from the signed-in principal only.
+    private async Task ReadSignInAsync()
+    {
+        if (AuthenticationState is null)
+        {
+            Account.Actor = null;
+            Account.Contact = null;
+            return;
+        }
+
+        var state = await AuthenticationState;
+        Account.Actor = Actors.FromPrincipal(state.User);
+        Account.Contact = RequesterContact.FromPrincipal(state.User);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -188,12 +205,6 @@ public partial class Request : ComponentBase
 
     private string? Error(string key) => _errors.TryGetValue(key, out var message) ? message : null;
 
-    private async Task OnNameChanged(string? value)
-    {
-        Draft.Name = value ?? "";
-        await PersistDraftAsync();
-    }
-
     private async Task OnPosterTitleChanged(string? value)
     {
         Draft.PosterTitle = value ?? "";
@@ -221,12 +232,6 @@ public partial class Request : ComponentBase
     private async Task OnPhoneChanged(string? value)
     {
         Draft.Phone = value ?? "";
-        await PersistDraftAsync();
-    }
-
-    private async Task OnEmailChanged(string? value)
-    {
-        Draft.Email = value ?? "";
         await PersistDraftAsync();
     }
 
@@ -287,11 +292,7 @@ public partial class Request : ComponentBase
         FormError = null;
         _errors.Clear();
         EnsureDraftId();
-        if (AuthenticationState is not null)
-        {
-            var state = await AuthenticationState;
-            Account.Actor = Actors.FromPrincipal(state.User);
-        }
+        await ReadSignInAsync();
 
         var outcome = await Submission.SubmitAsync(Draft, CancellationToken.None);
         if (!outcome.Saved)

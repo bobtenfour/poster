@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Bunit;
+using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using PosterPrintRequest.Web;
@@ -12,6 +14,7 @@ public sealed class RequestFormTests : BunitContext
 {
     private readonly MemoryFiles _files = new();
     private readonly ScriptedPreflight _preflight = new();
+    private readonly BunitAuthorizationContext _signIn;
 
     public RequestFormTests()
     {
@@ -23,6 +26,52 @@ public sealed class RequestFormTests : BunitContext
         Services.AddSingleton<IRequesterSubmission>(new RejectingSubmission());
         Services.AddScoped<SignedInAccount>();
         Services.AddSingleton<IInstitutionalActorSource, UnavailableActorSource>();
+        _signIn = AddAuthorization();
+        _signIn.SetAuthorized("Ada Lovelace");
+        _signIn.SetClaims(
+            new Claim(PosterClaims.Name, "Ada Lovelace"),
+            new Claim(PosterClaims.PreferredUsername, "ada@uic.edu"));
+    }
+
+    // Authentication Contract section 3.9.
+    [Fact]
+    public void Name_and_email_come_from_the_sign_in_and_cannot_be_edited()
+    {
+        var cut = Render<Request>();
+
+        var name = cut.Find("#requester-name");
+        var email = cut.Find("#requester-email");
+        Assert.Equal("Ada Lovelace", name.GetAttribute("value"));
+        Assert.Equal("ada@uic.edu", email.GetAttribute("value"));
+        Assert.True(name.HasAttribute("disabled"));
+        Assert.True(email.HasAttribute("disabled"));
+        Assert.Equal(new RequesterContact("Ada Lovelace", "ada@uic.edu"), Services.GetRequiredService<SignedInAccount>().Contact);
+    }
+
+    [Fact]
+    public void A_restored_draft_cannot_change_the_signed_in_name_or_email()
+    {
+        JSInterop.Setup<string?>("posterDraft.load").SetResult(
+            "{\"draftId\":\"0123456789abcdef0123456789abcdef\",\"name\":\"Someone Else\",\"email\":\"else@example.edu\",\"room\":\"214\"}");
+
+        var cut = Render<Request>();
+
+        cut.WaitForAssertion(() => Assert.Equal("214", cut.Find("#requester-room").GetAttribute("value")));
+        Assert.Equal("Ada Lovelace", cut.Find("#requester-name").GetAttribute("value"));
+        Assert.Equal("ada@uic.edu", cut.Find("#requester-email").GetAttribute("value"));
+        Assert.DoesNotContain("Someone Else", cut.Markup);
+    }
+
+    [Fact]
+    public void Without_a_name_claim_no_requester_details_are_read()
+    {
+        _signIn.SetClaims(new Claim(PosterClaims.PreferredUsername, "ada@uic.edu"));
+
+        var cut = Render<Request>();
+
+        Assert.Null(Services.GetRequiredService<SignedInAccount>().Contact);
+        Assert.True(string.IsNullOrEmpty(cut.Find("#requester-name").GetAttribute("value")));
+        Assert.True(string.IsNullOrEmpty(cut.Find("#requester-email").GetAttribute("value")));
     }
 
     [Fact]
@@ -52,24 +101,25 @@ public sealed class RequestFormTests : BunitContext
     {
         var cut = Render<Request>();
 
-        cut.Find("#requester-name").Change("Ada Lovelace");
+        cut.Find("#requester-room").Change("214");
 
         cut.WaitForAssertion(() =>
         {
             var saved = JSInterop.Invocations.Single(invocation => invocation.Identifier == "posterDraft.save");
-            Assert.Contains("Ada Lovelace", saved.Arguments[0]?.ToString());
+            Assert.Contains("214", saved.Arguments[0]?.ToString());
+            Assert.DoesNotContain("Ada Lovelace", saved.Arguments[0]?.ToString());
         });
     }
 
     [Fact]
-    public void Restored_draft_keeps_the_entered_name()
+    public void Restored_draft_keeps_the_entered_room()
     {
         JSInterop.Setup<string?>("posterDraft.load").SetResult(
-            "{\"draftId\":\"0123456789abcdef0123456789abcdef\",\"name\":\"Ada Lovelace\",\"departmentId\":\"1\",\"reasonId\":\"2\"}");
+            "{\"draftId\":\"0123456789abcdef0123456789abcdef\",\"room\":\"214\",\"departmentId\":\"1\",\"reasonId\":\"2\"}");
 
         var cut = Render<Request>();
 
-        cut.WaitForAssertion(() => Assert.Equal("Ada Lovelace", cut.Find("#requester-name").GetAttribute("value")));
+        cut.WaitForAssertion(() => Assert.Equal("214", cut.Find("#requester-room").GetAttribute("value")));
     }
 
     [Fact]
@@ -79,7 +129,7 @@ public sealed class RequestFormTests : BunitContext
 
         cut.Find("form").Submit();
 
-        cut.WaitForAssertion(() => Assert.Contains("Enter your name.", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Enter a room.", cut.Markup));
         Assert.Equal("http://localhost/", Services.GetRequiredService<NavigationManager>().Uri);
     }
 
@@ -187,6 +237,6 @@ public sealed class RequestFormTests : BunitContext
         public Task<SubmissionOutcome> SubmitAsync(RequesterDraft draft, CancellationToken cancellationToken) =>
             Task.FromResult(SubmissionOutcome.Failure(
                 "Correct the highlighted fields.",
-                new Dictionary<string, string> { ["name"] = "Enter your name." }));
+                new Dictionary<string, string> { ["room"] = "Enter a room." }));
     }
 }

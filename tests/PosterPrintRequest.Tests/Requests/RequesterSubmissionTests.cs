@@ -16,6 +16,11 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
     private readonly string _root = Path.Combine(Path.GetTempPath(), "poster-submit-" + Guid.NewGuid().ToString("N"));
     private readonly DraftFileStore _files;
 
+    // Authentication Contract section 3.9: each test's requester name and email are the sign-in values,
+    // kept per draft here because the draft itself no longer carries them.
+    private readonly Dictionary<string, string> _names = new();
+    private readonly Dictionary<string, string> _emails = new();
+
     public RequesterSubmissionTests(RequestDatabaseFixture database)
     {
         _database = database;
@@ -30,11 +35,11 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var mentorEvent = choices.Reasons.Single(reason => reason.RequiresMentor && reason.RequiresApprovalSheet);
         var department = choices.Departments.Single(option => option.Label == "Example Department");
         var draft = await CreateDraftAsync(department.Value, mentorEvent.Id.ToString(), includeApproval: true);
-        draft.Name = "Ada Lovelace";
+        SetName(draft, "Ada Lovelace");
         draft.Mentor = "Grace Hopper";
         draft.Room = "214";
         draft.Phone = "555-0100";
-        draft.Email = "ada@example.edu";
+        SetEmail(draft, "ada@example.edu");
         draft.LaminationRequested = true;
 
         await using var context = _database.CreateContext();
@@ -92,10 +97,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var department = choices.Departments.First().Value;
 
         var missingMentor = await CreateDraftAsync(department, mentorEvent.Id.ToString(), includeApproval: false);
-        missingMentor.Name = "No Mentor";
+        SetName(missingMentor, "No Mentor");
         missingMentor.Room = "1";
         missingMentor.Phone = "555-0101";
-        missingMentor.Email = "mentor@example.edu";
+        SetEmail(missingMentor, "mentor@example.edu");
         await using (var context = _database.CreateContext())
         {
             var outcome = await SubmitAsync(context, missingMentor);
@@ -104,10 +109,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         }
 
         var optional = await CreateDraftAsync(department, openEvent.Id.ToString(), includeApproval: true);
-        optional.Name = "Open Event";
+        SetName(optional, "Open Event");
         optional.Room = "2";
         optional.Phone = "555-0102";
-        optional.Email = "open@example.edu";
+        SetEmail(optional, "open@example.edu");
         await using var savedContext = _database.CreateContext();
         var savedOutcome = await SubmitAsync(savedContext, optional);
 
@@ -127,10 +132,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var department = choices.Departments.First().Value;
         var poster = SamplePosters.Pdf(72, 36);
         var draft = await CreateDraftAsync(department, "", includeApproval: false, poster: poster, posterName: "Landscape.pdf");
-        draft.Name = "Landscape";
+        SetName(draft, "Landscape");
         draft.Room = "3";
         draft.Phone = "555-0103";
-        draft.Email = "landscape@example.edu";
+        SetEmail(draft, "landscape@example.edu");
 
         await using var context = _database.CreateContext();
         var outcome = await SubmitAsync(context, draft);
@@ -154,10 +159,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var department = choices.Departments.First().Value;
         var poster = SamplePosters.Pptx(24, 36);
         var draft = await CreateDraftAsync(department, "", includeApproval: false, poster: poster, posterName: "Poster.pdf");
-        draft.Name = "Content Wins";
+        SetName(draft, "Content Wins");
         draft.Room = "4";
         draft.Phone = "555-0104";
-        draft.Email = "content@example.edu";
+        SetEmail(draft, "content@example.edu");
 
         await using var context = _database.CreateContext();
         var outcome = await SubmitAsync(context, draft);
@@ -182,11 +187,11 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var department = choices.Departments.First().Value;
         var poster = SamplePosters.Pages([(36m, 72m, 0), (36m, 72m, 0)]);
         var draft = await CreateDraftAsync(department, "", includeApproval: false, poster: poster);
-        draft.Name = "Two Pages";
+        SetName(draft, "Two Pages");
         draft.Mentor = "Kept";
         draft.Room = "5";
         draft.Phone = "555-0105";
-        draft.Email = "pages@example.edu";
+        SetEmail(draft, "pages@example.edu");
 
         await using var context = _database.CreateContext();
         var outcome = await SubmitAsync(context, draft);
@@ -208,10 +213,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var department = choices.Departments.First().Value;
 
         var invalid = await CreateDraftAsync(department, approvalEvent.Id.ToString(), includeApproval: false);
-        invalid.Name = "Bad Sheet";
+        SetName(invalid, "Bad Sheet");
         invalid.Room = "8";
         invalid.Phone = "555-0108";
-        invalid.Email = "sheet@example.edu";
+        SetEmail(invalid, "sheet@example.edu");
         var badSheet = "sheet-bytes"u8.ToArray();
         await SaveBytesAsync(invalid.DraftId, DraftFileRole.ApprovalSheet, "Sheet.pdf", badSheet);
         invalid.ApprovalSheet = new DraftFileState { OriginalFileName = "Sheet.pdf", Size = badSheet.Length, Format = "PDF" };
@@ -227,10 +232,10 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
 
         var pages = SamplePosters.Pages([(8.5m, 11m, 0), (8.5m, 11m, 0)]);
         var valid = await CreateDraftAsync(department, approvalEvent.Id.ToString(), includeApproval: false);
-        valid.Name = "Multi Sheet";
+        SetName(valid, "Multi Sheet");
         valid.Room = "9";
         valid.Phone = "555-0109";
-        valid.Email = "multi@example.edu";
+        SetEmail(valid, "multi@example.edu");
         await SaveBytesAsync(valid.DraftId, DraftFileRole.ApprovalSheet, "Notes.pdf", pages);
         valid.ApprovalSheet = new DraftFileState { OriginalFileName = "Notes.pdf", Size = pages.Length, Format = "PDF" };
 
@@ -250,15 +255,15 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
         var choices = await LoadChoicesAsync();
         var department = choices.Departments.First().Value;
         var first = await CreateDraftAsync(department, "", includeApproval: false);
-        first.Name = "First Sequence";
+        SetName(first, "First Sequence");
         first.Room = "10";
         first.Phone = "555-0110";
-        first.Email = "first@example.edu";
+        SetEmail(first, "first@example.edu");
         var second = await CreateDraftAsync(department, "", includeApproval: false);
-        second.Name = "Second Sequence";
+        SetName(second, "Second Sequence");
         second.Room = "11";
         second.Phone = "555-0111";
-        second.Email = "second@example.edu";
+        SetEmail(second, "second@example.edu");
         var logger = new ListLogger<RequesterSubmissionService>();
 
         await using var context = _database.CreateContext();
@@ -438,6 +443,54 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
                 .Any(path => path.Contains(outcome.PosterId!, StringComparison.Ordinal)));
     }
 
+    // Authentication Contract section 3.9: without readable sign-in details the request is refused and nothing is stored.
+    [Fact]
+    public async Task A_request_without_sign_in_details_is_refused_and_nothing_is_stored()
+    {
+        var choices = await LoadChoicesAsync();
+        var openEvent = choices.Reasons.Single(reason => !reason.RequiresMentor && !reason.RequiresApprovalSheet);
+        var draft = await CreateDraftAsync(choices.Departments.First().Value, openEvent.Id.ToString(), includeApproval: false);
+        draft.Room = "1";
+        draft.Phone = "555-0100";
+        await using var context = _database.CreateContext();
+        var before = await context.PosterRequests.CountAsync();
+
+        var outcome = await new RequesterSubmissionService(
+            context,
+            _files,
+            new PosterPreflight(_files, TestStorage.Access(_root)),
+            new AcceptedStorage(TestStorage.Access(_root), _files),
+            new ApprovalSheetCheck(_files, TestStorage.Access(_root)),
+            NullLogger<RequesterSubmissionService>.Instance,
+            new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
+
+        Assert.False(outcome.Saved);
+        Assert.Equal(RequesterContact.Unreadable, outcome.Message);
+        Assert.Equal(before, await context.PosterRequests.CountAsync());
+        Assert.True(_files.Exists(draft.DraftId, DraftFileRole.Poster));
+    }
+
+    [Fact]
+    public async Task The_stored_name_and_email_are_the_sign_in_values()
+    {
+        var choices = await LoadChoicesAsync();
+        var openEvent = choices.Reasons.Single(reason => !reason.RequiresMentor && !reason.RequiresApprovalSheet);
+        var draft = await CreateDraftAsync(choices.Departments.First().Value, openEvent.Id.ToString(), includeApproval: false);
+        draft.Room = "1";
+        draft.Phone = "555-0100";
+        SetName(draft, "Signed In Person");
+        SetEmail(draft, "signed.in@uic.edu");
+        await using var context = _database.CreateContext();
+
+        var outcome = await SubmitAsync(context, draft);
+
+        Assert.True(outcome.Saved);
+        var saved = await context.PosterRequests.SingleAsync(request => request.PosterId == outcome.PosterId);
+        Assert.Equal("Signed In Person", saved.Name);
+        Assert.Equal("signed.in@uic.edu", saved.Email);
+        Assert.Contains("Signed In Person - " + saved.PosterId, saved.PosterFile.StoragePath, StringComparison.Ordinal);
+    }
+
     private PosterReplacementService Replacer(PosterPrintRequest.Infrastructure.Persistence.PosterPrintRequestDbContext context) =>
         new(
             context,
@@ -448,12 +501,12 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
             TimeProvider.System,
             NullLogger<PosterReplacementService>.Instance);
 
-    private static void FillRequester(RequesterDraft draft, string name)
+    private void FillRequester(RequesterDraft draft, string name)
     {
-        draft.Name = name;
+        SetName(draft, name);
         draft.Room = "1";
         draft.Phone = "555-0100";
-        draft.Email = "replace@example.edu";
+        SetEmail(draft, "replace@example.edu");
     }
 
     private async Task<RequesterChoices> LoadChoicesAsync()
@@ -477,7 +530,17 @@ public sealed class RequesterSubmissionTests : IClassFixture<RequestDatabaseFixt
             new AcceptedStorage(TestStorage.Access(_root), _files),
             new ApprovalSheetCheck(_files, TestStorage.Access(_root)),
             logger,
-            new SignedInAccount { Actor = InstitutionalTestIdentities.Requester }).SubmitAsync(draft, CancellationToken.None);
+            new SignedInAccount
+            {
+                Actor = InstitutionalTestIdentities.Requester,
+                Contact = new RequesterContact(
+                    _names.GetValueOrDefault(draft.DraftId, InstitutionalTestIdentities.RequesterContact.Name),
+                    _emails.GetValueOrDefault(draft.DraftId, InstitutionalTestIdentities.RequesterContact.Email))
+            }).SubmitAsync(draft, CancellationToken.None);
+
+    private void SetName(RequesterDraft draft, string name) => _names[draft.DraftId] = name;
+
+    private void SetEmail(RequesterDraft draft, string email) => _emails[draft.DraftId] = email;
 
     private string Full(string relative) =>
         Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar));
