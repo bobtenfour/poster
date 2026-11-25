@@ -2320,3 +2320,42 @@ a.epx-supply-tile:hover {
 .epx-help-pager a {
   font-weight: 700;
 }
+
+/* Technician Search Contract v1, section 3: the fields shown follow the chosen category. */
+.epx-tech-search .epx-search-by {
+  flex: 0 0 auto;
+  width: 9.5rem;
+}
+
+.epx-tech-search .epx-search-event {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.epx-tech-search input.epx-search-date {
+  flex: 0 0 auto;
+  width: 10.5rem;
+}
+
+.epx-tech-search .epx-search-text,
+.epx-tech-search .epx-search-date,
+.epx-tech-search .epx-search-event,
+.epx-tech-search .epx-search-find {
+  display: none;
+}
+
+.epx-tech-search:has(.epx-search-by option[value="poster"]:checked) .epx-search-text,
+.epx-tech-search:has(.epx-search-by option[value="name"]:checked) .epx-search-text,
+.epx-tech-search:has(.epx-search-by option[value="date"]:checked) input.epx-search-date,
+.epx-tech-search:has(.epx-search-by option[value="event"]:checked) .epx-search-event {
+  display: block;
+}
+
+.epx-tech-search:has(.epx-search-by option[value="date"]:checked) label.epx-search-date,
+.epx-tech-search:has(.epx-search-by option:not([value=""]):checked) .epx-search-find {
+  display: inline-flex;
+}
+
+.epx-search-results-note {
+  margin: 0.75rem 0 0;
+}

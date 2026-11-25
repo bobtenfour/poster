@@ -8,7 +8,60 @@
 <section class="epx-blueignix-home" aria-label="Dashboard">
     <PageHeader Title="Dashboard" Subtitle="@Snapshot.PeriodLabel" />
 
-    @if (SearchState == "invalid")
+    @if (!string.IsNullOrWhiteSpace(SearchMessage))
+    {
+        <Callout Kicker="@SearchKicker" Title="@SearchMessage" Tone="warning">
+            @SearchSummary
+        </Callout>
+    }
+    else if (SearchResults is not null)
+    {
+        @* Technician Search Contract v1, section 5. *@
+        <section id="search-results" class="epx-blueignix-panel" aria-labelledby="search-results-title">
+            <div class="epx-blueignix-panel-heading">
+                <div>
+                    <p class="epx-blueignix-kicker">Search · @SearchSummary</p>
+                    <h2 id="search-results-title">@(SearchResults.Rows.Count == 1 ? "1 poster found" : $"{SearchResults.Rows.Count.ToString(CultureInfo.InvariantCulture)}{(SearchResults.More ? "+" : "")} posters found")</h2>
+                </div>
+            </div>
+            @if (SearchResults.Rows.Count == 0)
+            {
+                <p class="epx-config-empty">No posters match this search.</p>
+            }
+            else
+            {
+                <div class="epx-table-wrap">
+                    <table class="epx-table" id="search-results-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Poster ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Event</th>
+                                <th scope="col">Submitted</th>
+                                <th scope="col">Ticket</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in SearchResults.Rows)
+                            {
+                                <tr>
+                                    <td><a href="@ApplicationUris.BrowserPath(Navigation, $"/technician/work/{row.PosterId}")">@row.PosterId</a></td>
+                                    <td>@row.Name</td>
+                                    <td>@(row.EventName ?? "No event")</td>
+                                    <td>@row.DateIn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)</td>
+                                    <td>@(row.TicketId?.ToString(CultureInfo.InvariantCulture) ?? "—")</td>
+                                    <td><span class="@StageClass(row.Status)">@row.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            <p class="epx-helper-text epx-search-results-note">Newest first. Up to @PosterPrintRequest.Web.Requests.TechnicianSearch.MaxRows results@(SearchResults.More ? "; more posters match, so refine the search." : ".")</p>
+        </section>
+    }
+    else if (SearchState == "invalid")
     {
         <Callout Kicker="Poster ID" Title="Enter a Poster ID such as POSTER-2026-000001." Tone="warning">
             Search again with the public Poster ID.
@@ -103,7 +156,7 @@
                         <span class="epx-supply-total-unit">Items</span>
                     </p>
                 </header>
-                <SupplyCategoryTiles Prefix="supply-reorder" Cartridges="@Attention.NeedsReorder.Cartridges" Paper="@Attention.NeedsReorder.Paper" LaminatingMaterials="@Attention.NeedsReorder.LaminatingMaterials" />
+                <SupplyCategoryTiles Prefix="supply-reorder" Counts="@Attention.NeedsReorder.ByType" />
             </article>
             <article class="epx-supply-summary epx-supply-summary-expiring">
                 <header class="epx-supply-summary-header">
@@ -119,7 +172,7 @@
                         <span class="epx-supply-total-unit">Items</span>
                     </p>
                 </header>
-                <SupplyCategoryTiles Prefix="supply-expiring" Cartridges="@Attention.ExpiringSoonSummary.Cartridges" Paper="@Attention.ExpiringSoonSummary.Paper" LaminatingMaterials="@Attention.ExpiringSoonSummary.LaminatingMaterials" />
+                <SupplyCategoryTiles Prefix="supply-expiring" Counts="@Attention.ExpiringSoonSummary.ByType" />
             </article>
         </div>
     </section>
@@ -203,7 +256,15 @@
         <form class="epx-tech-period" method="get" action="@ApplicationUris.BrowserPath(Navigation, InstitutionalEntry.OperatorHome)">
             <label class="epx-label" for="workspace-period">Month</label>
             <input id="workspace-period" class="epx-input" name="period" type="month" value="@PeriodValue" />
-            @if (!string.IsNullOrWhiteSpace(SearchId))
+            @if (!string.IsNullOrWhiteSpace(SearchByQuery))
+            {
+                <input type="hidden" name="by" value="@SearchByQuery" />
+                <input type="hidden" name="q" value="@SearchTextQuery" />
+                <input type="hidden" name="from" value="@SearchFromQuery" />
+                <input type="hidden" name="to" value="@SearchToQuery" />
+                <input type="hidden" name="event" value="@SearchEventQuery" />
+            }
+            else if (!string.IsNullOrWhiteSpace(SearchId))
             {
                 <input type="hidden" name="posterId" value="@SearchId" />
             }

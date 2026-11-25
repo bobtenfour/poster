@@ -25,6 +25,7 @@ public sealed class PrinterDashboardTests : BunitContext
         Services.AddSingleton<ITechnicianDashboard>(new IdleDashboard());
         Services.AddSingleton<IPrintingInventory>(new IdleInventory());
         Services.AddSingleton<ITechnicianWorkflow>(new IdleWorkflow());
+        Services.AddSingleton<ITechnicianSearch>(new IdleSearch());
     }
 
     [Fact]
@@ -276,6 +277,29 @@ public sealed class PrinterDashboardTests : BunitContext
             InstitutionalActor? actor,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<ConsumableLots?> LoadLotsAsync(int printingConsumableId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<InventoryOutcome> RemoveFromLotAsync(int printingConsumableId, DateOnly? expirationDate, int quantity, bool outOfOrderConfirmed, InstitutionalActor? actor, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<InventoryOutcome> AdjustLotAsync(int printingConsumableId, DateOnly? expirationDate, int quantityChange, string? reason, InstitutionalActor? actor, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    // No search runs on these renders: the dashboard is opened without search parameters.
+    private sealed class IdleSearch : ITechnicianSearch
+    {
+        public Task<PosterSearchResult> ByNameAsync(string text, CancellationToken cancellationToken) => Task.FromResult(Empty());
+
+        public Task<PosterSearchResult> ByDateAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken) => Task.FromResult(Empty());
+
+        public Task<PosterSearchResult> ByEventAsync(int reasonId, CancellationToken cancellationToken) => Task.FromResult(Empty());
+
+        public Task<IReadOnlyList<PosterSearchEvent>> EventsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<PosterSearchEvent>>([]);
+
+        private static PosterSearchResult Empty() => new() { Rows = [], More = false };
     }
 
     private sealed class IdleWorkflow : ITechnicianWorkflow

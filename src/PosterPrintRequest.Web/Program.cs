@@ -38,6 +38,7 @@ builder.Services.AddScoped<SignedInAccount>();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AcceptanceLookup>();
 builder.Services.AddScoped<ITechnicianWorkflow, TechnicianWorkflow>();
+builder.Services.AddScoped<ITechnicianSearch, TechnicianSearch>();
 builder.Services.AddScoped<ITechnicianDashboard, TechnicianDashboard>();
 builder.Services.AddScoped<ITechnicianLibrary, TechnicianLibrary>();
 builder.Services.TryAddSingleton(TimeProvider.System);

@@ -12,6 +12,33 @@ public partial class Technician : ComponentBase
     [SupplyParameterFromQuery(Name = "period")]
     public string? PeriodQuery { get; set; }
 
+    // Technician Search Contract v1, section 3.
+    [SupplyParameterFromQuery(Name = "by")]
+    public string? SearchByQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? SearchTextQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "from")]
+    public string? SearchFromQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "to")]
+    public string? SearchToQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "event")]
+    public string? SearchEventQuery { get; set; }
+
+    [Inject]
+    private ITechnicianSearch Search { get; set; } = null!;
+
+    private string SearchMode { get; set; } = PosterSearchModes.PosterId;
+
+    private string? SearchMessage { get; set; }
+
+    private string SearchSummary { get; set; } = "";
+
+    private PosterSearchResult? SearchResults { get; set; }
+
     [Inject]
     private NavigationManager Navigation { get; set; } = null!;
 
@@ -56,12 +83,78 @@ public partial class Technician : ComponentBase
         InkProbe = await PrinterInkProbe.ReadAsync(
             ApplicationServices.GetService(typeof(IConfiguration)) as IConfiguration,
             CancellationToken.None);
-        if (string.IsNullOrWhiteSpace(PosterIdQuery))
+        await RunSearchAsync();
+    }
+
+    private async Task RunSearchAsync()
+    {
+        // The earlier ?posterId= links keep working as a Poster ID search.
+        var searching = !string.IsNullOrWhiteSpace(SearchByQuery) || !string.IsNullOrWhiteSpace(PosterIdQuery);
+        if (!searching)
         {
             return;
         }
 
-        SearchId = PosterIdQuery.Trim();
+        SearchMode = string.IsNullOrWhiteSpace(SearchByQuery) ? PosterSearchModes.PosterId : PosterSearchModes.Normalize(SearchByQuery);
+        var text = (SearchTextQuery ?? PosterIdQuery)?.Trim() ?? "";
+        switch (SearchMode)
+        {
+            case PosterSearchModes.PosterId:
+                await FindPosterAsync(text);
+                break;
+            case PosterSearchModes.Name:
+                if (text.Length == 0)
+                {
+                    SearchMessage = "Enter part of a name.";
+                    return;
+                }
+
+                SearchSummary = "Name contains \u201c" + text + "\u201d";
+                SearchResults = await Search.ByNameAsync(text, CancellationToken.None);
+                break;
+            case PosterSearchModes.Date:
+                var hasFrom = TryDate(SearchFromQuery, out var from);
+                var hasTo = TryDate(SearchToQuery, out var to);
+                if (!hasFrom && !hasTo)
+                {
+                    SearchMessage = "Choose a date.";
+                    return;
+                }
+
+                if (hasFrom && hasTo && from > to)
+                {
+                    SearchMessage = "The start date is after the end date.";
+                    return;
+                }
+
+                SearchSummary = (hasFrom, hasTo) switch
+                {
+                    (true, true) => "Submitted from " + Format(from) + " to " + Format(to),
+                    (true, false) => "Submitted from " + Format(from),
+                    _ => "Submitted up to " + Format(to)
+                };
+                SearchResults = await Search.ByDateAsync(hasFrom ? from : null, hasTo ? to : null, CancellationToken.None);
+                break;
+            case PosterSearchModes.Event:
+                var events = await Search.EventsAsync(CancellationToken.None);
+                var chosen = int.TryParse(SearchEventQuery, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var reasonId)
+                    ? events.SingleOrDefault(item => item.Id == reasonId)
+                    : null;
+                if (chosen is null)
+                {
+                    SearchMessage = "Choose an event.";
+                    return;
+                }
+
+                SearchSummary = "Event " + chosen.Name;
+                SearchResults = await Search.ByEventAsync(chosen.Id, CancellationToken.None);
+                break;
+        }
+    }
+
+    private async Task FindPosterAsync(string posterId)
+    {
+        SearchId = posterId;
         if (!PosterIds.IsPublic(SearchId))
         {
             SearchState = "invalid";
@@ -71,6 +164,15 @@ public partial class Technician : ComponentBase
         SearchView = await Workflow.FindAsync(SearchId, CancellationToken.None);
         SearchState = SearchView is null ? "missing" : "found";
     }
+
+    private static bool TryDate(string? value, out DateOnly date) =>
+        DateOnly.TryParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date);
+
+    private static string Format(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string SearchKicker => PosterSearchModes.All.Single(option => option.Value == SearchMode).Label;
+
+    private static string StageClass(string status) => "epx-stage epx-stage-" + status.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant();
 
     private static ConsumableAttention EmptyAttention() => new()
     {
@@ -83,9 +185,7 @@ public partial class Technician : ComponentBase
 
     private static SupplyCategorySummary EmptySummary() => new()
     {
-        Cartridges = 0,
-        Paper = 0,
-        LaminatingMaterials = 0
+        ByType = []
     };
 
     private static TechnicianDashboardSnapshot Empty()

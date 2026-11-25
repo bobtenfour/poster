@@ -3,6 +3,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IAuthorizationService Authorization
 @inject NavigationManager Navigation
+@inject IServiceScopeFactory Scopes
+@using PosterPrintRequest.Web.Requests
 
 <a class="epx-skip-link" href="#epx-main-content">Skip to main content</a>
 <div class="epx-shell">
@@ -48,10 +50,32 @@
             <div class="epx-blueignix-topbar-lead">
                 <p class="epx-blueignix-topbar-user">@SignedIn</p>
             </div>
+            @* Technician Search Contract v1, section 3: one line; only the fields of the chosen category are shown;
+               after a search the dropdown is back on Selection with empty fields. *@
             <form class="epx-tech-search" method="get" action="@ApplicationUris.BrowserPath(Navigation, InstitutionalEntry.OperatorHome)">
-                <label class="epx-label" for="workspace-poster-id">Poster ID</label>
-                <input id="workspace-poster-id" class="epx-input" name="posterId" type="search" autocomplete="off" spellcheck="false" />
-                <button class="epx-button epx-button-primary" type="submit">Find</button>
+                <label class="epx-label" for="workspace-search-by">Search by</label>
+                <select id="workspace-search-by" class="epx-select epx-search-by" name="by" required>
+                    <option value="">@PosterSearchModes.SelectionLabel</option>
+                    @foreach (var (value, label) in PosterSearchModes.All)
+                    {
+                        <option value="@value">@label</option>
+                    }
+                </select>
+                <label class="epx-sr-only" for="workspace-search-text">Search text</label>
+                <input id="workspace-search-text" class="epx-input epx-search-text" name="q" type="search" autocomplete="off" spellcheck="false" />
+                <label class="epx-label epx-search-date" for="workspace-search-from">From</label>
+                <input id="workspace-search-from" class="epx-input epx-search-date" name="from" type="date" />
+                <label class="epx-label epx-search-date" for="workspace-search-to">To</label>
+                <input id="workspace-search-to" class="epx-input epx-search-date" name="to" type="date" />
+                <label class="epx-sr-only" for="workspace-search-event">Event</label>
+                <select id="workspace-search-event" class="epx-select epx-search-event" name="event">
+                    <option value="">Choose an event</option>
+                    @foreach (var item in Events)
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                </select>
+                <button class="epx-button epx-button-primary epx-search-find" type="submit">Find</button>
             </form>
             <SignOutForm />
         </div>
@@ -78,8 +102,17 @@
 
     private bool AlsoRequester { get; set; }
 
+    private IReadOnlyList<PosterSearchEvent> Events { get; set; } = [];
+
     protected override async Task OnInitializedAsync()
     {
+        // The layout renders at the same time as the page, which uses the request's DbContext; the event
+        // list is read in its own scope so the two never share one context.
+        await using (var scope = Scopes.CreateAsyncScope())
+        {
+            Events = await scope.ServiceProvider.GetRequiredService<ITechnicianSearch>().EventsAsync(CancellationToken.None);
+        }
+
         if (AuthenticationState is null)
         {
             return;

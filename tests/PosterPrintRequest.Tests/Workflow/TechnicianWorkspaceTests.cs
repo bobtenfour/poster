@@ -91,7 +91,10 @@ public sealed class TechnicianWorkspaceTests : IDisposable
         Assert.Contains("epx-folder-to-be-printed", libraryHtml, StringComparison.Ordinal);
         Assert.Contains("WITHOUT-EVENT%20PRINTED", libraryHtml, StringComparison.Ordinal);
         Assert.Contains("epx-folder-printed", libraryHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Example event", libraryHtml, StringComparison.Ordinal);
+        // The library lists no folder outside the print tree. Event names do appear in the search bar's Event
+        // dropdown (Technician Search Contract v1), so the check covers the page content, not the top bar.
+        var libraryContent = libraryHtml[libraryHtml.IndexOf("<main", StringComparison.Ordinal)..libraryHtml.IndexOf("</main>", StringComparison.Ordinal)];
+        Assert.DoesNotContain("Example event", libraryContent, StringComparison.Ordinal);
         Assert.DoesNotContain(">drafts<", libraryHtml, StringComparison.Ordinal);
         Assert.DoesNotContain(_root, libraryHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("draft-secret", libraryHtml, StringComparison.Ordinal);
