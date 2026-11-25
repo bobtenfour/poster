@@ -63,7 +63,6 @@ public sealed class PrinterInkProbeTests
         Assert.Equal("text/plain; charset=utf-8", reading.ContentType);
         Assert.Equal("HTML", reading.Format);
         Assert.Equal("no", reading.Redirected);
-        Assert.Equal("0", reading.RedirectCount);
         Assert.Equal("http://***/hp/device/webAccess/index.htm", reading.FinalUri);
         Assert.DoesNotContain(PrinterIp, reading.FinalUri);
         Assert.DoesNotContain("content=supplies", reading.FinalUri);
@@ -149,41 +148,6 @@ public sealed class PrinterInkProbeTests
         Assert.Equal("The supplies address is not an absolute URI.", reading.Errors);
         Assert.DoesNotContain(PrinterIp, reading.Errors);
         Assert.DoesNotContain("ftp://", reading.Errors);
-    }
-
-    [Fact]
-    public async Task A_redirect_is_counted_and_the_final_uri_hides_the_host()
-    {
-        var calls = 0;
-        var handler = new RecordingHandler((_, _) =>
-        {
-            calls++;
-            if (calls == 1)
-            {
-                var redirect = new HttpResponseMessage(HttpStatusCode.Redirect);
-                redirect.Headers.Location = new Uri(SuppliesUri);
-                return Task.FromResult(redirect);
-            }
-
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(Fixture, Encoding.UTF8, "text/html")
-            });
-        });
-
-        var reading = await PrinterInkProbe.ReadAsync(Configuration(PrinterIp), CancellationToken.None, handler);
-
-        Assert.Equal(2, handler.Requests.Count);
-        Assert.All(handler.Requests, item => Assert.Equal("Mozilla/5.0", Assert.Single(item.Headers.GetValues("User-Agent"))));
-        Assert.Equal("yes", reading.Redirected);
-        Assert.Equal("1", reading.RedirectCount);
-        Assert.Equal("200", reading.HttpStatus);
-        Assert.Equal("text/html; charset=utf-8", reading.ContentType);
-        Assert.Equal("HTML", reading.Format);
-        Assert.Equal("http://***/hp/device/webAccess/index.htm", reading.FinalUri);
-        Assert.DoesNotContain(PrinterIp, reading.FinalUri);
-        Assert.DoesNotContain(PrinterIp, reading.Errors);
-        Assert.DoesNotContain("content=supplies", reading.FinalUri);
     }
 
     [Theory]

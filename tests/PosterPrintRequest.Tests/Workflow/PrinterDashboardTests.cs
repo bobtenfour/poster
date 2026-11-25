@@ -178,6 +178,65 @@ public sealed class PrinterDashboardTests : BunitContext
         Assert.Contains("id=\"stat-pending\">4", cut.Markup);
     }
 
+    // Printer Monitoring Contract v1, T8: the dashboard renders while the printer fails in each way.
+    [Theory]
+    [InlineData("redirect")]
+    [InlineData("too-large")]
+    [InlineData("slow")]
+    [InlineData("http-error")]
+    [InlineData("transport")]
+    [InlineData("unparseable")]
+    public async Task T8_the_dashboard_renders_with_the_printer_unavailable_when_the_printer_fails(string failure)
+    {
+        var handler = new RecordingHandler(async (_, cancellationToken) =>
+        {
+            switch (failure)
+            {
+                case "redirect":
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Redirect);
+                    redirect.Headers.Location = new Uri("http://198.51.100.20/unintended");
+                    return redirect;
+                case "too-large":
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent(new byte[PrinterHttpBoundary.MaxResponseBytes + 1])
+                    };
+                case "slow":
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                case "http-error":
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("error") };
+                case "transport":
+                    throw new HttpRequestException("transport");
+                default:
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<html>no table</html>") };
+            }
+        });
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [PrinterSupplies.BaseUrlKey] = "192.0.2.10"
+            })
+            .Build();
+        var reading = await PrinterInkProbe.ReadAsync(configuration, CancellationToken.None, handler, TimeSpan.FromMilliseconds(200));
+        Assert.Empty(reading.Cartridges);
+        Assert.NotEqual("none", reading.Errors);
+        Assert.Single(handler.Requests);
+
+        Services.AddSingleton(Supplies("http://printer.example/plotter/", new RecordingHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Fixture) }))));
+        var cut = Render<Technician>();
+        typeof(Technician).GetProperty("InkProbe", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(cut.Instance, reading);
+        cut.Render();
+
+        Assert.Contains("id=\"printer-ink-unavailable\">Printer unavailable", cut.Markup);
+        Assert.Contains("id=\"stat-pending\">4", cut.Markup);
+        AssertNoDiagnostics(cut.Markup);
+        Assert.DoesNotContain("198.51.100.20", cut.Markup);
+        Assert.DoesNotContain("192.0.2.10", cut.Markup);
+    }
+
     private static void AssertNoDiagnostics(string markup)
     {
         Assert.DoesNotContain("HTTP status", markup);

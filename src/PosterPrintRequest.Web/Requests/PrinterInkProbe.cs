@@ -18,8 +18,6 @@ public sealed class PrinterInkProbe
 
     private const string SuppliesUserAgent = "Mozilla/5.0";
 
-    private const int MaxRedirects = 50;
-
     public sealed record Reading(
         IReadOnlyList<PrinterCartridge> Cartridges,
         string HttpStatus,
@@ -28,7 +26,6 @@ public sealed class PrinterInkProbe
         string BytesRead,
         string Duration,
         string Redirected,
-        string RedirectCount,
         string FinalUri,
         string Format,
         string BodyPreview,
@@ -37,7 +34,6 @@ public sealed class PrinterInkProbe
     {
         public static Reading Empty { get; } = new(
             [],
-            "none",
             "none",
             "none",
             "none",
@@ -65,125 +61,114 @@ public sealed class PrinterInkProbe
     public static Task<Reading> ReadAsync(IConfiguration? configuration, CancellationToken cancellationToken) =>
         ReadAsync(configuration, cancellationToken, null);
 
+    public static Task<Reading> ReadAsync(
+        IConfiguration? configuration,
+        CancellationToken cancellationToken,
+        HttpMessageHandler? handler) =>
+        ReadAsync(configuration, cancellationToken, handler, PrinterSupplies.Timeout);
+
+    /// <summary>
+    /// One consultation of the printer (Printer Monitoring Contract v1): one anonymous GET, no redirects,
+    /// at most 1 MiB of body, and one total time limit. Production always uses PrinterSupplies.Timeout;
+    /// tests may pass a shorter limit (contract section 9.3).
+    /// </summary>
     public static async Task<Reading> ReadAsync(
         IConfiguration? configuration,
         CancellationToken cancellationToken,
-        HttpMessageHandler? handler)
+        HttpMessageHandler? handler,
+        TimeSpan totalLimit)
     {
         var started = Stopwatch.StartNew();
         var ownsHandler = handler is null;
         handler ??= CreateAnonymousHandler();
         using var client = new HttpClient(handler, disposeHandler: ownsHandler)
         {
-            Timeout = PrinterSupplies.Timeout
+            // The total limit below covers connection, headers and body together.
+            Timeout = System.Threading.Timeout.InfiniteTimeSpan
         };
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(totalLimit);
 
         Uri? suppliesUri = null;
         try
         {
             if (!TryCreateSuppliesUri(configuration, out var created, out var targetError) || created is null)
             {
-                return Finish(started, [], "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", targetError);
+                return Finish(started, [], "none", "none", "none", "none", "none", "none", "none", "none", "none", targetError);
             }
 
             suppliesUri = created;
             if (!created.IsAbsoluteUri)
             {
-                return Finish(started, [], "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "The supplies address is not an absolute URI.");
+                return Finish(started, [], "none", "none", "none", "none", "none", "none", "none", "none", "none", "The supplies address is not an absolute URI.");
             }
 
-            var (response, redirects, finalUri) = await SendAsync(client, created, cancellationToken);
-            using (response)
+            using var request = new HttpRequestMessage(HttpMethod.Get, created);
+            request.Headers.TryAddWithoutValidation("User-Agent", SuppliesUserAgent);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, limit.Token);
+            var status = ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture);
+            var contentType = response.Content.Headers.ContentType?.ToString();
+            var shownType = string.IsNullOrWhiteSpace(contentType) ? "none" : contentType;
+            var contentLength = response.Content.Headers.ContentLength?.ToString(CultureInfo.InvariantCulture) ?? "none";
+            var finalUri = Sanitize(created);
+
+            if (PrinterHttpBoundary.IsRedirect(response.StatusCode))
             {
-                var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                var status = ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture);
-                var contentType = response.Content.Headers.ContentType?.ToString();
-                var contentLength = response.Content.Headers.ContentLength?.ToString(CultureInfo.InvariantCulture);
-                var decoded = Decode(response, bytes);
-                var cartridges = PrinterSupplies.Parse(decoded);
-                var (preview, truncated) = CreatePreview(decoded);
-                var errors = new List<string>();
-                if (redirects >= MaxRedirects && IsRedirect(response.StatusCode))
-                {
-                    errors.Add("Redirect limit reached.");
-                }
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    errors.Add("HTTP status " + status + ".");
-                }
-
-                if (cartridges is null)
-                {
-                    errors.Add("The supplies response did not contain six cartridge readings.");
-                }
-
-                return Finish(
-                    started,
-                    cartridges ?? [],
-                    status,
-                    string.IsNullOrWhiteSpace(contentType) ? "none" : contentType,
-                    contentLength ?? "none",
-                    bytes.LongLength.ToString(CultureInfo.InvariantCulture),
-                    redirects > 0 ? "yes" : "no",
-                    redirects.ToString(CultureInfo.InvariantCulture),
-                    Sanitize(finalUri),
-                    DetectFormat(response.Content.Headers.ContentType?.MediaType, bytes),
-                    preview,
-                    truncated,
-                    errors.Count == 0 ? "none" : string.Join(" ", errors));
+                // Contract section 4: the redirect ends the consultation; Location is never requested.
+                return Finish(started, [], status, shownType, contentLength, "0", "refused", finalUri, "none", "none", "none",
+                    PrinterHttpBoundary.RedirectRefused(response.StatusCode));
             }
+
+            if (PrinterHttpBoundary.DeclaresTooMuch(response))
+            {
+                return Finish(started, [], status, shownType, contentLength, "0", "no", finalUri, "none", "none", "none",
+                    PrinterHttpBoundary.TooLargeMessage);
+            }
+
+            var bytes = await PrinterHttpBoundary.ReadLimitedAsync(response.Content, limit.Token);
+            if (bytes is null)
+            {
+                return Finish(started, [], status, shownType, contentLength, "none", "no", finalUri, "none", "none", "none",
+                    PrinterHttpBoundary.TooLargeMessage);
+            }
+
+            var decoded = Decode(response, bytes);
+            var cartridges = PrinterSupplies.Parse(decoded);
+            var (preview, truncated) = CreatePreview(decoded);
+            var errors = new List<string>();
+            if (!response.IsSuccessStatusCode)
+            {
+                errors.Add("HTTP status " + status + ".");
+            }
+
+            if (cartridges is null)
+            {
+                errors.Add("The supplies response did not contain six cartridge readings.");
+            }
+
+            return Finish(
+                started,
+                cartridges ?? [],
+                status,
+                shownType,
+                contentLength,
+                bytes.LongLength.ToString(CultureInfo.InvariantCulture),
+                "no",
+                finalUri,
+                DetectFormat(response.Content.Headers.ContentType?.MediaType, bytes),
+                preview,
+                truncated,
+                errors.Count == 0 ? "none" : string.Join(" ", errors));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && limit.IsCancellationRequested)
+        {
+            return Fail(started, PrinterHttpBoundary.TimedOut(PrinterSupplies.Timeout));
         }
         catch (Exception exception)
         {
-            return Finish(
-                started,
-                [],
-                "none",
-                "none",
-                "none",
-                "none",
-                "none",
-                "none",
-                "none",
-                "none",
-                "none",
-                "none",
-                Describe(exception, suppliesUri));
+            return Fail(started, Describe(exception, suppliesUri));
         }
     }
-
-    private static async Task<(HttpResponseMessage Response, int Redirects, Uri FinalUri)> SendAsync(
-        HttpClient client,
-        Uri start,
-        CancellationToken cancellationToken)
-    {
-        var current = start;
-        var redirects = 0;
-        while (true)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, current);
-            request.Headers.TryAddWithoutValidation("User-Agent", SuppliesUserAgent);
-            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            if (!IsRedirect(response.StatusCode) || response.Headers.Location is null || redirects >= MaxRedirects)
-            {
-                return (response, redirects, current);
-            }
-
-            var location = response.Headers.Location;
-            var next = location.IsAbsoluteUri ? location : new Uri(current, location);
-            response.Dispose();
-            current = next;
-            redirects++;
-        }
-    }
-
-    private static bool IsRedirect(HttpStatusCode status) =>
-        status is HttpStatusCode.MovedPermanently
-            or HttpStatusCode.Redirect
-            or HttpStatusCode.SeeOther
-            or HttpStatusCode.TemporaryRedirect
-            or HttpStatusCode.PermanentRedirect;
 
     private static string Sanitize(Uri uri)
     {
@@ -527,6 +512,9 @@ public sealed class PrinterInkProbe
         return exception.GetType().Name + ": " + message;
     }
 
+    private static Reading Fail(Stopwatch started, string errors) =>
+        Finish(started, [], "none", "none", "none", "none", "none", "none", "none", "none", "none", errors);
+
     private static Reading Finish(
         Stopwatch started,
         IReadOnlyList<PrinterCartridge> cartridges,
@@ -535,7 +523,6 @@ public sealed class PrinterInkProbe
         string contentLength,
         string bytesRead,
         string redirected,
-        string redirectCount,
         string finalUri,
         string format,
         string bodyPreview,
@@ -551,7 +538,6 @@ public sealed class PrinterInkProbe
             bytesRead,
             duration,
             redirected,
-            redirectCount,
             finalUri,
             format,
             bodyPreview,
