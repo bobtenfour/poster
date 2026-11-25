@@ -1,14 +1,5 @@
 namespace PosterPrintRequest.Web.Requests;
 
-public static class ConsumableCategory
-{
-    public const string Cartridge = "Cartridge";
-
-    public const string Paper = "Paper";
-
-    public const string Laminating = "Laminating";
-}
-
 public static class ConsumableStock
 {
     public const string Depleted = "Depleted";

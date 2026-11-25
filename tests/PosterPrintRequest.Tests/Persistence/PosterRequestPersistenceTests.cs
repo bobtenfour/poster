@@ -5,7 +5,8 @@ using PosterPrintRequest.Infrastructure.Persistence;
 
 namespace PosterPrintRequest.Tests.Persistence;
 
-public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatabaseFixture>
+[Collection(SqlServerDatabaseCollection.Name)]
+public sealed class PosterRequestPersistenceTests
 {
     private readonly SqlServerDatabaseFixture _database;
 
@@ -89,7 +90,12 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         };
         AssertColumn(columns, "PosterRequests", "DepartmentName", "nvarchar", nullable: false, characterMaximumLength: 128);
         AssertColumn(columns, "PosterRequests", "ReasonName", "nvarchar", nullable: true, characterMaximumLength: 128);
-        Assert.Equal(52, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
+        // PHASE 15 (TDX Integration Contract): four PosterRequests columns.
+        AssertColumn(columns, "PosterRequests", "PosterTitle", "nvarchar", nullable: true, characterMaximumLength: 200);
+        AssertColumn(columns, "PosterRequests", "TdxTicketId", "int", nullable: true);
+        AssertColumn(columns, "PosterRequests", "TdxTicketState", "nvarchar", nullable: false, characterMaximumLength: 16);
+        AssertColumn(columns, "PosterRequests", "TdxClaimedUntil", "datetime2", nullable: true);
+        Assert.Equal(56, columns.Count(pair => domainTables.Contains(pair.Key.Split('.')[0])));
         AssertColumn(columns, "PosterRetentionAudits", "PosterRetentionAuditId", "int", nullable: false, identity: true);
         AssertColumn(columns, "PosterRetentionAudits", "PosterRequestId", "int", nullable: false);
         AssertColumn(columns, "PosterRetentionAudits", "PosterId", "nvarchar", nullable: false, characterMaximumLength: 64);
@@ -122,7 +128,19 @@ public sealed class PosterRequestPersistenceTests : IClassFixture<SqlServerDatab
         var uniqueColumns = ReadUniqueColumns(context);
 
         AssertColumn(columns, "PrintingConsumables", "PrintingConsumableId", "int", nullable: false, identity: true);
-        AssertColumn(columns, "PrintingConsumables", "Category", "nvarchar", nullable: false, characterMaximumLength: 32);
+        AssertColumn(columns, "PrintingConsumables", "ConsumableTypeId", "int", nullable: false);
+        Assert.DoesNotContain(columns.Keys, key => key == "PrintingConsumables.Category");
+        AssertColumn(columns, "ConsumableTypes", "ConsumableTypeId", "int", nullable: false, identity: true);
+        AssertColumn(columns, "ConsumableTypes", "Name", "nvarchar", nullable: false, characterMaximumLength: 64);
+        AssertColumn(columns, "ConsumableTypes", "StockMode", "nvarchar", nullable: false, characterMaximumLength: 16);
+        AssertColumn(columns, "PrintingStockMovements", "PrintingStockMovementId", "bigint", nullable: false, identity: true);
+        AssertColumn(columns, "PrintingStockMovements", "MovementType", "nvarchar", nullable: false, characterMaximumLength: 16);
+        AssertColumn(columns, "PrintingStockMovements", "Reason", "nvarchar", nullable: true, characterMaximumLength: 500);
+        AssertColumn(columns, "PrintingStockMovements", "OccurredAt", "datetime2", nullable: false);
+        AssertColumn(columns, "PrintingStockMovements", "PerformedByObjectId", "uniqueidentifier", nullable: false);
+        Assert.Contains("ConsumableTypes.NameKey", uniqueColumns);
+        Assert.Equal("NO_ACTION", ReadForeignKeys(context)["PrintingConsumables.ConsumableTypeId"]);
+        Assert.Equal("NO_ACTION", ReadForeignKeys(context)["PrintingStockMovements.PrintingConsumableId"]);
         AssertColumn(columns, "PrintingConsumables", "Name", "nvarchar", nullable: false, characterMaximumLength: 128);
         AssertColumn(columns, "PrintingConsumables", "Code", "nvarchar", nullable: true, characterMaximumLength: 32);
         AssertColumn(columns, "PrintingConsumables", "Capacity", "nvarchar", nullable: true, characterMaximumLength: 80);

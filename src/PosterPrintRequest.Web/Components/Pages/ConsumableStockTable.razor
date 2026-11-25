@@ -8,6 +8,7 @@
                 <th scope="col">Total quantity</th>
                 <th scope="col">First expiration</th>
                 <th scope="col">Status</th>
+                <th scope="col">Lots</th>
             </tr>
         </thead>
         <tbody>
@@ -41,6 +42,9 @@
                         }
                     </td>
                     <td>@draft.Status</td>
+                    <td>
+                        <button id="lots-@draft.Id" class="epx-button epx-button-secondary" type="button" aria-label="@($"Lots of {draft.Name}")" @onclick="() => OnOpenLots.InvokeAsync(draft.Id)">Lots</button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -51,6 +55,9 @@
     [Parameter]
     public IReadOnlyList<ConsumableDraft> Drafts { get; set; } = [];
 
-    private static string AlertClass(string alert) =>
+    [Parameter]
+    public EventCallback<int> OnOpenLots { get; set; }
+
+    public static string AlertClass(string alert) =>
         alert == ConsumableStock.ExpiresWithinTwelveMonths ? "epx-status-warning" : "epx-status-danger";
 }

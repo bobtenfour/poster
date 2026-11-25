@@ -1814,6 +1814,75 @@ a.epx-folder-name:focus-visible {
   margin-top: 0;
 }
 
+/* Consumables Inventory Contract section 6: the lot dialog. */
+.epx-modal-wide {
+  width: min(64rem, 100%);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.epx-lot-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.epx-lot-form .epx-input {
+  width: 7rem;
+}
+
+.epx-lot-table td {
+  vertical-align: middle;
+}
+
+.epx-lot-actions,
+.epx-lot-correction {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.epx-lot-actions {
+  justify-content: flex-end;
+}
+
+.epx-lot-correction {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.epx-lot-correction .epx-helper-text {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.epx-lot-actions .epx-input.epx-lot-qty,
+.epx-lot-correction .epx-input.epx-lot-qty {
+  width: 4.5rem;
+  flex: 0 0 4.5rem;
+}
+
+.epx-lot-correction .epx-select.epx-lot-direction {
+  width: 8.5rem;
+  flex: 0 0 8.5rem;
+}
+
+.epx-lot-correction .epx-input.epx-lot-date {
+  width: 11rem;
+  flex: 0 0 11rem;
+}
+
+.epx-lot-correction .epx-input.epx-lot-reason {
+  width: auto;
+  flex: 1 1 14rem;
+  min-width: 10rem;
+}
+
+.epx-lot-add-link {
+  margin-top: 0.75rem;
+}
+
 @media (max-width: 575.98px) {
   .epx-folder-grid {
     grid-template-columns: 1fr;

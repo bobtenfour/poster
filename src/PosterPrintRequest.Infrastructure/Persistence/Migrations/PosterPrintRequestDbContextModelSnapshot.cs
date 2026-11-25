@@ -49,6 +49,67 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.ToTable("ApprovalSheets");
                 });
 
+            modelBuilder.Entity("PosterPrintRequest.Domain.ConsumableType", b =>
+                {
+                    b.Property<int>("ConsumableTypeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConsumableTypeId"));
+
+                    b.Property<bool>("AcknowledgeEarliestExpiration")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasComputedColumnSql("UPPER([Name]) COLLATE Latin1_General_100_BIN2", true);
+
+                    b.Property<string>("StockMode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<bool>("UsesPrinterCompatibility")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.HasKey("ConsumableTypeId");
+
+                    b.HasIndex("NameKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ConsumableTypes_NameKey");
+
+                    b.ToTable("ConsumableTypes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ConsumableTypes_Acknowledge", "[AcknowledgeEarliestExpiration] = 0 OR [StockMode] <> N'Undated'");
+
+                            t.HasCheckConstraint("CK_ConsumableTypes_DisplayOrder", "[DisplayOrder] >= 0");
+
+                            t.HasCheckConstraint("CK_ConsumableTypes_Name", "DATALENGTH([Name]) > 0 AND DATALENGTH([Name]) = DATALENGTH(LTRIM(RTRIM([Name])))");
+
+                            t.HasCheckConstraint("CK_ConsumableTypes_StockMode", "[StockMode] IN (N'Undated', N'DateRequired', N'DateOptional')");
+                        });
+                });
+
             modelBuilder.Entity("PosterPrintRequest.Domain.Department", b =>
                 {
                     b.Property<int>("DepartmentId")
@@ -421,14 +482,12 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
                     b.Property<string>("Code")
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("ConsumableTypeId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CriticalStockThreshold")
                         .HasColumnType("int");
@@ -455,6 +514,8 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[Code] IS NOT NULL");
 
+                    b.HasIndex("ConsumableTypeId");
+
                     b.ToTable("PrintingConsumables");
                 });
 
@@ -480,6 +541,73 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.HasIndex("PrintingConsumableId");
 
                     b.ToTable("PrintingStockEntries");
+                });
+
+            modelBuilder.Entity("PosterPrintRequest.Domain.PrintingStockMovement", b =>
+                {
+                    b.Property<long>("PrintingStockMovementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("PrintingStockMovementId"));
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LotQuantityAfter")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("OutOfOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PerformedByAccountName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("PerformedByObjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PrintingConsumableId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuantityChange")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("PrintingStockMovementId");
+
+                    b.HasIndex("OperationId");
+
+                    b.HasIndex("PrintingConsumableId", "OccurredAt");
+
+                    b.ToTable("PrintingStockMovements", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PrintingStockMovements_LotQuantityAfter", "[LotQuantityAfter] >= 0");
+
+                            t.HasCheckConstraint("CK_PrintingStockMovements_MovementType", "[MovementType] IN (N'Received', N'Used', N'Adjustment')");
+
+                            t.HasCheckConstraint("CK_PrintingStockMovements_OutOfOrder", "[OutOfOrder] = 0 OR [MovementType] = N'Used'");
+
+                            t.HasCheckConstraint("CK_PrintingStockMovements_QuantityChange", "[QuantityChange] <> 0 AND ([MovementType] <> N'Received' OR [QuantityChange] > 0) AND ([MovementType] <> N'Used' OR [QuantityChange] < 0)");
+
+                            t.HasCheckConstraint("CK_PrintingStockMovements_Reason", "([MovementType] = N'Adjustment' AND [Reason] IS NOT NULL AND LEN(LTRIM(RTRIM([Reason]))) > 0) OR ([MovementType] <> N'Adjustment' AND [Reason] IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.Reason", b =>
@@ -604,6 +732,17 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Navigation("PrintingConsumable");
                 });
 
+            modelBuilder.Entity("PosterPrintRequest.Domain.PrintingConsumable", b =>
+                {
+                    b.HasOne("PosterPrintRequest.Domain.ConsumableType", "ConsumableType")
+                        .WithMany("Consumables")
+                        .HasForeignKey("ConsumableTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ConsumableType");
+                });
+
             modelBuilder.Entity("PosterPrintRequest.Domain.PrintingStockEntry", b =>
                 {
                     b.HasOne("PosterPrintRequest.Domain.PrintingConsumable", "PrintingConsumable")
@@ -613,6 +752,22 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("PrintingConsumable");
+                });
+
+            modelBuilder.Entity("PosterPrintRequest.Domain.PrintingStockMovement", b =>
+                {
+                    b.HasOne("PosterPrintRequest.Domain.PrintingConsumable", "PrintingConsumable")
+                        .WithMany("StockMovements")
+                        .HasForeignKey("PrintingConsumableId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PrintingConsumable");
+                });
+
+            modelBuilder.Entity("PosterPrintRequest.Domain.ConsumableType", b =>
+                {
+                    b.Navigation("Consumables");
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.Department", b =>
@@ -643,6 +798,8 @@ namespace PosterPrintRequest.Infrastructure.Persistence.Migrations
                     b.Navigation("PrinterCompatibilities");
 
                     b.Navigation("StockEntries");
+
+                    b.Navigation("StockMovements");
                 });
 
             modelBuilder.Entity("PosterPrintRequest.Domain.Reason", b =>

@@ -258,14 +258,14 @@ public sealed class PrinterDashboardTests : BunitContext
                 Depleted = [],
                 LowStock = [],
                 ExpiringSoon = [],
-                NeedsReorder = new SupplyCategorySummary { Cartridges = 0, Paper = 0, LaminatingMaterials = 0 },
-                ExpiringSoonSummary = new SupplyCategorySummary { Cartridges = 0, Paper = 0, LaminatingMaterials = 0 }
+                NeedsReorder = new SupplyCategorySummary { ByType = [] },
+                ExpiringSoonSummary = new SupplyCategorySummary { ByType = [] }
             });
 
         public Task<PrintingInventoryView> LoadAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, CancellationToken cancellationToken) =>
+        public Task<InventoryOutcome> AddStockAsync(int printingConsumableId, int quantity, DateOnly? expirationDate, InstitutionalActor? actor, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<InventoryOutcome> RemoveStockAsync(
@@ -273,6 +273,7 @@ public sealed class PrinterDashboardTests : BunitContext
             int quantity,
             bool earliestExpirationAcknowledged,
             DateOnly? acknowledgedExpirationDate,
+            InstitutionalActor? actor,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }

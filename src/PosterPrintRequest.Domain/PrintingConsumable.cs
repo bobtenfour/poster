@@ -4,7 +4,9 @@ public sealed class PrintingConsumable
 {
     public int PrintingConsumableId { get; set; }
 
-    public string Category { get; set; } = string.Empty;
+    public int ConsumableTypeId { get; set; }
+
+    public ConsumableType ConsumableType { get; set; } = null!;
 
     public string Name { get; set; } = string.Empty;
 
@@ -25,4 +27,6 @@ public sealed class PrintingConsumable
     public List<PrintingStockEntry> StockEntries { get; set; } = [];
 
     public List<PrinterModelConsumable> PrinterCompatibilities { get; set; } = [];
+
+    public List<PrintingStockMovement> StockMovements { get; set; } = [];
 }

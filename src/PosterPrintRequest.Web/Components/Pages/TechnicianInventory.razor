@@ -3,6 +3,7 @@
 @attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
 @rendermode InteractiveServer
 @using System.Globalization
+@using PosterPrintRequest.Domain
 @using PosterPrintRequest.Web.Requests
 
 <PageTitle>Inventory</PageTitle>
@@ -12,7 +13,7 @@
     <PageHeader Kicker="Inventory" Title="Printing consumables" Subtitle="Quantity and first expiration for each configured consumable." />
 
     <Panel Id="inventory-operations" Kicker="Stock" Title="Inventory operations">
-        <p class="epx-helper-text">Add stock increases the entry for that consumable and expiration date, or creates one when that date is not already on record. Paper uses one undated entry. Laminating material groups each expiration date and keeps undated stock separate. Removing stock uses the earliest expiration first and cannot take the quantity below zero. A cartridge removal requires acknowledgement of the first expiration date.</p>
+        <p class="epx-helper-text">Add stock increases the lot for that consumable and expiration date, or creates one when that date is not already on record. Each consumable type decides whether its stock has no date, a required date or an optional date. Removing stock here uses the earliest expiration first and cannot take the quantity below zero; some types ask to acknowledge the first expiration date. Open Lots on a row to see each lot, remove from a chosen lot or correct the count.</p>
         <h3>Add stock</h3>
         <form class="epx-tech-period" @onsubmit="AddStockAsync" @onsubmit:preventDefault>
             <label class="epx-label" for="add-consumable">Consumable</label>
@@ -28,7 +29,7 @@
             @if (AddChoice?.HasExpiration == true)
             {
                 <label class="epx-label" for="add-expiration">Expiration date</label>
-                <input id="add-expiration" class="epx-input" type="date" value="@AddExpiration" required="@(AddChoice.Category == ConsumableCategory.Cartridge)" @onchange="OnAddExpirationChanged" />
+                <input id="add-expiration" class="epx-input" type="date" value="@AddExpiration" required="@(AddChoice.StockMode == ConsumableStockModes.DateRequired)" @onchange="OnAddExpirationChanged" />
             }
             <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add stock</button>
         </form>
@@ -48,19 +49,19 @@
             </select>
             <label class="epx-label" for="remove-quantity">Quantity</label>
             <input id="remove-quantity" class="epx-input" inputmode="numeric" value="@RemoveQuantity" @onchange="OnRemoveQuantityChanged" />
-            @if (RemoveChoice?.Category == ConsumableCategory.Cartridge)
+            @if (RemoveChoice?.AcknowledgeEarliest == true)
             {
                 <div class="epx-stock-ack">
                     @if (string.IsNullOrWhiteSpace(RemoveChoice.EarliestExpiration))
                     {
-                        <p class="epx-helper-text">No cartridge stock is available.</p>
+                        <p class="epx-helper-text">No dated stock is available.</p>
                     }
                     else
                     {
                         <p class="epx-helper-text" id="first-expiration">First expiration: @RemoveChoice.EarliestExpiration</p>
                         <label class="epx-option" for="acknowledge-expiration">
                             <input id="acknowledge-expiration" class="epx-check" type="checkbox" checked="@EarliestAcknowledged" @onchange="OnAcknowledgeChanged" />
-                            <span>This is the first cartridge to expire.</span>
+                            <span>This is the first one to expire.</span>
                         </label>
                     }
                 </div>
@@ -73,18 +74,170 @@
         }
     </Panel>
 
-    <Panel Id="cartridges" Kicker="Cartridges" Title="Cartridges">
-        <p class="epx-helper-text">Total quantity and first expiration come from the cartridge stock entries.</p>
-        <ConsumableStockTable Drafts="CartridgeDrafts" />
-    </Panel>
-
-    <Panel Id="paper" Kicker="Paper" Title="Paper">
-        <p class="epx-helper-text">Paper has no expiration date. Receipts share one undated stock entry.</p>
-        <ConsumableStockTable Drafts="PaperDrafts" />
-    </Panel>
-
-    <Panel Id="laminating" Kicker="Lamination" Title="Laminating materials">
-        <p class="epx-helper-text">Dated stock is grouped by expiration date. Undated stock is a separate entry and is used after dated stock.</p>
-        <ConsumableStockTable Drafts="LaminatingDrafts" />
-    </Panel>
+    @foreach (var panel in Panels)
+    {
+        <Panel Id="@PanelId(panel.ConsumableTypeId)" Kicker="@panel.Name" Title="@panel.Name">
+            <p class="epx-helper-text">@ModeHelp(panel.StockMode)</p>
+            <ConsumableStockTable Drafts="panel.Drafts" OnOpenLots="OpenLotsAsync" />
+        </Panel>
+    }
 </section>
+
+@if (Lots is not null)
+{
+    <div class="epx-modal-backdrop">
+        <div class="epx-modal epx-modal-wide" role="dialog" aria-modal="true" aria-labelledby="lots-title">
+            <h2 id="lots-title">Lots · @LotTitle</h2>
+            <p class="epx-helper-text">Used records consumption from that lot. Correct… changes the count with a reason and is never counted as consumption.</p>
+            @if (!string.IsNullOrWhiteSpace(LotError))
+            {
+                <p class="epx-field-error" role="alert">@LotError</p>
+            }
+            @if (Lots.Lots.Count == 0)
+            {
+                <p class="epx-config-empty">This consumable has no stock.</p>
+            }
+            else
+            {
+                <div class="epx-table-wrap">
+                    <table class="epx-table epx-lot-table" id="lot-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Expiration</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col"><span class="epx-config-sr">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var lot in Lots.Lots)
+                            {
+                                var key = LotKey(lot.ExpirationDate);
+                                <tr id="@("lot-" + key)">
+                                    <td>
+                                        <span>@(lot.ExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "No date")</span>
+                                        @if (lot.Oldest)
+                                        {
+                                            <span class="epx-status epx-semantic-indicator">Oldest</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(lot.ExpirationAlert))
+                                        {
+                                            <span class="epx-status @AlertClass(lot.ExpirationAlert) epx-semantic-indicator">@lot.ExpirationAlert</span>
+                                        }
+                                    </td>
+                                    <td>@lot.Quantity.ToString(CultureInfo.InvariantCulture)</td>
+                                    <td>
+                                        <form class="epx-lot-actions" @onsubmit="() => RemoveFromLotAsync(lot.ExpirationDate, false)" @onsubmit:preventDefault>
+                                            <label class="epx-config-sr" for="@("lot-remove-" + key)">Quantity used</label>
+                                            <input id="@("lot-remove-" + key)" class="epx-input epx-lot-qty" inputmode="numeric" value="@Field(RemoveQuantities, key, "1")" @onchange="args => RemoveQuantities[key] = args.Value?.ToString() ?? string.Empty" />
+                                            <button class="epx-button epx-button-secondary" type="submit" disabled="@Busy">Used</button>
+                                            <button class="epx-button" type="button" aria-expanded="@((CorrectingLot == key).ToString().ToLowerInvariant())" aria-controls="@("lot-correct-" + key)" @onclick="() => ToggleCorrection(key)">Correct…</button>
+                                        </form>
+                                        @if (PendingOutOfOrder == key)
+                                        {
+                                            <div class="epx-stock-ack" role="alert">
+                                                <p class="epx-helper-text">@OutOfOrderMessage</p>
+                                                <button class="epx-button epx-button-primary" type="button" disabled="@Busy" @onclick="() => RemoveFromLotAsync(lot.ExpirationDate, true)">Remove from this lot</button>
+                                                <button class="epx-button" type="button" @onclick="() => PendingOutOfOrder = null">Cancel</button>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                                @if (CorrectingLot == key)
+                                {
+                                    <tr class="epx-lot-correction-row">
+                                        <td colspan="3">
+                                            <form id="@("lot-correct-" + key)" class="epx-lot-correction" @onsubmit="() => AdjustLotAsync(lot.ExpirationDate, key)" @onsubmit:preventDefault>
+                                                <span class="epx-helper-text">Correction of the count; it is not counted as consumption.</span>
+                                                <label class="epx-config-sr" for="@("lot-direction-" + key)">Add or subtract</label>
+                                                <select id="@("lot-direction-" + key)" class="epx-select epx-lot-direction" value="@Field(AdjustDirections, key, "subtract")" @onchange="args => AdjustDirections[key] = args.Value?.ToString() ?? string.Empty">
+                                                    <option value="subtract">Subtract</option>
+                                                    <option value="add">Add</option>
+                                                </select>
+                                                <label class="epx-config-sr" for="@("lot-adjust-" + key)">Quantity</label>
+                                                <input id="@("lot-adjust-" + key)" class="epx-input epx-lot-qty" inputmode="numeric" placeholder="Qty" value="@Field(AdjustQuantities, key)" @onchange="args => AdjustQuantities[key] = args.Value?.ToString() ?? string.Empty" />
+                                                <label class="epx-config-sr" for="@("lot-reason-" + key)">Reason</label>
+                                                <input id="@("lot-reason-" + key)" class="epx-input epx-lot-reason" placeholder="Reason" maxlength="@PrintingInventory.ReasonMaxLength" value="@Field(AdjustReasons, key)" @onchange="args => AdjustReasons[key] = args.Value?.ToString() ?? string.Empty" />
+                                                <button class="epx-button epx-button-secondary" type="submit" disabled="@Busy">Save correction</button>
+                                                <button class="epx-button" type="button" @onclick="() => CorrectingLot = null">Cancel</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (AddingLot)
+            {
+                <form id="new-lot-form" class="epx-lot-correction" @onsubmit="AddMissingLotAsync" @onsubmit:preventDefault>
+                    <span class="epx-helper-text">Add a lot that is not listed. It is recorded as a correction, with its reason.</span>
+                    @if (Lots.Consumable.StockMode != ConsumableStockModes.Undated)
+                    {
+                        <label class="epx-config-sr" for="new-lot-date">Expiration date</label>
+                        <input id="new-lot-date" class="epx-input epx-lot-date" type="date" value="@NewLotDate" required="@(Lots.Consumable.StockMode == ConsumableStockModes.DateRequired)" @onchange="args => NewLotDate = args.Value?.ToString() ?? string.Empty" />
+                    }
+                    <label class="epx-config-sr" for="new-lot-quantity">Quantity</label>
+                    <input id="new-lot-quantity" class="epx-input epx-lot-qty" inputmode="numeric" placeholder="Qty" value="@NewLotQuantity" @onchange="args => NewLotQuantity = args.Value?.ToString() ?? string.Empty" />
+                    <label class="epx-config-sr" for="new-lot-reason">Reason</label>
+                    <input id="new-lot-reason" class="epx-input epx-lot-reason" placeholder="Reason" maxlength="@PrintingInventory.ReasonMaxLength" value="@NewLotReason" @onchange="args => NewLotReason = args.Value?.ToString() ?? string.Empty" />
+                    <button class="epx-button epx-button-secondary" type="submit" disabled="@Busy">Add lot</button>
+                    <button class="epx-button" type="button" @onclick="() => AddingLot = false">Cancel</button>
+                </form>
+            }
+            else
+            {
+                <button id="new-lot-open" class="epx-button epx-lot-add-link" type="button" @onclick="() => AddingLot = true">+ Add a lot that is not listed</button>
+            }
+
+            <h3>Movements</h3>
+            @if (Lots.Movements.Count == 0)
+            {
+                <p class="epx-config-empty">No movements recorded yet.</p>
+            }
+            else
+            {
+                <div class="epx-table-wrap">
+                    <table class="epx-table" id="movement-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">Lot</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Change</th>
+                                <th scope="col">Lot after</th>
+                                <th scope="col">Technician</th>
+                                <th scope="col">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var movement in Lots.Movements)
+                            {
+                                <tr>
+                                    <td>@DateTime.SpecifyKind(movement.OccurredAtUtc, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)</td>
+                                    <td>@(movement.ExpirationDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "No date")</td>
+                                    <td>
+                                        @MovementLabel(movement.MovementType)
+                                        @if (movement.OutOfOrder)
+                                        {
+                                            <span class="epx-status epx-status-warning epx-semantic-indicator">Out of order</span>
+                                        }
+                                    </td>
+                                    <td>@movement.QuantityChange.ToString("+0;-0", CultureInfo.InvariantCulture)</td>
+                                    <td>@movement.LotQuantityAfter.ToString(CultureInfo.InvariantCulture)</td>
+                                    <td>@(movement.PerformedByAccountName ?? "—")</td>
+                                    <td>@movement.Reason</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="epx-form-actions">
+                <button type="button" class="epx-button" @onclick="CloseLots">Close</button>
+            </div>
+        </div>
+    </div>
+}

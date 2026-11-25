@@ -70,12 +70,10 @@ public sealed class OperatorConfigurationTests
         var errors = RequesterSubmissionService.Validate(
             new RequesterDraft
             {
-                Name = "Historical Person",
                 DepartmentId = department.DepartmentId.ToString(),
                 ReasonId = reason.ReasonId.ToString(),
                 Room = "1",
-                Phone = "555-0199",
-                Email = "historical@example.edu"
+                Phone = "555-0199"
             },
             choices);
         Assert.Equal("Choose a department.", errors["department"]);
@@ -102,16 +100,16 @@ public sealed class OperatorConfigurationTests
         Assert.Equal("Enter a printer model.", (await configuration.AddPrinterModelAsync("  ", CancellationToken.None)).Message);
         Assert.True((await configuration.AddPrinterModelAsync(printerName, CancellationToken.None)).Completed);
         Assert.Equal("That printer model is already in the list.", (await configuration.AddPrinterModelAsync(printerName.ToLowerInvariant(), CancellationToken.None)).Message);
-        Assert.Equal("Choose a category.", (await configuration.AddConsumableAsync("", "Film", null, null, CancellationToken.None)).Message);
-        Assert.Equal("Enter a material name.", (await configuration.AddConsumableAsync(ConsumableCategory.Cartridge, "   ", code, null, CancellationToken.None)).Message);
-        Assert.True((await configuration.AddConsumableAsync(ConsumableCategory.Cartridge, "Black cartridge " + suffix, code, "130 ml", CancellationToken.None)).Completed);
-        Assert.Equal("That material is already in this category.", (await configuration.AddConsumableAsync(ConsumableCategory.Cartridge, "black cartridge " + suffix, null, null, CancellationToken.None)).Message);
-        Assert.True((await configuration.AddConsumableAsync(ConsumableCategory.Paper, "Black cartridge " + suffix, null, null, CancellationToken.None)).Completed);
-        Assert.Equal("That code is already registered.", (await configuration.AddConsumableAsync(ConsumableCategory.Paper, "Other paper " + suffix, code, null, CancellationToken.None)).Message);
+        Assert.Equal("Choose a type.", (await configuration.AddConsumableAsync((int?)null, "Film", null, null, CancellationToken.None)).Message);
+        Assert.Equal("Enter a material name.", (await configuration.AddConsumableAsync(InitialTypes.Cartridge, "   ", code, null, CancellationToken.None)).Message);
+        Assert.True((await configuration.AddConsumableAsync(InitialTypes.Cartridge, "Black cartridge " + suffix, code, "130 ml", CancellationToken.None)).Completed);
+        Assert.Equal("That material is already in this category.", (await configuration.AddConsumableAsync(InitialTypes.Cartridge, "black cartridge " + suffix, null, null, CancellationToken.None)).Message);
+        Assert.True((await configuration.AddConsumableAsync(InitialTypes.Paper, "Black cartridge " + suffix, null, null, CancellationToken.None)).Completed);
+        Assert.Equal("That code is already registered.", (await configuration.AddConsumableAsync(InitialTypes.Paper, "Other paper " + suffix, code, null, CancellationToken.None)).Message);
 
         var printer = await context.PrinterModels.SingleAsync(model => model.Name == printerName);
         var cartridge = await context.PrintingConsumables.SingleAsync(item => item.Code == code);
-        var paper = await context.PrintingConsumables.SingleAsync(item => item.Category == ConsumableCategory.Paper && item.Name == "Black cartridge " + suffix);
+        var paper = await context.PrintingConsumables.SingleAsync(item => item.ConsumableType.Name == InitialTypes.Paper && item.Name == "Black cartridge " + suffix);
         Assert.True(printer.Active);
         Assert.True(cartridge.Active);
         Assert.True(cartridge.HasExpirationDate);
@@ -132,8 +130,8 @@ public sealed class OperatorConfigurationTests
         Assert.Equal(2, stock.Quantity);
         Assert.Equal(expiration, stock.ExpirationDate);
         var hidden = await inventory.LoadAsync(CancellationToken.None);
-        Assert.DoesNotContain(hidden.Cartridges, item => item.PrintingConsumableId == cartridge.PrintingConsumableId);
-        Assert.Contains(hidden.Paper, item => item.PrintingConsumableId == paper.PrintingConsumableId);
+        Assert.DoesNotContain(hidden.Rows(InitialTypes.Cartridge), item => item.PrintingConsumableId == cartridge.PrintingConsumableId);
+        Assert.Contains(hidden.Rows(InitialTypes.Paper), item => item.PrintingConsumableId == paper.PrintingConsumableId);
 
         Assert.True((await configuration.SetCompatibilityAsync(printer.PrinterModelId, cartridge.PrintingConsumableId, true, CancellationToken.None)).Completed);
         Assert.Equal(1, await context.PrinterModelConsumables.CountAsync(item => item.PrinterModelId == printer.PrinterModelId));
@@ -171,11 +169,16 @@ public sealed class OperatorConfigurationTests
         Assert.DoesNotContain("id=\"printer-value\"", requestHtml, StringComparison.Ordinal);
 
         using var operatorClient = await PosterSignIn.SignInAsync(factory, "usero");
-        var configurationPage = await operatorClient.GetAsync("/technician/configuration");
+        // Operator Configuration Presentation Contract v1: the panels moved to their windows with unchanged content.
+        var printersPage = await operatorClient.GetAsync("/technician/configuration/printers");
+        printersPage.EnsureSuccessStatusCode();
+        Assert.Contains("Printer models", await printersPage.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var consumablesPage = await operatorClient.GetAsync("/technician/configuration/consumables");
+        consumablesPage.EnsureSuccessStatusCode();
+        Assert.Contains("Consumables / Materials", await consumablesPage.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var configurationPage = await operatorClient.GetAsync("/technician/configuration/departments");
         configurationPage.EnsureSuccessStatusCode();
         var configurationHtml = await configurationPage.Content.ReadAsStringAsync();
-        Assert.Contains("Printer models", configurationHtml, StringComparison.Ordinal);
-        Assert.Contains("Consumables / Materials", configurationHtml, StringComparison.Ordinal);
         Assert.Contains("Add department", configurationHtml, StringComparison.Ordinal);
         Assert.Contains("Search departments...", configurationHtml, StringComparison.Ordinal);
         Assert.Contains(">Show:</label>", configurationHtml, StringComparison.Ordinal);
@@ -194,9 +197,12 @@ public sealed class OperatorConfigurationTests
         Assert.DoesNotContain("event-edit-", requestHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("event-delete-", requestHtml, StringComparison.Ordinal);
 
-        var denied = await requester.GetAsync("/technician/configuration");
-        Assert.Contains("/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
-        Assert.Equal(HttpStatusCode.OK, denied.StatusCode);
+        foreach (var route in new[] { "/technician/configuration", "/technician/configuration/departments", "/technician/configuration/printers", "/technician/configuration/consumables" })
+        {
+            var denied = await requester.GetAsync(route);
+            Assert.Contains("/Account/AccessDenied", denied.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+            Assert.Equal(HttpStatusCode.OK, denied.StatusCode);
+        }
     }
 
     [Fact]
@@ -350,7 +356,7 @@ public sealed class OperatorConfigurationTests
         Assert.False(await context.PrinterModels.AnyAsync(model => model.PrinterModelId == printer.PrinterModelId));
 
         Assert.True((await configuration.AddPrinterModelAsync("Linked plotter " + suffix, CancellationToken.None)).Completed);
-        Assert.True((await configuration.AddConsumableAsync(ConsumableCategory.Cartridge, "Linked cartridge " + suffix, "L" + suffix[..8], "130 ml", CancellationToken.None)).Completed);
+        Assert.True((await configuration.AddConsumableAsync(InitialTypes.Cartridge, "Linked cartridge " + suffix, "L" + suffix[..8], "130 ml", CancellationToken.None)).Completed);
         printer = await context.PrinterModels.SingleAsync(model => model.Name == "Linked plotter " + suffix);
         var linked = await context.PrintingConsumables.SingleAsync(item => item.Name == "Linked cartridge " + suffix);
         Assert.True(linked.Active);
@@ -360,7 +366,7 @@ public sealed class OperatorConfigurationTests
         Assert.True(await context.PrinterModels.AnyAsync(model => model.PrinterModelId == printer.PrinterModelId));
         Assert.True(await context.PrintingConsumables.AnyAsync(item => item.PrintingConsumableId == linked.PrintingConsumableId));
 
-        Assert.True((await configuration.AddConsumableAsync(ConsumableCategory.Paper, "Loose paper " + suffix, null, null, CancellationToken.None)).Completed);
+        Assert.True((await configuration.AddConsumableAsync(InitialTypes.Paper, "Loose paper " + suffix, null, null, CancellationToken.None)).Completed);
         var paper = await context.PrintingConsumables.SingleAsync(item => item.Name == "Loose paper " + suffix);
         Assert.True((await inventory.AddStockAsync(paper.PrintingConsumableId, 4, null, CancellationToken.None)).Completed);
         Assert.Equal("This material cannot be deleted because inventory stock references it.", (await configuration.DeleteConsumableAsync(paper.PrintingConsumableId, CancellationToken.None)).Message);
@@ -368,11 +374,11 @@ public sealed class OperatorConfigurationTests
         Assert.True((await configuration.SetConsumableActiveAsync(paper.PrintingConsumableId, false, CancellationToken.None)).Completed);
         Assert.Equal(4, await context.PrintingStockEntries.Where(entry => entry.PrintingConsumableId == paper.PrintingConsumableId).SumAsync(entry => entry.Quantity));
         var hidden = await inventory.LoadAsync(CancellationToken.None);
-        Assert.DoesNotContain(hidden.Paper, item => item.PrintingConsumableId == paper.PrintingConsumableId);
+        Assert.DoesNotContain(hidden.Rows(InitialTypes.Paper), item => item.PrintingConsumableId == paper.PrintingConsumableId);
         Assert.False((await inventory.AddStockAsync(paper.PrintingConsumableId, 1, null, CancellationToken.None)).Completed);
         Assert.True((await configuration.SetConsumableActiveAsync(paper.PrintingConsumableId, true, CancellationToken.None)).Completed);
         var restored = await inventory.LoadAsync(CancellationToken.None);
-        Assert.Equal(4, restored.Paper.Single(item => item.PrintingConsumableId == paper.PrintingConsumableId).CurrentQuantity);
+        Assert.Equal(4, restored.Rows(InitialTypes.Paper).Single(item => item.PrintingConsumableId == paper.PrintingConsumableId).CurrentQuantity);
 
         await using var direct = _database.CreateContext();
         direct.PrintingConsumables.Remove(await direct.PrintingConsumables.SingleAsync(item => item.PrintingConsumableId == paper.PrintingConsumableId));
@@ -532,13 +538,9 @@ public sealed class OperatorConfigurationSourceTests
     [Fact]
     public void Configuration_lists_separate_add_from_show_and_search()
     {
-        var page = File.ReadAllText(Path.Combine(
-            RepositoryPaths.Root(),
-            "src",
-            "PosterPrintRequest.Web",
-            "Components",
-            "Pages",
-            "TechnicianConfiguration.razor"));
+        // The five lists live in the three windows of the Operator Configuration Presentation Contract v1.
+        var page = string.Concat(new[] { "ConfigurationDepartments.razor", "ConfigurationPrinters.razor", "ConfigurationConsumables.razor" }
+            .Select(name => File.ReadAllText(Path.Combine(RepositoryPaths.Root(), "src", "PosterPrintRequest.Web", "Components", "Pages", name))));
 
         Assert.Contains("epx-config-add-block", page, StringComparison.Ordinal);
         Assert.Contains("epx-config-filters", page, StringComparison.Ordinal);
@@ -546,7 +548,12 @@ public sealed class OperatorConfigurationSourceTests
         Assert.DoesNotContain("epx-config-row", page, StringComparison.Ordinal);
         Assert.DoesNotContain(">Edit</button>", page, StringComparison.Ordinal);
         Assert.DoesNotContain(">Status</label>", page, StringComparison.Ordinal);
-        Assert.Equal(4, Regex.Count(page, ">Show:</label>"));
+        // The five original Show filters plus the Show filter of Printer compatibility (contract 6.2).
+        Assert.Equal(6, Regex.Count(page, ">Show:</label>"));
+        foreach (var filter in new[] { "department-show", "event-show", "printer-show", "type-show", "consumable-show", "compatibility-show" })
+        {
+            Assert.Contains("id=\"" + filter + "\"", page, StringComparison.Ordinal);
+        }
         Assert.Contains("placeholder=\"Search departments...\"", page, StringComparison.Ordinal);
         Assert.Contains("placeholder=\"Search reason / events...\"", page, StringComparison.Ordinal);
         Assert.Contains("placeholder=\"Search printer models...\"", page, StringComparison.Ordinal);

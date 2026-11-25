@@ -6,8 +6,6 @@ namespace PosterPrintRequest.Infrastructure.Persistence;
 
 public sealed class PrintingConsumableConfiguration : IEntityTypeConfiguration<PrintingConsumable>
 {
-    public const int CategoryMaxLength = 32;
-
     public const int NameMaxLength = 128;
 
     public const int CodeMaxLength = 32;
@@ -20,9 +18,10 @@ public sealed class PrintingConsumableConfiguration : IEntityTypeConfiguration<P
     {
         builder.HasKey(item => item.PrintingConsumableId);
 
-        builder.Property(item => item.Category)
-            .HasMaxLength(CategoryMaxLength)
-            .IsRequired();
+        builder.HasOne(item => item.ConsumableType)
+            .WithMany(type => type.Consumables)
+            .HasForeignKey(item => item.ConsumableTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(item => item.Name)
             .HasMaxLength(NameMaxLength)

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using PosterPrintRequest.Domain;
 using PosterPrintRequest.Infrastructure.Persistence;
@@ -21,6 +22,7 @@ public sealed class ApprovedErdModelTests
             new[]
             {
                 nameof(ApprovalSheet),
+                nameof(ConsumableType),
                 nameof(Department),
                 nameof(PosterFile),
                 nameof(PosterProcessing),
@@ -31,6 +33,7 @@ public sealed class ApprovedErdModelTests
                 nameof(PrinterModelConsumable),
                 nameof(PrintingConsumable),
                 nameof(PrintingStockEntry),
+                nameof(PrintingStockMovement),
                 nameof(Reason)
             },
             names);
@@ -245,6 +248,24 @@ public sealed class ApprovedErdModelTests
         var entries = consumable.FindNavigation(nameof(PrintingConsumable.StockEntries))!;
         Assert.True(entries.IsCollection);
         Assert.Equal(DeleteBehavior.Restrict, entries.ForeignKey.DeleteBehavior);
+
+        // Consumables Inventory Contract sections 4.1, 4.4 and 7.1 (PHASE 16).
+        Assert.Null(consumable.FindProperty("Category"));
+        var typeKey = consumable.FindNavigation(nameof(PrintingConsumable.ConsumableType))!.ForeignKey;
+        Assert.Equal(DeleteBehavior.Restrict, typeKey.DeleteBehavior);
+        Assert.True(typeKey.IsRequired);
+        var consumableType = context.Model.FindEntityType(typeof(ConsumableType))!;
+        Assert.Equal(64, consumableType.FindProperty(nameof(ConsumableType.Name))!.GetMaxLength());
+        Assert.Equal("UPPER([Name]) COLLATE Latin1_General_100_BIN2", consumableType.FindProperty(nameof(ConsumableType.NameKey))!.GetComputedColumnSql());
+        Assert.True(consumableType.FindProperty(nameof(ConsumableType.NameKey))!.GetIsStored());
+        Assert.Contains(consumableType.GetIndexes(), index => index.IsUnique && index.Properties.Single().Name == nameof(ConsumableType.NameKey));
+        var movement = context.Model.FindEntityType(typeof(PrintingStockMovement))!;
+        Assert.Equal(DeleteBehavior.Restrict, movement.GetForeignKeys().Single().DeleteBehavior);
+        Assert.Equal(500, movement.FindProperty(nameof(PrintingStockMovement.Reason))!.GetMaxLength());
+        Assert.True(movement.FindProperty(nameof(PrintingStockMovement.Reason))!.IsNullable);
+        Assert.Equal(
+            ["CK_PrintingStockMovements_LotQuantityAfter", "CK_PrintingStockMovements_MovementType", "CK_PrintingStockMovements_OutOfOrder", "CK_PrintingStockMovements_QuantityChange", "CK_PrintingStockMovements_Reason"],
+            context.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>().Model.FindEntityType(typeof(PrintingStockMovement))!.GetCheckConstraints().Select(check => check.ModelName).OrderBy(name => name, StringComparer.Ordinal).ToArray());
 
         var stockEntry = context.Model.FindEntityType(typeof(PrintingStockEntry))!;
         Assert.Equal("date", stockEntry.FindProperty(nameof(PrintingStockEntry.ExpirationDate))!.GetColumnType());
