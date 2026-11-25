@@ -18,6 +18,8 @@ public sealed class FrontendFoundationTests
         Assert.Contains("id=\"epx-main-content\"", html, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"Primary\"", html, StringComparison.Ordinal);
         Assert.Contains("UIC Dentistry School", html, StringComparison.Ordinal);
+        Assert.Contains("img/brand/uic-logo-inverted.svg", html, StringComparison.Ordinal);
+        Assert.Contains("alt=\"University of Illinois Chicago\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("BlueIgnix Poster Print Request System", html, StringComparison.Ordinal);
         Assert.Contains("aria-current=\"page\"", html, StringComparison.Ordinal);
         Assert.Contains(">Home<", html, StringComparison.Ordinal);
@@ -74,6 +76,7 @@ public sealed class FrontendFoundationTests
         var foundation = await client.GetStringAsync("/css/design-system/foundation.css");
         Assert.Contains(".epx-blueignix-shell", foundation, StringComparison.Ordinal);
         Assert.Contains(".epx-button-primary", foundation, StringComparison.Ordinal);
+        Assert.Contains(".epx-brand-logo", foundation, StringComparison.Ordinal);
         Assert.Contains(".epx-input", foundation, StringComparison.Ordinal);
         Assert.Contains(".epx-status-danger", foundation, StringComparison.Ordinal);
         Assert.Contains(".epx-nav-link:focus-visible", foundation, StringComparison.Ordinal);

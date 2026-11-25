@@ -136,7 +136,9 @@
 
 .epx-brand {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
   min-width: 0;
   padding: 0.35rem 4.75rem 0.35rem 0.2rem;
   color: inherit;
@@ -146,6 +148,14 @@
 .epx-brand:hover {
   color: inherit;
   text-decoration: none;
+}
+
+/* UIC logo, inverted for the dark shell (brand.uic.edu): red circle mark, white wordmark, no background. */
+.epx-brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 13.5rem;
+  height: auto;
 }
 
 .epx-blueignix-brand-copy {
