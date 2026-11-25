@@ -7,3 +7,8 @@ TestResults/
 .env.demo
 tdx-validator.settings.json
 artifacts/tdx-validator/
+
+# Build outputs of artifacts/deployment/Build-Deployment.ps1 (regenerated per release)
+artifacts/deployment/PosterPrintRequest*/
+artifacts/deployment/publish/
+artifacts/deployment/*.zip
