@@ -55,8 +55,11 @@ public sealed class RoleSeparationTests
         Assert.Contains("/Account/AccessDenied", library.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         var inventory = await client.GetAsync("/technician/inventory");
         Assert.Contains("/Account/AccessDenied", inventory.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
-        var configuration = await client.GetAsync("/technician/configuration");
-        Assert.Contains("/Account/AccessDenied", configuration.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        foreach (var route in new[] { "/technician/configuration", "/technician/configuration/departments", "/technician/configuration/printers", "/technician/configuration/consumables" })
+        {
+            var configuration = await client.GetAsync(route);
+            Assert.Contains("/Account/AccessDenied", configuration.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        }
         var file = await client.GetAsync("/technician/files/POSTER-2026-000001/poster");
         Assert.Contains("/Account/AccessDenied", file.RequestMessage!.RequestUri!.AbsolutePath, StringComparison.Ordinal);
         Assert.DoesNotContain("%PDF", await file.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -87,12 +90,13 @@ public sealed class RoleSeparationTests
         Assert.Contains("Items at or below reorder threshold.", html, StringComparison.Ordinal);
         Assert.Contains(">Expiring Soon<", html, StringComparison.Ordinal);
         Assert.Contains("Items approaching expiration date.", html, StringComparison.Ordinal);
-        Assert.Contains("Ink Cartridges", html, StringComparison.Ordinal);
+        // Consumables Inventory Contract section 4.8: one tile per active type in each of the two dashboard sections.
+        Assert.Contains(">Cartridges<", html, StringComparison.Ordinal);
         Assert.Contains(">Paper<", html, StringComparison.Ordinal);
-        Assert.Contains("Lamination Materials", html, StringComparison.Ordinal);
-        Assert.Equal(2, CountOccurrences(html, "href=\"/technician/inventory#cartridges\""));
-        Assert.Equal(2, CountOccurrences(html, "href=\"/technician/inventory#paper\""));
-        Assert.Equal(2, CountOccurrences(html, "href=\"/technician/inventory#laminating\""));
+        Assert.Contains(">Laminating materials<", html, StringComparison.Ordinal);
+        Assert.Contains(">Printer heads<", html, StringComparison.Ordinal);
+        Assert.Equal(0, CountOccurrences(html, "href=\"/technician/inventory#type-") % 2);
+        Assert.True(CountOccurrences(html, "href=\"/technician/inventory#type-") >= 8);
         Assert.Contains("View Inventory", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/technician/inventory\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain(">Depleted<", html, StringComparison.Ordinal);

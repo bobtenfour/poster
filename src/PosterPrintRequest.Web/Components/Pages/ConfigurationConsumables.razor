@@ -1,0 +1,264 @@
+@page "/technician/configuration/consumables"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@rendermode InteractiveServer
+@inherits ConfigurationWindow
+@using System.Globalization
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Consumables &amp; Materials</PageTitle>
+<SessionGuard />
+
+@* Operator Configuration Presentation Contract v1, section 7. *@
+<section class="epx-blueignix-home" aria-label="Consumables and Materials">
+    <PageHeader Kicker="Configuration" Title="Consumables & Materials" Subtitle="Active values are available for new work. Inactive values stay on record until you ask to see them." />
+    <p class="epx-config-back"><a href="@ApplicationUris.BrowserPath(Navigation, "/technician/configuration")">Back to Configuration</a></p>
+
+    <Panel Id="consumable-types" Kicker="Materials" Title="Consumable types">
+        <p class="epx-helper-text" id="type-help">Each active type has its own panel in Inventory and its own count on the dashboard, in the order set here. A type can be deactivated only when none of its materials is active and none has stock. A type used by materials cannot be deleted.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add type</h3>
+            <form class="epx-config-add" @onsubmit="AddTypeAsync" @onsubmit:preventDefault>
+                <label class="epx-config-sr" for="type-name">Type name</label>
+                <input id="type-name" class="epx-input epx-config-add-name" placeholder="Type name" maxlength="64" value="@NewTypeName" @oninput="args => NewTypeName = args.Value?.ToString() ?? string.Empty" />
+                <div class="epx-field">
+                    <label class="epx-label" for="type-mode">Expiration date</label>
+                    <select id="type-mode" class="epx-select" value="@NewTypeMode" @onchange="args => NewTypeMode = args.Value?.ToString() ?? string.Empty">
+                        @foreach (var mode in StockModeChoices)
+                        {
+                            <option value="@mode.Value">@mode.Label</option>
+                        }
+                    </select>
+                </div>
+                <div class="epx-field">
+                    <label class="epx-label" for="type-order">Order</label>
+                    <input id="type-order" class="epx-input" inputmode="numeric" value="@NewTypeOrder" @oninput="args => NewTypeOrder = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <label class="epx-option" for="type-acknowledge">
+                    <input id="type-acknowledge" class="epx-check" type="checkbox" checked="@NewTypeAcknowledge" @onchange="args => NewTypeAcknowledge = args.Value is bool selected && selected" />
+                    <span>Confirm the first expiration when removing stock</span>
+                </label>
+                <label class="epx-option" for="type-printers">
+                    <input id="type-printers" class="epx-check" type="checkbox" checked="@NewTypePrinters" @onchange="args => NewTypePrinters = args.Value is bool selected && selected" />
+                    <span>Uses printer compatibility</span>
+                </label>
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(TypeError))
+        {
+            <p class="epx-field-error" role="alert">@TypeError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Consumable types</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-show">
+                    <label class="epx-label" for="type-show">Show:</label>
+                    <select id="type-show" class="epx-select" value="@TypeStatus" @onchange="args => TypeStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisibleTypes.Count == 0)
+        {
+            <p class="epx-config-empty">No consumable types found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var type in VisibleTypes)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingTypeId == type.Id)
+                            {
+                                <form id="@TypeFormId(type.Id)" class="epx-config-edit" @onsubmit="() => SaveTypeAsync(type.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@TypeNameId(type.Id)">Name</label>
+                                    <input id="@TypeNameId(type.Id)" class="epx-input" maxlength="64" value="@TypeEditName" disabled="@Busy" @oninput="args => TypeEditName = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@TypeModeId(type.Id)">Expiration date</label>
+                                    <select id="@TypeModeId(type.Id)" class="epx-select" value="@TypeEditMode" disabled="@Busy" @onchange="args => TypeEditMode = args.Value?.ToString() ?? string.Empty">
+                                        @foreach (var mode in StockModeChoices)
+                                        {
+                                            <option value="@mode.Value">@mode.Label</option>
+                                        }
+                                    </select>
+                                    <label class="epx-label" for="@TypeOrderId(type.Id)">Order</label>
+                                    <input id="@TypeOrderId(type.Id)" class="epx-input" inputmode="numeric" value="@TypeEditOrder" disabled="@Busy" @oninput="args => TypeEditOrder = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-option" for="@TypeAcknowledgeId(type.Id)">
+                                        <input id="@TypeAcknowledgeId(type.Id)" class="epx-check" type="checkbox" checked="@TypeEditAcknowledge" disabled="@Busy" @onchange="args => TypeEditAcknowledge = args.Value is bool selected && selected" />
+                                        <span>Confirm the first expiration when removing stock</span>
+                                    </label>
+                                    <label class="epx-option" for="@TypePrintersId(type.Id)">
+                                        <input id="@TypePrintersId(type.Id)" class="epx-check" type="checkbox" checked="@TypeEditPrinters" disabled="@Busy" @onchange="args => TypeEditPrinters = args.Value is bool selected && selected" />
+                                        <span>Uses printer compatibility</span>
+                                    </label>
+                                </form>
+                            }
+                            else
+                            {
+                                @type.Name
+                                <span class="epx-config-detail">@TypeSummary(type)</span>
+                            }
+                        </td>
+                        <td>
+                            <input id="@TypeCheckId(type.Id)" class="epx-check" type="checkbox" checked="@type.Active" disabled="@Busy" aria-label="@($"Active {type.Name}")" aria-describedby="type-help" @onchange="args => SetTypeActiveAsync(type.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingTypeId == type.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@TypeFormId(type.Id)" title="Save" aria-label="@($"Save {type.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@TypeEditId(type.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {type.Name}")" disabled="@Busy" @onclick="() => BeginTypeEdit(type)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@TypeDeleteId(type.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {type.Name}")" disabled="@Busy" @onclick="() => DeleteTypeAsync(type.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+
+    <Panel Id="consumables" Kicker="Materials" Title="Consumables / Materials">
+        <p class="epx-helper-text" id="consumable-help">A new material is active and starts at quantity 0. Its type decides whether its stock has an expiration date. Thresholds are edited on its row. Printer compatibility is edited in Printers. Stock stays in Inventory. A material of an inactive type cannot be activated.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add consumable / material</h3>
+            <form class="epx-config-add" @onsubmit="AddConsumableAsync" @onsubmit:preventDefault>
+                <div class="epx-field">
+                    <label class="epx-label" for="consumable-category">Type</label>
+                    <select id="consumable-category" class="epx-select" value="@NewCategory" @onchange="OnCategoryChanged">
+                        <option value="">Select a type</option>
+                        @foreach (var type in ActiveTypes)
+                        {
+                            <option value="@type.Id.ToString(CultureInfo.InvariantCulture)">@type.Name</option>
+                        }
+                    </select>
+                </div>
+                <label class="epx-config-sr" for="consumable-name">Consumable / material name</label>
+                <input id="consumable-name" class="epx-input epx-config-add-name" placeholder="Consumable / material name" value="@NewConsumableName" @oninput="OnConsumableNameInput" />
+                <div class="epx-field">
+                    <label class="epx-label" for="consumable-code">Code</label>
+                    <input id="consumable-code" class="epx-input" value="@NewConsumableCode" @oninput="OnConsumableCodeInput" />
+                </div>
+                <div class="epx-field">
+                    <label class="epx-label" for="consumable-capacity">Capacity</label>
+                    <input id="consumable-capacity" class="epx-input" value="@NewConsumableCapacity" @oninput="OnConsumableCapacityInput" />
+                </div>
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(ConsumableError))
+        {
+            <p class="epx-field-error" role="alert">@ConsumableError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Consumables / Materials</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-search">
+                    <label class="epx-config-sr" for="consumable-search">Search consumables / materials</label>
+                    <svg class="epx-config-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
+                    <input id="consumable-search" class="epx-input" type="search" placeholder="Search consumables / materials..." autocomplete="off" value="@ConsumableSearch" @oninput="args => ConsumableSearch = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="epx-config-show">
+                    <label class="epx-label" for="consumable-show">Show:</label>
+                    <select id="consumable-show" class="epx-select" value="@ConsumableStatus" @onchange="args => ConsumableStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisibleConsumables.Count == 0)
+        {
+            <p class="epx-config-empty">No consumables / materials found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var consumable in VisibleConsumables)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingConsumableId == consumable.Id)
+                            {
+                                <form id="@ConsumableFormId(consumable.Id)" class="epx-config-edit" @onsubmit="() => SaveConsumableAsync(consumable.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@ConsumableCategoryId(consumable.Id)">Type</label>
+                                    <select id="@ConsumableCategoryId(consumable.Id)" class="epx-select" value="@ConsumableEditCategory" disabled="@Busy" @onchange="args => ConsumableEditCategory = args.Value?.ToString() ?? string.Empty">
+                                        @foreach (var type in View.ConsumableTypes.Where(type => type.Active || type.Id == consumable.ConsumableTypeId))
+                                        {
+                                            <option value="@type.Id.ToString(CultureInfo.InvariantCulture)">@type.Name</option>
+                                        }
+                                    </select>
+                                    <label class="epx-label" for="@ConsumableNameId(consumable.Id)">Name</label>
+                                    <input id="@ConsumableNameId(consumable.Id)" class="epx-input" value="@ConsumableEditName" disabled="@Busy" @oninput="args => ConsumableEditName = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@ConsumableCodeId(consumable.Id)">Code</label>
+                                    <input id="@ConsumableCodeId(consumable.Id)" class="epx-input" value="@ConsumableEditCode" disabled="@Busy" @oninput="args => ConsumableEditCode = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@ConsumableCapacityId(consumable.Id)">Capacity</label>
+                                    <input id="@ConsumableCapacityId(consumable.Id)" class="epx-input" value="@ConsumableEditCapacity" disabled="@Busy" @oninput="args => ConsumableEditCapacity = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@CriticalInputId(consumable.Id)">Critical</label>
+                                    <input id="@CriticalInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} critical threshold")" value="@ConsumableEditCritical" disabled="@Busy" @oninput="args => ConsumableEditCritical = args.Value?.ToString() ?? string.Empty" />
+                                    <label class="epx-label" for="@LowInputId(consumable.Id)">Low stock</label>
+                                    <input id="@LowInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} low-stock threshold")" value="@ConsumableEditLow" disabled="@Busy" @oninput="args => ConsumableEditLow = args.Value?.ToString() ?? string.Empty" />
+                                </form>
+                            }
+                            else
+                            {
+                                @ConsumableLabel(consumable)
+                                <span class="epx-config-detail">Critical @consumable.CriticalStockThreshold.ToString(CultureInfo.InvariantCulture). Low stock @consumable.LowStockThreshold.ToString(CultureInfo.InvariantCulture). @CompatibilitySummary(consumable)</span>
+                            }
+                        </td>
+                        <td>
+                            <input id="@ConsumableCheckId(consumable.Id)" class="epx-check" type="checkbox" checked="@consumable.Active" disabled="@Busy" aria-label="@($"Active {consumable.Name}")" aria-describedby="consumable-help" @onchange="args => SetConsumableActiveAsync(consumable.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingConsumableId == consumable.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@ConsumableFormId(consumable.Id)" title="Save" aria-label="@($"Save {consumable.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@ConsumableEditId(consumable.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {consumable.Name}")" disabled="@Busy" @onclick="() => BeginConsumableEdit(consumable)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@ConsumableDeleteId(consumable.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {consumable.Name}")" disabled="@Busy" @onclick="() => DeleteConsumableAsync(consumable.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+</section>

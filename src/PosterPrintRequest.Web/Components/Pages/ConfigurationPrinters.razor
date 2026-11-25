@@ -1,0 +1,165 @@
+@page "/technician/configuration/printers"
+@layout TechnicianLayout
+@attribute [Authorize(Policy = PosterAccess.OperatorPolicy)]
+@rendermode InteractiveServer
+@inherits ConfigurationWindow
+@using System.Globalization
+@using PosterPrintRequest.Web.Requests
+
+<PageTitle>Printers</PageTitle>
+<SessionGuard />
+
+@* Operator Configuration Presentation Contract v1, section 6. *@
+<section class="epx-blueignix-home" aria-label="Printers">
+    <PageHeader Kicker="Configuration" Title="Printers" Subtitle="Active values are available for new work. Inactive values stay on record until you ask to see them." />
+    <p class="epx-config-back"><a href="@ApplicationUris.BrowserPath(Navigation, "/technician/configuration")">Back to Configuration</a></p>
+
+    <Panel Id="printer-models" Kicker="Printer" Title="Printer models">
+        <p class="epx-helper-text" id="printer-help">Checked printer models can be selected.</p>
+        <div class="epx-config-add-block">
+            <h3 class="epx-config-heading">Add printer model</h3>
+            <form class="epx-config-add" @onsubmit="AddPrinterAsync" @onsubmit:preventDefault>
+                <label class="epx-config-sr" for="printer-value">Printer model name</label>
+                <input id="printer-value" class="epx-input epx-config-add-name" placeholder="Printer model name" value="@NewPrinter" @oninput="OnPrinterInput" />
+                <button class="epx-button epx-button-primary" type="submit" disabled="@Busy">Add</button>
+            </form>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(PrinterError))
+        {
+            <p class="epx-field-error" role="alert">@PrinterError</p>
+        }
+        <div class="epx-config-list-block">
+            <h3 class="epx-config-heading">Printer models</h3>
+            <div class="epx-config-filters">
+                <div class="epx-config-search">
+                    <label class="epx-config-sr" for="printer-search">Search printer models</label>
+                    <svg class="epx-config-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
+                    <input id="printer-search" class="epx-input" type="search" placeholder="Search printer models..." autocomplete="off" value="@PrinterSearch" @oninput="args => PrinterSearch = args.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="epx-config-show">
+                    <label class="epx-label" for="printer-show">Show:</label>
+                    <select id="printer-show" class="epx-select" value="@PrinterStatus" @onchange="args => PrinterStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                        <option>@ConfigurationPresentation.Active</option>
+                        <option>@ConfigurationPresentation.Inactive</option>
+                        <option>@ConfigurationPresentation.All</option>
+                    </select>
+                </div>
+            </div>
+        @if (VisiblePrinters.Count == 0)
+        {
+            <p class="epx-config-empty">No printer models found.</p>
+        }
+        else
+        {
+        <table class="epx-config-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var model in VisiblePrinters)
+                {
+                    <tr>
+                        <td>
+                            @if (EditingPrinterId == model.Id)
+                            {
+                                <form id="@PrinterFormId(model.Id)" class="epx-config-edit" @onsubmit="() => SavePrinterAsync(model.Id)" @onsubmit:preventDefault>
+                                    <label class="epx-label" for="@PrinterNameId(model.Id)">Name</label>
+                                    <input id="@PrinterNameId(model.Id)" class="epx-input" value="@PrinterEditName" disabled="@Busy" @oninput="OnPrinterEditInput" />
+                                </form>
+                            }
+                            else
+                            {
+                                @model.Name
+                            }
+                        </td>
+                        <td>
+                            <input id="@PrinterCheckId(model.Id)" class="epx-check" type="checkbox" checked="@model.Active" disabled="@Busy" aria-label="@($"Active {model.Name}")" aria-describedby="printer-help" @onchange="args => SetPrinterActiveAsync(model.Id, args)" />
+                        </td>
+                        <td>
+                            @if (EditingPrinterId == model.Id)
+                            {
+                                <button class="epx-icon-button" type="submit" form="@PrinterFormId(model.Id)" title="Save" aria-label="@($"Save {model.Name}")" disabled="@Busy">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@PrinterEditId(model.Id)" class="epx-icon-button" type="button" title="Edit" aria-label="@($"Edit {model.Name}")" disabled="@Busy" @onclick="() => BeginPrinterEdit(model)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.8-3.8L3 17.2zM20.7 7c.4-.4.4-1 0-1.4l-2.3-2.3c-.4-.4-1-.4-1.4 0l-1.8 1.8 3.8 3.8L20.7 7z" /></svg>
+                                </button>
+                            }
+                            <button id="@PrinterDeleteId(model.Id)" class="epx-icon-button epx-icon-button-danger" type="button" title="Delete" aria-label="@($"Delete {model.Name}")" disabled="@Busy" @onclick="() => DeletePrinterAsync(model.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 6h16v2H4V6z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    </Panel>
+
+    @* Section 6.2 to 6.4: compatibility is edited per printer model; Consumables Inventory Contract 4.3 applies unchanged. *@
+    <Panel Id="printer-compatibility" Kicker="Printer" Title="Printer compatibility">
+        <p class="epx-helper-text" id="compatibility-help">Choose a printer model, check the consumables it uses, and save. A consumable whose type does not use printer compatibility appears only while it is linked, and that link can only be removed.</p>
+        <div class="epx-config-filters">
+            <div class="epx-config-show">
+                <label class="epx-label" for="compatibility-printer">Printer model:</label>
+                <select id="compatibility-printer" class="epx-select" value="@CompatibilityPrinterValue" disabled="@Busy" @onchange="OnCompatibilityPrinterChanged">
+                    <option value="">Choose a printer model</option>
+                    @foreach (var printer in ActivePrinters)
+                    {
+                        <option value="@printer.Id.ToString(CultureInfo.InvariantCulture)">@printer.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="epx-config-show">
+                <label class="epx-label" for="compatibility-show">Show:</label>
+                <select id="compatibility-show" class="epx-select" value="@CompatibilityStatus" @onchange="args => CompatibilityStatus = args.Value?.ToString() ?? ConfigurationPresentation.Active">
+                    <option>@ConfigurationPresentation.Active</option>
+                    <option>@ConfigurationPresentation.Inactive</option>
+                    <option>@ConfigurationPresentation.All</option>
+                </select>
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(CompatibilityError))
+        {
+            <p class="epx-field-error" role="alert">@CompatibilityError</p>
+        }
+        @if (CompatibilityPrinter is null)
+        {
+            <p class="epx-config-empty">Choose a printer model to see its consumables.</p>
+        }
+        else if (CompatibilityGroups.Count == 0)
+        {
+            <p class="epx-config-empty">No consumables / materials found.</p>
+        }
+        else
+        {
+            <form id="compatibility-form" @onsubmit="SaveCompatibilityAsync" @onsubmit:preventDefault>
+                @foreach (var group in CompatibilityGroups)
+                {
+                    <fieldset class="epx-compatibility-group">
+                        <legend class="epx-config-heading">@group.Type.Name</legend>
+                        @foreach (var consumable in group.Consumables)
+                        {
+                            var linked = CompatibilitySelection.Contains(consumable.Id);
+                            <label class="epx-option" for="@CompatibilityCheckId(consumable.Id)">
+                                <input id="@CompatibilityCheckId(consumable.Id)" class="epx-check" type="checkbox" checked="@linked" disabled="@(Busy || (!consumable.UsesPrinterCompatibility && !linked))" aria-label="@($"Compatible with {CompatibilityPrinter.Name}: {consumable.Name}")" @onchange="args => ToggleCompatibility(consumable.Id, args)" />
+                                <span>@ConsumableLabel(consumable)</span>
+                            </label>
+                        }
+                    </fieldset>
+                }
+                <div class="epx-form-actions">
+                    <button id="compatibility-save" class="epx-button epx-button-primary" type="submit" disabled="@Busy">Save</button>
+                </div>
+            </form>
+        }
+    </Panel>
+</section>

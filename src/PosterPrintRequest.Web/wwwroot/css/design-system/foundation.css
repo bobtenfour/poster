@@ -1790,6 +1790,62 @@ a.epx-folder-name:focus-visible {
   border-color: var(--epx-blueignix-blue);
 }
 
+/* Operator Configuration Presentation Contract v1, section 4: three equal cards, one row from 768 px. */
+.epx-config-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .epx-config-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.epx-config-card {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-height: 7.5rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--epx-blueignix-border);
+  border-radius: var(--epx-blueignix-radius);
+  background: var(--epx-blueignix-panel);
+  color: var(--epx-blueignix-text);
+  text-decoration: none;
+}
+
+.epx-config-card:hover,
+.epx-config-card:focus-visible {
+  border-color: var(--epx-blueignix-border-strong);
+  background: var(--epx-blueignix-panel-strong);
+  color: var(--epx-blueignix-text);
+  text-decoration: none;
+}
+
+.epx-config-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.epx-config-card-detail {
+  color: var(--epx-blueignix-muted);
+  font-size: var(--epx-font-size-sm);
+}
+
+.epx-config-back {
+  margin: 0 0 1rem;
+}
+
+.epx-compatibility-group {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
 .epx-modal-backdrop {
   position: fixed;
   inset: 0;
