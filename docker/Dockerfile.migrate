@@ -1,6 +1,8 @@
 # DEMO ONLY - one-shot EF migration runner (published Web image has no dotnet-ef tooling)
+# Runs as the image's non-root app user (SonarQube S6471); restore and tools go to paths that user can read.
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /src
+ENV NUGET_PACKAGES=/opt/nuget/packages
 
 COPY PosterPrintRequest.sln ./
 COPY src/PosterPrintRequest.Domain/PosterPrintRequest.Domain.csproj src/PosterPrintRequest.Domain/
@@ -14,13 +16,16 @@ COPY src/PosterPrintRequest.Infrastructure/ src/PosterPrintRequest.Infrastructur
 COPY src/PosterPrintRequest.Web/ src/PosterPrintRequest.Web/
 RUN rm -f src/PosterPrintRequest.Web/appsettings.Local.json src/PosterPrintRequest.Web/appsettings.Production.json
 
-RUN dotnet tool install --global dotnet-ef --version 10.0.13
-ENV PATH="/root/.dotnet/tools:${PATH}"
+RUN dotnet tool install dotnet-ef --version 10.0.13 --tool-path /opt/dotnet-tools
+ENV PATH="/opt/dotnet-tools:${PATH}"
 
 ENV ASPNETCORE_ENVIRONMENT=Demo
 ENV SharedStorage__RootPath=/var/poster-print-request
 
 COPY docker/migrate-entrypoint.sh /migrate-entrypoint.sh
-RUN sed -i 's/\r$//' /migrate-entrypoint.sh && chmod +x /migrate-entrypoint.sh
+RUN sed -i 's/\r$//' /migrate-entrypoint.sh && chmod +x /migrate-entrypoint.sh \
+    && chown -R "$APP_UID" /src /opt/nuget
+
+USER $APP_UID
 
 ENTRYPOINT ["/migrate-entrypoint.sh"]

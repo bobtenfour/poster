@@ -97,7 +97,7 @@ public static class ValidationReportWriter
         WriteIndented = true
     };
 
-    private static readonly Regex BearerValue = new(@"Bearer\s+\S+", RegexOptions.CultureInvariant);
+    private static readonly Regex BearerValue = new(@"Bearer\s+\S+", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     public static string Write(
         string reportsDirectory,

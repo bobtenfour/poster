@@ -9,7 +9,8 @@ public static class PosterIds
 
     private static readonly Regex Pattern = new(
         @"^POSTER-(\d{4})-(\d{6})$",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1));
 
     public static bool IsPublic(string? value) => TryParse(value, out _, out _);
 
