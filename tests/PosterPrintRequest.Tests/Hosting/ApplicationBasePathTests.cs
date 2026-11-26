@@ -113,8 +113,9 @@ public sealed class ApplicationBasePathTests
 
     private static void AssertStylesheets(string html)
     {
-        var tokens = html.IndexOf("href=\"css/design-system/tokens.css\"", StringComparison.Ordinal);
-        var foundation = html.IndexOf("href=\"css/design-system/foundation.css\"", StringComparison.Ordinal);
+        // Owner UI change of 26 November 2026: each stylesheet link carries a content version.
+        var tokens = html.IndexOf("href=\"css/design-system/tokens.css?v=", StringComparison.Ordinal);
+        var foundation = html.IndexOf("href=\"css/design-system/foundation.css?v=", StringComparison.Ordinal);
         Assert.True(tokens >= 0 && foundation > tokens);
         Assert.DoesNotContain("PosterPrintRequest.Web.styles.css", html, StringComparison.Ordinal);
         Assert.DoesNotContain(".razor.css", html, StringComparison.Ordinal);

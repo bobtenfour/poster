@@ -1,4 +1,6 @@
 ﻿@inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
+@using PosterPrintRequest.Web.Requests
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="@Navigation.BaseUri" />
-    <link rel="stylesheet" href="css/design-system/tokens.css" />
-    <link rel="stylesheet" href="css/design-system/foundation.css" />
+    <link rel="stylesheet" href="@StaticAssetVersion.Href(Environment.WebRootFileProvider, "css/design-system/tokens.css")" />
+    <link rel="stylesheet" href="@StaticAssetVersion.Href(Environment.WebRootFileProvider, "css/design-system/foundation.css")" />
     <HeadOutlet />
 </head>
 
