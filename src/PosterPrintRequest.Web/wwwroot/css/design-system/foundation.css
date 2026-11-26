@@ -825,6 +825,31 @@
   width: min(12rem, 100%);
 }
 
+/* Owner UI change of 26 November 2026: each label stays with its field in the consumable edit form. */
+.epx-config-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  min-width: min(44rem, 70vw);
+}
+
+.epx-config-field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.epx-config-edit-fields .epx-input,
+.epx-config-edit-fields .epx-select {
+  width: 100%;
+}
+
+.epx-config-save {
+  min-height: 2rem;
+  padding: 0.3rem 0.9rem;
+}
+
 .epx-config-edit .epx-option,
 .epx-config-add .epx-option {
   width: auto;

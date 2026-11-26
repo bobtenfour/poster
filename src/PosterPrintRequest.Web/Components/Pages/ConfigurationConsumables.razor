@@ -208,24 +208,36 @@
                         <td>
                             @if (EditingConsumableId == consumable.Id)
                             {
-                                <form id="@ConsumableFormId(consumable.Id)" class="epx-config-edit" @onsubmit="() => SaveConsumableAsync(consumable.Id)" @onsubmit:preventDefault>
-                                    <label class="epx-label" for="@ConsumableCategoryId(consumable.Id)">Type</label>
-                                    <select id="@ConsumableCategoryId(consumable.Id)" class="epx-select" value="@ConsumableEditCategory" disabled="@Busy" @onchange="args => ConsumableEditCategory = args.Value?.ToString() ?? string.Empty">
-                                        @foreach (var type in View.ConsumableTypes.Where(type => type.Active || type.Id == consumable.ConsumableTypeId))
-                                        {
-                                            <option value="@type.Id.ToString(CultureInfo.InvariantCulture)">@type.Name</option>
-                                        }
-                                    </select>
-                                    <label class="epx-label" for="@ConsumableNameId(consumable.Id)">Name</label>
-                                    <input id="@ConsumableNameId(consumable.Id)" class="epx-input" value="@ConsumableEditName" disabled="@Busy" @oninput="args => ConsumableEditName = args.Value?.ToString() ?? string.Empty" />
-                                    <label class="epx-label" for="@ConsumableCodeId(consumable.Id)">Code</label>
-                                    <input id="@ConsumableCodeId(consumable.Id)" class="epx-input" value="@ConsumableEditCode" disabled="@Busy" @oninput="args => ConsumableEditCode = args.Value?.ToString() ?? string.Empty" />
-                                    <label class="epx-label" for="@ConsumableCapacityId(consumable.Id)">Capacity</label>
-                                    <input id="@ConsumableCapacityId(consumable.Id)" class="epx-input" value="@ConsumableEditCapacity" disabled="@Busy" @oninput="args => ConsumableEditCapacity = args.Value?.ToString() ?? string.Empty" />
-                                    <label class="epx-label" for="@CriticalInputId(consumable.Id)">Critical</label>
-                                    <input id="@CriticalInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} critical threshold")" value="@ConsumableEditCritical" disabled="@Busy" @oninput="args => ConsumableEditCritical = args.Value?.ToString() ?? string.Empty" />
-                                    <label class="epx-label" for="@LowInputId(consumable.Id)">Low stock</label>
-                                    <input id="@LowInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} low-stock threshold")" value="@ConsumableEditLow" disabled="@Busy" @oninput="args => ConsumableEditLow = args.Value?.ToString() ?? string.Empty" />
+                                <form id="@ConsumableFormId(consumable.Id)" class="epx-config-edit epx-config-edit-fields" @onsubmit="() => SaveConsumableAsync(consumable.Id)" @onsubmit:preventDefault>
+                                    <div class="epx-config-field">
+                                        <label class="epx-label" for="@ConsumableCategoryId(consumable.Id)">Type</label>
+                                        <select id="@ConsumableCategoryId(consumable.Id)" class="epx-select" value="@ConsumableEditCategory" disabled="@Busy" @onchange="args => ConsumableEditCategory = args.Value?.ToString() ?? string.Empty">
+                                            @foreach (var type in View.ConsumableTypes.Where(type => type.Active || type.Id == consumable.ConsumableTypeId))
+                                            {
+                                                <option value="@type.Id.ToString(CultureInfo.InvariantCulture)">@type.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="epx-config-field">
+                                        <label class="epx-label" for="@ConsumableNameId(consumable.Id)">Name</label>
+                                        <input id="@ConsumableNameId(consumable.Id)" class="epx-input" value="@ConsumableEditName" disabled="@Busy" @oninput="args => ConsumableEditName = args.Value?.ToString() ?? string.Empty" />
+                                    </div>
+                                    <div class="epx-config-field">
+                                        <label class="epx-label" for="@ConsumableCodeId(consumable.Id)">Code</label>
+                                        <input id="@ConsumableCodeId(consumable.Id)" class="epx-input" value="@ConsumableEditCode" disabled="@Busy" @oninput="args => ConsumableEditCode = args.Value?.ToString() ?? string.Empty" />
+                                    </div>
+                                    <div class="epx-config-field">
+                                        <label class="epx-label" for="@ConsumableCapacityId(consumable.Id)">Capacity</label>
+                                        <input id="@ConsumableCapacityId(consumable.Id)" class="epx-input" value="@ConsumableEditCapacity" disabled="@Busy" @oninput="args => ConsumableEditCapacity = args.Value?.ToString() ?? string.Empty" />
+                                    </div>
+                                    <div class="epx-config-field">
+                                        <label class="epx-label" for="@CriticalInputId(consumable.Id)">Critical</label>
+                                        <input id="@CriticalInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} critical threshold")" value="@ConsumableEditCritical" disabled="@Busy" @oninput="args => ConsumableEditCritical = args.Value?.ToString() ?? string.Empty" />
+                                    </div>
+                                    <div class="epx-config-field">
+                                        <label class="epx-label" for="@LowInputId(consumable.Id)">Low stock</label>
+                                        <input id="@LowInputId(consumable.Id)" class="epx-input" inputmode="numeric" aria-label="@($"{consumable.Name} low-stock threshold")" value="@ConsumableEditLow" disabled="@Busy" @oninput="args => ConsumableEditLow = args.Value?.ToString() ?? string.Empty" />
+                                    </div>
                                 </form>
                             }
                             else
@@ -240,9 +252,7 @@
                         <td>
                             @if (EditingConsumableId == consumable.Id)
                             {
-                                <button class="epx-icon-button" type="submit" form="@ConsumableFormId(consumable.Id)" title="Save" aria-label="@($"Save {consumable.Name}")" disabled="@Busy">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
-                                </button>
+                                <button class="epx-button epx-button-primary epx-config-save" type="submit" form="@ConsumableFormId(consumable.Id)" aria-label="@($"Save {consumable.Name}")" disabled="@Busy">Save</button>
                             }
                             else
                             {
