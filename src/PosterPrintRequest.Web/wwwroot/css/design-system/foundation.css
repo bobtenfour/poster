@@ -2395,18 +2395,116 @@ a.epx-supply-tile:hover {
   margin: 0.75rem 0 0;
 }
 
-/* Printer Monitoring Contract amendment of 25 November 2026: printhead status under the cartridges. */
-.epx-printheads {
+/* Printer Monitoring Contract section 12: cartridge status reported by the printer and one card per printhead. */
+.epx-ink-warning {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--epx-space-sm) var(--epx-space-md);
-  margin: var(--epx-space-sm) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.875rem;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--epx-color-status-warning);
+  border-radius: 0.6rem;
+  background: var(--epx-color-status-warning-surface);
+  color: var(--epx-color-status-warning);
+  font-weight: 700;
 }
 
+.epx-ink-warning svg {
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: currentColor;
+}
+
+.epx-ink-cartridge.epx-ink-attention {
+  border-color: var(--epx-color-status-warning);
+  background: var(--epx-color-status-warning-surface);
+}
+
+.epx-ink-status {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--epx-color-status-warning);
+  color: #1d1400;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.epx-printheads-title {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.epx-printheads {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.epx-printhead {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(137, 170, 210, 0.16);
+  border-radius: 0.75rem;
+  background: rgba(4, 12, 24, 0.38);
+}
+
+.epx-printhead-svg {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2rem;
+}
+
+.epx-printhead-body {
+  fill: rgba(186, 214, 245, 0.1);
+  stroke: rgba(186, 214, 245, 0.42);
+  stroke-width: 1.4;
+}
+
+.epx-printhead-nozzle { fill: rgba(186, 214, 245, 0.42); }
+.epx-printhead-nozzle[data-ink="Gray"] { fill: #9aa1ab; }
+.epx-printhead-nozzle[data-ink="Photo black"] { fill: #3e4654; }
+.epx-printhead-nozzle[data-ink="Matte black"] { fill: #121314; stroke: rgba(196, 168, 142, 0.38); }
+.epx-printhead-nozzle[data-ink="Yellow"] { fill: #f0d000; }
+.epx-printhead-nozzle[data-ink="Magenta"] { fill: #c40078; }
+.epx-printhead-nozzle[data-ink="Cyan"] { fill: #00a3d4; }
+
 .epx-printhead-name {
-  font-weight: 600;
-  margin-right: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.epx-printhead-status {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--epx-color-status-success-surface);
+  color: var(--epx-color-status-success);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.epx-printhead.epx-printhead-attention {
+  border-color: var(--epx-color-status-danger);
+  background: var(--epx-color-status-danger-surface);
+}
+
+.epx-printhead.epx-printhead-attention .epx-printhead-status {
+  background: var(--epx-color-status-danger);
+  color: #fff;
+}
+
+@media (max-width: 800px) {
+  .epx-printheads {
+    grid-template-columns: 1fr;
+  }
 }

@@ -172,6 +172,29 @@ public partial class Technician : ComponentBase
 
     private string SearchKicker => PosterSearchModes.All.Single(option => option.Value == SearchMode).Label;
 
+    /// <summary>
+    /// Printer Monitoring Contract section 12.3: names the cartridges the printer reports as needing attention, or null
+    /// when none does. "Low" is shown as low ink; any other status is shown as the printer describes it.
+    /// </summary>
+    internal static string? InkWarning(IReadOnlyList<PrinterCartridge> cartridges)
+    {
+        var attention = cartridges.Where(cartridge => cartridge.NeedsAttention).ToList();
+        if (attention.Count == 0)
+        {
+            return null;
+        }
+
+        var low = attention.Where(cartridge => string.Equals(cartridge.Status, "Low", StringComparison.OrdinalIgnoreCase)).ToList();
+        var parts = new List<string>();
+        if (low.Count > 0)
+        {
+            parts.Add("Low ink: " + string.Join(", ", low.Select(cartridge => cartridge.Name)) + ".");
+        }
+
+        parts.AddRange(attention.Except(low).Select(cartridge => cartridge.Name + ": " + (cartridge.Status ?? "check the printer") + "."));
+        return string.Join(" ", parts);
+    }
+
     private static string StageClass(string status) => "epx-stage epx-stage-" + status.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant();
 
     private static ConsumableAttention EmptyAttention() => new()

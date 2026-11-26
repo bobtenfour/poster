@@ -4,7 +4,17 @@ using Microsoft.Extensions.Configuration;
 
 namespace PosterPrintRequest.Web.Requests;
 
-public sealed record PrinterCartridge(string Name, int Percent);
+public sealed record PrinterCartridge(string Name, int Percent)
+{
+    /// <summary>
+    /// Status description reported by the printer for this cartridge (Printer Monitoring Contract section 12);
+    /// null when the printer reports none.
+    /// </summary>
+    public string? Status { get; init; }
+
+    /// <summary>True when the printer reports a status other than OK for this cartridge (section 12.2).</summary>
+    public bool NeedsAttention { get; init; }
+}
 
 public sealed class PrinterReading
 {

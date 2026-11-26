@@ -4,7 +4,11 @@ using System.Xml.Linq;
 
 namespace PosterPrintRequest.Web.Requests;
 
-public sealed record PrinterPrinthead(string Name, string Status, string? Health);
+public sealed record PrinterPrinthead(string Name, string Status, string? Health)
+{
+    /// <summary>True when the printer reports a status other than OK for this printhead (section 12.4).</summary>
+    public bool NeedsAttention { get; init; }
+}
 
 public sealed record PrinterStatus(IReadOnlyList<PrinterCartridge> Cartridges, IReadOnlyList<PrinterPrinthead> Printheads);
 
@@ -59,7 +63,7 @@ public static class PrinterStatusDocument
 
     private static IReadOnlyList<PrinterCartridge>? ReadCartridges(XDocument document)
     {
-        var found = new Dictionary<string, int>(StringComparer.Ordinal);
+        var found = new Dictionary<string, PrinterCartridge>(StringComparer.Ordinal);
         foreach (var cartridge in Elements(document, "Cartridge").Where(element => element.Parent?.Name.LocalName == "Cartridges"))
         {
             var name = ColorName(cartridge);
@@ -68,7 +72,7 @@ public static class PrinterStatusDocument
                 || capacity <= 0
                 || !TryNumber(Child(cartridge, "Ink_Consumed"), out var remaining)
                 || remaining < 0
-                || !found.TryAdd(name, (int)Math.Round(Math.Min(remaining, capacity) * 100m / capacity, MidpointRounding.AwayFromZero)))
+                || !found.TryAdd(name, Cartridge(cartridge, name, remaining, capacity)))
             {
                 return null;
             }
@@ -79,8 +83,47 @@ public static class PrinterStatusDocument
             return null;
         }
 
-        return Colors.Select(color => new PrinterCartridge(color.Name, found[color.Name])).ToArray();
+        return Colors.Select(color => found[color.Name]).ToArray();
     }
+
+    private static PrinterCartridge Cartridge(XElement cartridge, string name, decimal remaining, decimal capacity)
+    {
+        var (status, attention) = ReadStatus(cartridge);
+        return new PrinterCartridge(name, (int)Math.Round(Math.Min(remaining, capacity) * 100m / capacity, MidpointRounding.AwayFromZero))
+        {
+            Status = status,
+            NeedsAttention = attention
+        };
+    }
+
+    /// <summary>
+    /// Section 12.2: the Status element of a cartridge or printhead. Attention when its Id is present and not 0, or,
+    /// without Id, when its Description is present and not OK. A missing Status element means no attention.
+    /// </summary>
+    private static (string? Description, bool Attention) ReadStatus(XElement parent)
+    {
+        var status = parent.Elements().FirstOrDefault(element => element.Name.LocalName == "Status");
+        if (status is null)
+        {
+            return (null, false);
+        }
+
+        var description = Child(status, "Description") ?? (status.HasElements ? null : Trimmed(status.Value));
+        var id = Child(status, "Id");
+        if (id is null && !status.HasElements && int.TryParse(description, NumberStyles.None, CultureInfo.InvariantCulture, out _))
+        {
+            // A bare number such as <Status>0</Status> is a status Id without a description.
+            id = description;
+            description = null;
+        }
+
+        var attention = id is not null
+            ? id != "0"
+            : description is not null && !string.Equals(description, "OK", StringComparison.OrdinalIgnoreCase);
+        return (description, attention);
+    }
+
+    private static string? Trimmed(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static IReadOnlyList<PrinterPrinthead> ReadPrintheads(XDocument document) =>
         Elements(document, "Printhead")
@@ -88,9 +131,8 @@ public static class PrinterStatusDocument
             .Select(printhead =>
             {
                 var name = Attribute(printhead, "Color") ?? Attribute(printhead, "Id") ?? "Printhead";
-                var status = printhead.Elements().FirstOrDefault(element => element.Name.LocalName == "Status");
-                var description = status is null ? null : Child(status, "Description") ?? (status.HasElements ? null : status.Value.Trim());
-                return new PrinterPrinthead(name, string.IsNullOrWhiteSpace(description) ? "Unknown" : description, Child(printhead, "Health"));
+                var (description, attention) = ReadStatus(printhead);
+                return new PrinterPrinthead(name, description ?? "Unknown", Child(printhead, "Health")) { NeedsAttention = attention };
             })
             .ToArray();
 

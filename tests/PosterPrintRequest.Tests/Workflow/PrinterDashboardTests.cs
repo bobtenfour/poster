@@ -158,6 +158,34 @@ public sealed class PrinterDashboardTests : BunitContext
         AssertCartridge(cut, "Cyan", 70);
         Assert.NotEmpty(cut.FindAll("[data-ink='Photo black'] .epx-ink-sheen"));
         Assert.Empty(cut.FindAll("[data-ink='Matte black'] .epx-ink-sheen"));
+        Assert.Empty(cut.FindAll("#printer-ink-warning"));
+        Assert.Empty(cut.FindAll(".epx-ink-attention"));
+    }
+
+    /// <summary>Printer Monitoring Contract sections 12.3 and 12.4 with the owner's capture: Gray is Low.</summary>
+    [Fact]
+    public void The_dashboard_warns_about_the_cartridges_the_printer_reports_and_shows_one_card_per_printhead()
+    {
+        var capture = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), "tests", "PosterPrintRequest.Tests", "Fixtures", "open_status.xml"));
+        var status = PrinterStatusDocument.Parse(capture);
+        Assert.NotNull(status);
+        Services.AddSingleton(Supplies("http://printer.example/plotter/", new RecordingHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Fixture) }))));
+        var cut = Render<Technician>();
+        typeof(Technician).GetProperty("InkProbe", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(cut.Instance, PrinterInkProbe.Reading.Empty with { Cartridges = status.Cartridges, Printheads = status.Printheads });
+        cut.Render();
+
+        Assert.Equal("Low ink: Gray.", cut.Find("#printer-ink-warning").TextContent.Trim());
+        var marked = cut.FindAll(".epx-ink-attention");
+        Assert.Single(marked);
+        Assert.Equal("Gray", marked[0].GetAttribute("data-ink"));
+        Assert.Equal("Low", marked[0].QuerySelector(".epx-ink-status")!.TextContent);
+        var cards = cut.FindAll("#printer-printheads .epx-printhead");
+        Assert.Equal(["Gray / Photo black", "Matte black / Yellow", "Magenta / Cyan"], cards.Select(card => card.QuerySelector(".epx-printhead-name")!.TextContent));
+        Assert.All(cards, card => Assert.Equal("OK", card.QuerySelector(".epx-printhead-status")!.TextContent));
+        Assert.Empty(cut.FindAll(".epx-printhead-attention"));
+        Assert.Equal("Printheads", cut.Find("#printer-printheads-title").TextContent);
     }
 
     [Fact]

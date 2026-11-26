@@ -101,6 +101,14 @@
             </div>
             @if (InkProbe.Cartridges.Count == 6)
             {
+                @if (InkWarning(InkProbe.Cartridges) is { } inkWarning)
+                {
+                    @* Printer Monitoring Contract section 12.3: the status reported by the printer itself. *@
+                    <p class="epx-ink-warning" id="printer-ink-warning" role="status">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1.5 21h21L12 3zm0 5.5 6.6 11H5.4L12 8.5zM11 11v4.5h2V11h-2zm0 6v2h2v-2h-2z" /></svg>
+                        <span>@inkWarning</span>
+                    </p>
+                }
                 <ul class="epx-ink-list">
                     @for (var index = 0; index < InkProbe.Cartridges.Count; index++)
                     {
@@ -108,7 +116,7 @@
                         var percent = cartridge.Percent.ToString(CultureInfo.InvariantCulture);
                         var fillHeight = (58d * cartridge.Percent / 100d).ToString("0.##", CultureInfo.InvariantCulture);
                         var fillY = (100d - 58d * cartridge.Percent / 100d).ToString("0.##", CultureInfo.InvariantCulture);
-                        <li class="epx-ink-cartridge" data-ink="@cartridge.Name" data-level="@percent">
+                        <li class="@(cartridge.NeedsAttention ? "epx-ink-cartridge epx-ink-attention" : "epx-ink-cartridge")" data-ink="@cartridge.Name" data-level="@percent" data-status="@cartridge.Status">
                             <svg class="epx-ink-svg" viewBox="0 0 72 128" aria-hidden="true">
                                 <defs>
                                     <clipPath id="epx-ink-well-@index">
@@ -132,17 +140,28 @@
                             </svg>
                             <span class="epx-ink-percent">@percent%</span>
                             <span class="epx-ink-name">@cartridge.Name</span>
+                            @if (cartridge.NeedsAttention)
+                            {
+                                <span class="epx-ink-status">@(cartridge.Status ?? "Check")</span>
+                            }
                         </li>
                     }
                 </ul>
                 @if (InkProbe.Printheads.Count > 0)
                 {
-                    @* Printer Monitoring Contract amendment of 25 November 2026: printheads from open_status.xml. *@
-                    <ul class="epx-printheads" id="printer-printheads" aria-label="Printheads">
+                    @* Printer Monitoring Contract sections 11.3 and 12.4: one card per printhead with its status. *@
+                    <h4 class="epx-printheads-title" id="printer-printheads-title">Printheads</h4>
+                    <ul class="epx-printheads" id="printer-printheads" aria-labelledby="printer-printheads-title">
                         @foreach (var printhead in InkProbe.Printheads)
                         {
-                            <li class="epx-printhead" data-printhead="@printhead.Name" data-health="@printhead.Health">
-                                <span class="epx-printhead-name">Printhead @printhead.Name</span>
+                            var colors = printhead.Name.Split('-', 2, StringSplitOptions.TrimEntries);
+                            <li class="@(printhead.NeedsAttention ? "epx-printhead epx-printhead-attention" : "epx-printhead")" data-printhead="@printhead.Name" data-health="@printhead.Health">
+                                <svg class="epx-printhead-svg" viewBox="0 0 40 32" aria-hidden="true">
+                                    <rect class="epx-printhead-body" x="2" y="2" width="36" height="20" rx="3" />
+                                    <rect class="epx-printhead-nozzle" data-ink="@colors[0]" x="7" y="22" width="11" height="8" rx="1" />
+                                    <rect class="epx-printhead-nozzle" data-ink="@(colors.Length > 1 ? colors[1] : colors[0])" x="22" y="22" width="11" height="8" rx="1" />
+                                </svg>
+                                <span class="epx-printhead-name">@string.Join(" / ", colors)</span>
                                 <span class="epx-printhead-status">@printhead.Status</span>
                             </li>
                         }
