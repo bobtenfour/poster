@@ -62,7 +62,7 @@ public sealed class TdxClient : ITdxSession
             Content = new StringContent(payload, Encoding.UTF8, "application/json")
         };
 
-        using var response = await SendAsync(request, "authenticate", includePayload: false, cancellationToken);
+        using var response = await SendAsync(request, "authenticate", payload: null, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var media = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
         if (response.StatusCode != HttpStatusCode.OK)
@@ -278,7 +278,7 @@ public sealed class TdxClient : ITdxSession
         Authorize(request);
         try
         {
-            using var response = await SendAsync(request, "people", includePayload: false, cancellationToken);
+            using var response = await SendAsync(request, "people", payload: null, cancellationToken);
             var status = (int)response.StatusCode;
             if (response.StatusCode != HttpStatusCode.OK)
                 return new PeopleSearchResult { Succeeded = false, HttpStatus = status };
@@ -450,7 +450,7 @@ public sealed class TdxClient : ITdxSession
         };
         Authorize(request);
 
-        using var response = await SendAsync(request, "create", includePayload: true, cancellationToken);
+        using var response = await SendAsync(request, "create", payload, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var status = (int)response.StatusCode;
         var evidence = Evidence("create", "POST", Relative(request.RequestUri!), payload, status, Scrub(body), null, null);
@@ -494,7 +494,7 @@ public sealed class TdxClient : ITdxSession
                 Content = new StringContent(payload, Encoding.UTF8, "application/json")
             };
             Authorize(request);
-            using var response = await SendAsync(request, "lookup", includePayload: true, cancellationToken);
+            using var response = await SendAsync(request, "lookup", payload, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var status = (int)response.StatusCode;
             if (response.StatusCode != HttpStatusCode.OK)
@@ -573,7 +573,7 @@ public sealed class TdxClient : ITdxSession
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, TdxAddresses.Combine(_base, relative));
             Authorize(request);
-            using var response = await SendAsync(request, "read", includePayload: false, cancellationToken);
+            using var response = await SendAsync(request, "read", payload: null, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var status = (int)response.StatusCode;
             int? observed = null;
@@ -592,7 +592,7 @@ public sealed class TdxClient : ITdxSession
     private async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         string operation,
-        bool includePayload,
+        string? payload,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request.RequestUri);
@@ -602,7 +602,7 @@ public sealed class TdxClient : ITdxSession
         if (status is >= 300 and < 400)
         {
             response.Dispose();
-            throw new RedirectRefusedException(Evidence(operation, request.Method.Method, Relative(request.RequestUri), includePayload ? null : null, status, null, null, "A redirect response was refused and was not followed."));
+            throw new RedirectRefusedException(Evidence(operation, request.Method.Method, Relative(request.RequestUri), payload, status, null, null, "A redirect response was refused and was not followed."));
         }
 
         return response;

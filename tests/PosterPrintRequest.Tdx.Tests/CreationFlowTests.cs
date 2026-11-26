@@ -327,6 +327,40 @@ public class CreationFlowTests
         Assert.Contains(result.Operations, operation => operation.HttpStatus == (int)status);
     }
 
+    /// <summary>
+    /// TDX Validation Tool Contract section 11: a refused redirect on creation or lookup still records the relevant
+    /// request payload (SonarQube S3923 finding #1: the payload was always null).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_refused_redirect_records_the_request_payload(bool onLookup)
+    {
+        var posterId = Sample.PosterId;
+        using var handler = Sample.Handler(call =>
+        {
+            var isSearch = call.Uri.AbsolutePath.EndsWith("/search", StringComparison.Ordinal);
+            if (call.Method == HttpMethod.Get)
+                return RecordingHandler.Json(HttpStatusCode.OK, "{\"ID\":42}");
+            if (isSearch && !onLookup)
+                return RecordingHandler.Json(HttpStatusCode.OK, "[]");
+
+            var redirect = RecordingHandler.Plain(HttpStatusCode.Redirect, string.Empty);
+            redirect.Headers.Location = new Uri("https://other.example/away");
+            return redirect;
+        });
+        using var client = Sample.Client(handler, attempts: 1);
+        await client.AuthenticateAsync("fake-user", "fake-password", CancellationToken.None);
+
+        var result = await client.CreateIfAbsentAsync(posterId, CancellationToken.None);
+
+        var refused = Assert.Single(result.Operations, operation => operation.HttpStatus == (int)HttpStatusCode.Redirect);
+        Assert.NotNull(refused.RequestPayload);
+        Assert.Contains(posterId, refused.RequestPayload, StringComparison.Ordinal);
+        Assert.Equal(onLookup ? "lookup" : "create", refused.Operation);
+        Assert.DoesNotContain(handler.Calls, call => call.Uri.Host == "other.example");
+    }
+
     private static async Task AssertAuthForm(HttpResponseMessage authResponse, AuthResponseForm expected, string token)
     {
         using var handler = new RecordingHandler((call, _) =>
