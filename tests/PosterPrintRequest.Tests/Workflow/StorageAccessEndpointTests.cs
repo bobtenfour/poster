@@ -40,7 +40,7 @@ public sealed class StorageAccessEndpointTests : IDisposable
     [Fact]
     public async Task A_download_returns_the_stream_opened_by_the_service_and_does_not_reopen_by_path()
     {
-        const string relative = "virtual-area/Poster.pdf";
+        const string relative = "virtual-area/download-under-test.pdf";
         var bytes = "bytes-served-by-the-service"u8.ToArray();
         var access = new VirtualAccess(relative, bytes);
         using var factory = new ConfiguredPosterFactory(_database.ConnectionString, _root)
@@ -54,14 +54,14 @@ public sealed class StorageAccessEndpointTests : IDisposable
         response.EnsureSuccessStatusCode();
         Assert.Equal(bytes, await response.Content.ReadAsByteArrayAsync());
         Assert.Equal(1, access.OpenReadCalls);
-        Assert.False(File.Exists(Path.Combine(_root, "virtual-area", "Poster.pdf")));
+        Assert.False(File.Exists(Path.Combine(_root, "virtual-area", "download-under-test.pdf")));
         Assert.Contains("bytes", response.Headers.AcceptRanges);
     }
 
     [Fact]
     public async Task A_storage_failure_on_download_reveals_no_storage_detail()
     {
-        const string relative = "virtual-area/Poster.pdf";
+        const string relative = "virtual-area/download-under-test.pdf";
         var access = new VirtualAccess(relative, [1]) { FailOpen = true };
         using var factory = new ConfiguredPosterFactory(_database.ConnectionString, _root)
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
